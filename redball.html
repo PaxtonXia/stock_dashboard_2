@@ -1,0 +1,1259 @@
+﻿<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+		<title>大单分时</title>
+		<link href="css/redball.css" rel="stylesheet" type="text/css" />
+		<style type="text/css">
+			p {margin:0px;}
+			#box{
+				display:inline-block;
+				margin:0px 5px 0px 80px;
+				border-box:50%;
+				width:10px;
+				height:10px;
+			}
+			.fixedBox{
+				border: 1px solid #555555;
+				
+			}
+			.fixedBox::-webkit-scrollbar {
+				width: 10px;
+				height: 10px;
+			}
+      .tabs {
+        padding-top: 6px;
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      
+      .tabs span {
+        cursor: pointer;
+        padding: 5px 7px;
+        margin-right: 10px;
+        background-color: #222222;
+        color: #e0e0e0;
+        border-radius: 4px;
+        transition: background-color 0.3s;
+      }
+      .filter-dropdown {
+        height: 24px;
+      }
+      .tabs span:hover,
+      .tabs .active {
+        background-color: #800000;
+      }
+      #tempTitle {
+        margin-bottom: 0;
+      }
+	.custom-button {
+		display: inline-flex; /* 设置为内联弹性盒模型 */
+		justify-content: center; /* 水平居中 */
+		align-items: center; /* 垂直居中 */
+		padding: 3px; /* 根据需要调整内边距 */
+		margin-right: 30px;
+		margin-top: 20px;
+		/* 其他样式，如背景色、边框等 */
+	}
+	
+	.custom-button img {
+		/* 调整图片大小或样式 */
+		height: 16px; /* 示例值，根据实际需要调整 */
+		width: auto; /* 保持图片原始宽高比 */
+		vertical-align: middle; /* 对于非flexbox布局，可能需要此属性 */
+	}
+  .trade-records {
+    width: 280px;
+    margin-right: 15px;
+    border: 2px solid #444;
+    border-radius: 6px;
+    background-color: #1a1a1a;
+    color: #f0f0f0;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+  .trade-records table {
+    width: 100%;
+    border-collapse: collapse;
+    display: flex; /* 使表格本身成为flex容器 */
+    flex-direction: column; /* 垂直排列thead和tbody */
+    height: 100%; /* 填充tradeRecords的高度 */
+    table-layout: fixed; /* 固定列宽 */
+  }
+  .trade-records thead {
+    /* 表头固定 */
+    flex-shrink: 0; /* 防止表头缩小 */
+  }
+  .trade-records tbody {
+    display: block; /* 使 tbody 成为块级元素以便设置高度和滚动条 */
+    flex-grow: 1; /* 让 tbody 填充剩余空间 */
+    overflow-y: auto; /* 启用垂直滚动条 */
+  }
+  .trade-records th, .trade-records td {
+    padding: 6px 4px;
+    text-align: center;
+    border-bottom: 1px solid #444;
+  }
+  .trade-records th {
+    background-color: #2a2a2a;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+  }
+  /* tbody tr display: table; might interfere with flex in tbody */
+  /* .trade-records tbody tr {
+    display: table;
+    width: 100%;
+    table-layout: fixed;
+  } */
+
+  /* 调整th和td的宽度以保持对齐 */
+  .trade-records th:nth-child(1), .trade-records tbody td:nth-child(1) {
+    width: 25%; /* 示例宽度，根据实际内容调整 */
+  }
+  .trade-records th:nth-child(2), .trade-records tbody td:nth-child(2) {
+    width: 25%; /* 示例宽度 */
+  }
+  .trade-records th:nth-child(3), .trade-records tbody td:nth-child(3) {
+    width: 25%; /* 示例宽度 */
+  }
+  .trade-records th:nth-child(4), .trade-records tbody td:nth-child(4) {
+    width: 25%; /* 示例宽度 */
+  }
+  
+  /* 为不同的交易类型设置颜色 */
+  .trade-records tbody tr.main-buy td {
+    color: #ff4444; /* 深红色 */
+  }
+  .trade-records tbody tr.main-sell td {
+    color: #00aa00; /* 深绿色 */
+  }
+  .trade-records tbody tr.passive-buy td {
+    color: #ff9999; /* 浅红色 */
+  }
+  .trade-records tbody tr.passive-sell td {
+    color: #44ff44; /* 浅绿色 */
+  }
+
+  /* 移除chart元素的float样式，flex容器会自动处理布局 */
+  #chart {
+    float: none !important;
+    /* 添加 flex: 1; 这里由内联样式控制 */
+    /* 移除 width: calc(...); 这里由内联样式控制 */
+  }
+		</style>
+		<script type="text/javascript" src="js/json2html.js"></script>
+		<script type="text/javascript" src="js/jquery.min.js"></script>
+		<script type="text/javascript" src="DatePicker/WdatePicker.js"> </script>
+		<script type="text/javascript" src="js/echarts.js"></script>
+	</head>
+	<body>
+		<div id="towrite" class="fixedBox" style="display:none;">
+		<div>
+        	<button class="custom-button" onclick="togglePlaySound()"><span id="spanPlaySound" >开</span><img src="res/laba.jpg" class="button-image"></button>
+			<audio id="buyAudio" src="res/alert1.mp3" preload="auto"></audio>
+			<audio id="sellAudio" src="res/alert2.mp3" preload="auto"></audio>
+		</div>
+      <div class="tabs">
+        <span class="tab-main active" onclick="handleClick(0)">全部</span>
+        <span class="tab-buy" onclick="handleClick(1)">买单</span>
+        <span class="tab-out" onclick="handleClick(2)">卖单</span>
+		<span>
+            <input type="text" id="inputDm" placeholder="输入代码">
+			</span>
+        <select onchange="handleChange()" class="filter-dropdown" id="valueFilter">
+          <option value="0">全部</option>
+          <option value="1000000">100万</option>
+          <option value="3000000">300万</option>
+          <option value="5000000">500万</option>
+          <option value="10000000">1000万</option>
+        </select>
+		
+        <div id="tempTitle"></div>
+      </div>
+	  
+			<div id="title" style="height:20px;"></div>
+			<div id="container" style="display: flex; height: 100vh;">
+				<div id="tradeRecords" class="trade-records" style="width: 280px; flex-shrink: 0; display: flex; flex-direction: column;">
+					<table>
+						<thead>
+							<tr>
+								<th>时间</th>
+								<th>金额</th>
+								<th>均价</th>
+								<th>买卖</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<td>15:00:00</td>
+								<td>386.7万</td>
+								<td>24.79</td>
+								<td>主动买</td>
+							</tr>
+							<!-- 可以在这里添加更多行 -->
+						</tbody>
+					</table>
+				</div>
+				<div id="chart" style="position:relative; flex: 1;"></div>
+			</div>
+		</div>
+		
+		<script>
+      // 获取数据
+	  let codeBigMoneyLastTimeMap = {}; // 股票代码最新大资金时间Map
+	  let bigmoneyPlaySoundFlag = false; // 大资金语言播报开关
+      var scatterData = []
+      let circleType = 0
+      let circlePrice = 0
+      const fn = (val) => {
+        let val1 = val
+        if (val1.indexOf("万") != -1) {
+          val1 = parseFloat(val1) * 10000;
+        } else if (val1.indexOf("亿") != -1) {
+          val1 = parseFloat(val1) * 100000000;
+        } else {
+          val1 = parseFloat(val1);
+        }
+        return val1
+      }
+
+	  const togglePlaySound = () => {
+		bigmoneyPlaySoundFlag = !bigmoneyPlaySoundFlag;
+		if (bigmoneyPlaySoundFlag) {
+			playsound(true)
+			let spanPlaySound = document.getElementById('spanPlaySound');
+			spanPlaySound.textContent = '关';
+		} else {
+			let spanPlaySound = document.getElementById('spanPlaySound');
+			spanPlaySound.textContent = '开';
+		}
+	  }
+
+      const playsound = (isbuy) => {
+		console.log('playsound')
+		let audioId = 'buyAudio';
+		if (!isbuy) {
+			audioId = 'sellAudio';
+		}
+		let audioElement = document.getElementById(audioId);
+  		audioElement.play();
+      }
+
+      const handleClick = (num) => {
+        const arrs = ['tab-main', 'tab-buy', 'tab-out']
+        arrs.forEach((v, i) => {
+          const ele = document.querySelector('.' + v)
+          ele.classList.remove('active')
+          if (num === i) {
+            ele.classList.add('active')
+            circleType = i
+          }
+        })
+        v = 1
+        getSource()
+      }
+      const handleChange = (val) => {
+        circlePrice = document.querySelector('#valueFilter').value
+        v = 1
+        getSource()
+      }
+      
+      function updateTradeRecords(data) {
+        const tbody = document.querySelector('#tradeRecords tbody');
+        tbody.innerHTML = '';
+        data.forEach(record => {
+          // 计算均价：假设 value 单位为万， volume 单位为手， 1手 = 100股
+          let avgPrice = 'N/A';
+          const valueStr = (typeof record.value === 'string' ? record.value : '').replace('万', '').replace('亿', '');
+          const volumeStr = (typeof record.volume === 'string' ? record.volume : '').replace('手', '');
+          
+          const valueInYuan = parseFloat(valueStr) * (valueStr.indexOf('亿') !== -1 ? 100000000 : 10000);
+          const volumeInShares = parseFloat(volumeStr) * 100; // 假设1手=100股
+
+          // 添加日志输出
+          console.log('Value:', record.value, 'Volume:', record.volume, 'Value in Yuan:', valueInYuan, 'Volume in Shares:', volumeInShares);
+
+          if (!isNaN(valueInYuan) && !isNaN(volumeInShares) && volumeInShares > 0) {
+            avgPrice = (valueInYuan / volumeInShares).toFixed(2);
+          }
+
+          // 添加日志输出
+          console.log('Calculated Avg Price:', avgPrice);
+
+          const row = document.createElement('tr');
+          
+          // 根据 record.nature 添加 CSS 类
+          let rowClass = '';
+          if (record.nature === '主力主买') {
+            rowClass = 'main-buy';
+          } else if (record.nature === '主力主卖') {
+            rowClass = 'main-sell';
+          } else if (record.nature === '主力被买') {
+            rowClass = 'passive-buy';
+          } else if (record.nature === '主力被卖') {
+            rowClass = 'passive-sell';
+          }
+          if (rowClass) {
+            row.classList.add(rowClass);
+          }
+
+          row.innerHTML = `
+            <td>${record.ctime}</td>
+            <td>${record.value}</td>
+            <td>${avgPrice}</td>
+            <td>${record.nature}</td>
+          `;
+          tbody.appendChild(row);
+        });
+      }
+
+      function getScatterData(dm) {
+		
+			dest_url = 'http://vaserviece.10jqka.com.cn/Level2/index.php?&op=mainMonitorDetail&stockcode='+dm;
+			console.log('getScatterData', dest_url)
+			$.ajax({
+				url: dest_url,
+				type: "get",
+				async : false,
+				cache:false,
+				timeout:30000,
+				success: function(data) {
+					const temp = JSON.parse(data)
+					let listTemp = temp.list;
+
+					// 更新交易记录表格 (使用原始数据)
+					if (listTemp) {
+						// 直接将原始数据传递给 updateTradeRecords
+						updateTradeRecords(listTemp);
+					}
+
+					// 过滤数据用于生成图表 scatterData
+					scatterData = [];
+					let filteredListTemp = listTemp.filter((v) => {
+						return  (circleType !== 0 ? v.tradetype == circleType : true) && (circlePrice !== 0 ? fn(v.value) > circlePrice : true)
+					});
+
+					let isbuy = false;
+					let bigmoney = false;
+					let bigmoneyLastTime = '';
+					filteredListTemp.forEach((item) => {
+						const curTime = item.ctime.slice(0, 5)
+						item.realTime = curTime
+						item.realVolumn = Math.floor(item.volume.split('手')[0])
+						item.realValue = Math.floor(item.value.split('万')[0])
+						item.others = [
+							{
+								realVolumn: item.volume,
+								realValue: item.value,
+								nature: item.nature
+							}
+						]
+						const isBuy = item.tradetype === '1'
+						// 判断是否超过500万
+						if (item.realValue >= 500) {
+							bigmoney = true;
+							isbuy = isBuy;
+							bigmoneyLastTime = item.realTime;
+							console.log('getScatterData', isbuy, item.realTime, item.realValue, item.realVolumn);
+						}
+						if (!isBuy) {
+							item.realValue = -item.realValue
+							item.realVolumn = -item.realVolumn
+						}
+						const isExistScatter = scatterData.find(v => v.realTime === curTime)
+						if (isExistScatter) {
+							isExistScatter.realValue = isExistScatter.realValue + item.realValue
+							isExistScatter.realVolumn =  isExistScatter.realVolumn + item.realVolumn
+							isExistScatter.others.push({
+								realVolumn: item.volume,
+								realValue: item.value,
+								nature: item.nature
+							})
+						} else {
+							scatterData.push(item)
+						}
+					})
+					
+					const fn2 = (val) => {
+						val = Math.abs(val)
+						let num = 10000
+						var sizesValue = ''
+						/**
+						 * 判断取哪个单位
+						 */
+						if(val < 1000){
+							// 如果小于1000则直接返回
+							sizesValue = ''
+							return val
+						}else if(val > 1000 && val < 9999){
+							sizesValue = '千'
+						} else if(val > 10000 && val < 99999999){
+							sizesValue = '万'
+						} else if(val > 100000000){
+							sizesValue = '亿'
+						}
+						/**
+						 * 大于一万则运行下方计算
+						 */
+						let i = Math.floor(Math.log(val) / Math.log(num))
+						/**
+						 * toFixed(0)看你们后面想要取值多少，我是不取所以填了0，一般都是取2个值
+						 */
+						var sizes = ((val / Math.pow(num, i))).toFixed(0)
+						sizes = sizes + sizesValue
+						return sizes
+					}
+					const temp3 = (fn(temp.title.mainbuy) - fn(temp.title.mainsell)).toFixed(0)
+					const temp2 = temp3 < 0 ? '-' + fn2(temp3) : fn2(temp3)
+					const tempColor1 = temp3 < 0 ? 'green' : 'red'
+					document.getElementById('tempTitle').innerHTML = `主力买：<span style="color:red;margin-right:6px;">${temp.title.mainbuy}</span>主力卖：<span style="color:green;margin-right:6px;">${temp.title.mainsell}</span>主力净：<span style="color:${tempColor1};margin-right:6px;">${temp2}</span>`
+					
+					// 大资金播放提示音
+					if (bigmoney) {
+						//  出现大资金比较上次播放时间戳，如果时间戳有变更再播放
+						if (!(dm in codeBigMoneyLastTimeMap) || (codeBigMoneyLastTimeMap[dm] < bigmoneyLastTime)) {
+							console.log('getSource', dm, bigmoneyLastTime)
+							// 更新最新播放时间
+							codeBigMoneyLastTimeMap[dm] = bigmoneyLastTime;
+							// 如果语音播报开关未打开则不进行播音
+							if (bigmoneyPlaySoundFlag) {
+								playsound(isbuy);
+							}
+						}
+					}
+				},
+				error: function(xhr, status, errorThrown) {
+					console.log(xhr, status, errorThrown);
+				}
+			});
+		}
+			var yy = 1;  //部分显示（小图）；
+			window.onload = function() {
+				changeStyle();
+				getSource(jk);
+				
+			}
+
+			$(function() {
+				setInterval(function() {
+					getSource(jk);
+				},
+				300);
+			})
+			
+			function time_range(beginTime, endTime) {
+				var strb = beginTime.split(":");
+				if (strb.length != 2) {
+					return false;
+				}
+
+				var stre = endTime.split(":");
+				if (stre.length != 2) {
+					return false;
+				}
+
+				var b = new Date();
+				var e = new Date();
+				var n = new Date();
+
+				b.setHours(strb[0]);
+				b.setMinutes(strb[1]);
+				e.setHours(stre[0]);
+				e.setMinutes(stre[1]);
+
+				console.log('time_range', n.getTime(), b.getTime(), e.getTime());　　　　　　
+				if (n.getTime() - b.getTime() > 0 && n.getTime() - e.getTime() < 0) {
+					v = 1;
+					console.log('time_range', true);　　　　　　
+					return true;
+				} else {
+					console.log('time_range', false);
+				    return false;
+				}
+			}　　　
+   　　　
+			function changeStyle() {
+				var div = document.getElementById("towrite");
+				div.style.display= "block";
+				//div.style.border= "1px solid #fff";
+				div.style.border= "none";
+				div.style.marginTop= "-5px";
+				div.style.left= "0px";
+				div.style.width= "100%";
+				div.style.height= "98%";
+				div.style.fontSize="12px";
+				
+				var div1 = document.getElementById("chart");
+				div1.style.border= "1px solid #696969";
+				div1.style.marginTop= "-5px";
+				div1.style.left= "0px";
+				div1.style.width= "94%";
+				div1.style.height= "92%";
+				
+				/* var div2 = document.getElementById("towrite1");					 */
+				/* div2.style.border= "1px solid #696969";				 */
+				/* div2.style.left= "0px"; 				 */
+				/* div2.style.width= "90%";	 */
+				/* div2.style.height= "30%";						 */
+			}
+			
+			Date.prototype.Format = function (fmt) {
+				var o = {
+				"M+": this.getMonth() + 1, //月份
+				"d+": this.getDate(), //日
+				"h+": this.getHours(), //小时
+				"m+": this.getMinutes(), //分
+				"s+": this.getSeconds(), //秒
+				"q+": Math.floor((this.getMonth() + 3) / 3), //季度
+				"S": this.getMilliseconds() //毫秒
+				};
+				if (/(y+)/.test(fmt)) fmt = fmt.replace(RegExp.$1, (this.getFullYear() + "").substr(4 - RegExp.$1.length));
+				for (var k in o)
+				if (new RegExp("(" + k + ")").test(fmt)) fmt = fmt.replace(RegExp.$1, (RegExp.$1.length == 1) ? (o[k]) : (("00" + o[k]).substr(("" + o[k]).length)));
+				return fmt;
+			};
+			
+			function keepTwoDecimal(num) {
+               var result = parseFloat(num);
+               if (isNaN(result)) {
+                   return false;
+               }
+               result = Math.round(num * 100) / 100;
+               return result;
+			}
+			
+			function NumberTransform(num) {
+				var result = num;
+				if(Math.abs(num) > 100000000){
+					result = num / 100000000;
+					result = result.toFixed(0) + "亿";
+				}else if(Math.abs(num) > 10000){
+					result = num/10000;
+					result = result.toFixed(0) + "万";
+				}
+				return result;
+			};
+			
+			var z = 0;  //刷新
+			var v = 0;	//刷新
+			var gpdm = "";
+			var gpmc = "";
+			var rq = "";
+			var preClose = 0;	//昨收盘
+			var jk = 0;  //默认是否显示竞价
+			function getSource(p) {
+				var u = decodeURI(window.location.href);
+				var dm = "";
+				var dm2 = document.getElementById('inputDm').value;
+				if(u.indexOf("##") > -1){
+					var gp = u.split('##');
+					dm = gp[1];
+					gpmc = gp[2];
+					if(gp[3] != undefined){
+						yy = gp[3];
+					}
+				}
+				if (dm == 'xxxxxx' || dm == ''){
+					if(dm2=='' || dm2==null){
+						dm="000001";
+						gpmc="000001";
+					}
+					else{
+						dm = dm2;
+						gpmc = dm2;
+					}
+				}
+				
+				
+				console.log('getSource', dm, gpdm, v, p, jk);
+				if(dm != gpdm || v == 1 || p != jk){
+					//alert(p)
+					console.log('dm != gpdm || v == 1 || p != jk');
+					v = 0;
+					jk = p;
+					gpdm = dm;
+					var dms = "";
+					var dmt = "";
+					if(dm.substr(0,1)=="6"){
+						dms = "SH" + dm;
+						dmt = "1." + dm;
+					}else{
+						dms = "SZ" + dm;
+						dmt = "0." + dm;
+					}
+					
+					if(dm == "999999"){
+						dmt = "1.000001";
+					}else if(dm.substr(0,3)=="399"){
+						dmt = "0." + dm;
+					}
+					
+					var url ="http://push2his.eastmoney.com/api/qt/stock/trends2/get?fields1=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13&fields2=f51,f52,f53,f54,f55,f56,f57,f58&secid=" + dmt;
+					var res = [];
+					$.ajax({
+						type: "get",
+						url: url,
+						dataType: "json",
+						async : false,
+						cache:false,
+						timeout:3000,
+						success: function(data) {
+							//alert(JSON.stringify(data))
+							//document.write(JSON.stringify(data));
+							preClose = data.data.preClose;
+							var arr = data.data.trends;
+							gpmc = data.data.name;
+							//document.write(JSON.stringify(arr));
+							for (var i = 0; i < arr.length; i++){
+								var aa = arr[i].split(',');
+								if(i == 0){
+									rq = aa[0].split(" ")[0];
+								}
+								var time = aa[0].split(" ")[1];
+								if(jk == 0){
+									if(Number(time.replace(":","")) >= 930){
+										var rc = {"time":aa[0].split(" ")[1],"open":Number(aa[1]),"close":Number(aa[2]),"high":Number(aa[3]),"low":Number(aa[4]),"vol":Number(aa[5]),"jprice":Number(aa[7])}
+										res.push(rc);
+									}
+								}else{
+									var rc = {"time":aa[0].split(" ")[1],"open":Number(aa[1]),"close":Number(aa[2]),"high":Number(aa[3]),"low":Number(aa[4]),"vol":Number(aa[5]),"jprice":Number(aa[7])}
+									res.push(rc);
+								}
+							}
+						}
+					})
+          		getScatterData(dm); // 调用新函数获取表格数据
+          
+					//alert(JSON.stringify(res))
+					//document.write("<br>"+rq + "<br>");
+					//document.write(JSON.stringify(res));
+					var div = document.getElementById('title');
+					
+					var jj = '<a href="javascript:getSource(0);"  id="jj"  style="padding-left:20px;font-size:14px;">竞价</a>';
+					if(jk == 0){
+						jj = '<a href="javascript:getSource(1);"  id="jj"  style="padding-left:20px;font-size:14px;">竞价</a>';
+					}
+					
+					if(yy == 1){
+						div.innerHTML = '<font size="2">' + gpdm + "&nbsp;&nbsp;&nbsp;" + gpmc + "&nbsp;&nbsp;&nbsp;" + rq + jj + "</font>";
+						var aObj = document.getElementById("jj");
+						aObj.style.color = "#fff";
+					}else{
+						div.style.margin= "-3px 0px 0px 0px";
+						div.innerHTML = '<font size="1">' + gpdm + "&nbsp;&nbsp;&nbsp;" + gpmc + "</font>";
+					}
+					if(jk == 1){
+						aObj.style.color = "#00FFFF";
+					}
+					
+					GetChart(res);
+				} else {
+					//console.log('getSource', z);
+					z++;
+					if(z == 60){
+						z = 0;
+						time_range("9:00","15:15")  //刷新数据
+						//time_range("9:00","23:15")  //测试, 刷新数据
+					}
+				}
+			}
+			
+			function getParamValues(name, arr) {
+				var ret = []
+				var len = 256;
+				if(jk == 0){
+					len = 241;
+				}
+				for (var i = 0; i < len; i++) {
+					if(arr[i] != undefined){
+						ret.push(arr[i][name])
+					}
+					// else{
+					//	ret.push(null)
+					//}
+				}
+				return ret
+			}
+			
+			function ratioCalculate(price, yclose) {  //涨跌幅
+			  return ((price - yclose) / yclose * 100).toFixed(2);
+			}
+			
+			function GetChart(arr) {
+				var res = getParamValues("close", arr);
+				
+				//过滤null
+				var values = arr.map(function(o){
+					return o.close;
+				}).filter(function(val) {
+					return val !== null
+				});
+				
+				//alert(JSON.stringify(values))
+				var maxa = Math.max(...values);
+				var mina = Math.min(...values);
+				var zfa = Math.abs((maxa / preClose - 1));
+				var zfb = Math.abs((mina / preClose - 1));
+				
+				function min() {
+					if(zfa >= zfb){
+						return Number(preClose * (1 - zfa)).toFixed(2)
+					}else{
+						return mina
+					}
+				}
+				function max() {
+					if(zfb >= zfa){
+						return Number(preClose * (1 + zfb)).toFixed(2)
+					}else{
+						return maxa
+					}
+				}
+				
+				var _interval = ((preClose-min()) / 4);
+				var left = "5%";
+				var right = "8%";
+				var fsize = "14";
+				var show = true;
+				if(yy == 0){
+					_interval = ((preClose-min()) / 2);
+					left = "8%";
+					right = "12%";
+					fsize = "12";
+					show = false;
+				}
+				var jm = "09:30";
+				if(jk == 0){
+					jm = "";
+				}
+        function getScatterSourceData (arr) {
+          
+          const time = getParamValues("time", arr)
+          const close = getParamValues("close", arr)
+          time.forEach((v, i) => {
+            const isExist = scatterData.find(scatter => scatter.realTime === v)
+            if (isExist) {
+            } else {
+              close[i] = 0
+            }
+          })
+          return close
+        }
+				var myChart = echarts.init(document.getElementById('chart'));
+				const upColor = '#ec0000';//00da3c
+				const downColor = '#00FFFF';//ec0000
+				var top2 = 68;
+				var top21 = top2 - 3;
+				var option = {
+					animation: false, //取消动画效果
+					title: [
+						{
+							left: 'left',
+							//text: '分时图'
+						},
+						{
+							left: 'left',
+							//text: '分时图'
+						},
+						{
+							show: show,
+							top: top21 + "%",
+							left: 'left',
+							text: '成交量',
+							textStyle: {
+								color: "#fff", // 文字的颜色。
+								fontSize: fsize,
+							}
+						}
+					],
+					tooltip: {   //提示框
+						show: show,
+						trigger: 'axis',
+						position: function (point, params, dom, rect, size) {
+            				// point: 鼠标位置
+            				// params: 当前数据信息
+            				// dom: tooltip DOM 节点
+            				// rect: 图表容器大小
+            				// size: tooltip 大小
+
+            				// 计算并返回一个数组，表示 tooltip 的 x 和 y 坐标
+            				return [point[0], point[1]];
+        				},
+						formatter(params) {  //添加文字
+							var str = params[0].name + '<br>';
+							if(params[0].name != "null"){
+								// 创建一个对象来存储不同类型的数据
+								let data = {
+									price: '',
+									ratio: '',
+									avgPrice: ''
+								};
+								
+								params.forEach(item => {
+									var name = item.seriesName;
+									var c = '<span style="display:inline-block;margin-right:5px;border-radius:50%;width:10px;height:10px;left:5px;background-color:' + item.color + '"></span>';
+									
+									if(name == "分时"){
+										data.price = c + '价格:' + item.data;
+										data.ratio = c + '涨幅:' + ratioCalculate(item.data, preClose) + "%";
+									}else if(name == "分时均价"){
+										data.avgPrice = c + '均价:' + item.data;
+									}else if(name.indexOf("成交量") > -1){
+										str += c + item.seriesName + " : " + item.data + "<br>";
+									} else if(item.componentSubType === 'scatter') {
+										const temp = scatterData.find(v => v.realTime === item.axisValue)
+										if (temp && temp.others) {
+											// Initialize variables 
+											let mainBuy = 0;
+											let mainSell = 0;
+											let passiveBuy = 0;
+											let passiveSell = 0;
+
+											// Calculate totals for each type
+											temp.others.forEach((trade) => {
+												let realValue = Math.floor(trade.realValue.split('万')[0]);
+												if (trade.nature.includes('主买')) {
+													mainBuy += realValue;
+												} else if (trade.nature.includes('主卖')) {
+													mainSell += realValue;
+												} else if (trade.nature.includes('被买')) {
+													passiveBuy += realValue;
+												} else if (trade.nature.includes('被卖')) {
+													passiveSell += realValue;
+												}
+											});
+
+											// Add price, ratio and average price in one line
+											str += `<div style="display:flex;justify-content:space-between;margin:5px 0;color:#fff;">
+												<span>${data.price}</span>
+												<span>${data.ratio}</span>
+												<span>${data.avgPrice}</span>
+											</div>`;
+
+											// Add total buy/sell in one line
+											str += `<div style="display:flex;justify-content:space-between;margin:5px 0;color:#fff;">
+												<span>总买: <span style="color:#ff4444;font-weight:bold">${mainBuy + passiveBuy}万</span></span>
+												<span>总卖: <span style="color:#00aa00;font-weight:bold">${mainSell + passiveSell}万</span></span>	
+											</div>`;
+
+											// Rest of the bar chart code remains the same
+											let maxValue = Math.max(mainBuy, mainSell, passiveBuy, passiveSell);
+											const barWidth = 100;
+											
+											str += '<div style="margin:5px 0;padding:5px;background:rgba(0,0,0,0.7);border-radius:4px;">';
+											
+											// Function to create bar
+											const createBar = (value, color, label) => {
+											    if (value <= 0) return '';
+											    const width = Math.min((value / maxValue * barWidth), 100); // 限制最大宽度
+											    return `
+											        <div style="display:flex;align-items:center;margin:3px 0;min-width:250px;">
+											            <div style="width:40px;font-size:12px;color:#fff;padding-top:2px;">${label}</div>
+											            <div style="position:relative;width:${width}px;margin:0 5px;overflow:hidden;padding-top:2px;">
+											                ${temp.others.map(trade => {
+											                    if (trade.nature.includes(label)) {
+											                        const tradeValue = Math.floor(trade.realValue.split('万')[0]);
+											                        const tradeWidth = (tradeValue / value * 100);
+											                        return `
+											                            <div style="
+											                                position:relative;
+											                                display:inline-block;
+											                                background:${color};
+											                                height:12px;
+											                                width:${tradeWidth}%;
+											                                border-right:1px dashed rgba(255,255,255,0.5);
+											                            "></div>
+											                        `;
+											                    }
+											                    return '';
+											                }).join('')}
+											            </div>
+											            <div style="font-size:12px;color:${color};font-weight:bold;white-space:nowrap;padding-top:2px;">(${value}万)</div>
+											        </div>
+											    `;
+											};
+
+											// Add bars for each type
+											str += createBar(mainBuy, '#ff4444', '主买');
+											str += createBar(passiveBuy, '#ff9999', '被买');
+											str += createBar(mainSell, '#00aa00', '主卖');
+											str += createBar(passiveSell, '#44ff44', '被卖');
+											
+											str += '</div>';
+										}
+									}
+								});
+								return str;
+							}
+						}
+					},
+					/* axisPointer: { //上下区域连接 */
+					/*	link: [
+						{
+							xAxisIndex: 'all'
+						}
+						],
+						label: {
+							backgroundColor: '#777'
+						}*/
+					grid: [
+						{
+							top: '3%',
+							left: left,
+							right: right,
+							height: '58%'
+						},
+						{
+							top: '3%',
+							left: left,
+							right: right,
+							height: '58%'
+						},
+						{
+							top: top2 + "%",
+							left: left,
+							right: right,
+							height: '20%'
+						}
+					],
+					xAxis: [
+						{
+							//type: 'category',
+							gridIndex: 0,
+							data: getParamValues("time", arr),
+							axisLine: { show: false	}, //x轴坐标线设置
+							axisTick: { show: false },
+							splitLine: { show: false },
+							axisLabel: { show: false },
+						},
+						{
+							show: false,
+							gridIndex: 1,
+							data: getParamValues("time", arr),
+							axisPointer: {show: false},
+						},
+						{
+							type: 'category',
+							gridIndex: 2,                    //对应坐标轴所在grid的索引
+							data: getParamValues("time", arr),
+							axisTick: { show: false },
+							axisLine:{  //x轴坐标线设置
+								lineStyle:{
+									color:"#808080",  //x轴坐标线颜色
+									width: 1   // 坐标轴线宽
+								}
+							},
+							axisLabel:{	 //x轴标签设置
+								showMaxLabel:true, //显示最大 tick(最后一天)
+								interval: 0,
+								//padding: [0, 0, 0, 30],
+								formatter: function (value, index) {
+									var c = index % 15;
+									if(yy == 0){
+										c = index % 60;
+									}
+									if(value != "null" && c == 0){
+										return value
+									}
+								},
+								textStyle:{  //x轴文字
+									color:"#FFF"
+								}
+							}
+						}
+					],
+					yAxis: [
+						{
+							type: 'value',
+							gridIndex: 0,
+							//position:'right',//坐标轴位置，移至右边
+							//offset: 10,     //Y 轴相对于默认位置的偏移
+							scale: true,   //刻度 自适应
+							splitArea: {     //分割区域颜色
+								show: false
+							},
+							min: min(),
+							max: max(),
+							interval: _interval,
+							splitLine:{ //y轴网格线
+								show:false,
+								lineStyle: {
+									color: '#808080',
+									width: 1,
+									type: 'dashed', //（'solid'，实线类型；'dashed'，虚线类型；'dotted',点状类型）
+								}
+							},
+							axisLine: { //y轴坐标线设置
+								show: true,
+								lineStyle: {
+									color: '#D3D3D3', //y轴颜色
+									//width: 2,    // 坐标轴线宽
+									type: 'dotted',     // 坐标轴线线的类型（'solid'，实线类型；'dashed'，虚线类型；'dotted',点状类型）
+								},
+							},
+							axisLabel: {  //y轴标签设置
+								show: true,  //是否显示
+								 color: function (val) {
+									val = Number(val).toFixed(2);
+									if (val == preClose) {
+									  return '#fff'
+									}
+									return val > preClose ? '#FF8C00' : '#7FFFAA';
+								  },
+								formatter: function (value){
+									return keepTwoDecimal(value)
+								}
+							}
+						},
+						{
+							type: 'value',
+							gridIndex: 1,
+							position:'right',//坐标轴位置，移至右边
+							offset: 10,     //Y 轴相对于默认位置的偏移
+							scale: true,   //刻度 自适应
+							splitArea: {     //分割区域颜色
+								show: false
+							},
+							min: min(),
+							max: max(),
+							interval: _interval,
+							splitLine:{ //y轴网格线
+								show:true,
+								lineStyle: {
+									color: '#808080',
+									width: 1,
+									type: 'dashed', //（'solid'，实线类型；'dashed'，虚线类型；'dotted',点状类型）
+								}
+							},
+							axisLine: { //y轴坐标线设置
+								show: true,
+								lineStyle: {
+									color: '#D3D3D3', //y轴颜色
+									//width: 2,    // 坐标轴线宽
+									type: 'dotted',     // 坐标轴线线的类型（'solid'，实线类型；'dashed'，虚线类型；'dotted',点状类型）
+								},
+							},
+							axisLabel: {  //y轴标签设置
+								show: true,
+								color: function (val) {
+								val = Number(val).toFixed(2);
+									if (val == preClose) {
+										return '#fff'
+									}
+									return val > preClose ? '#FF8C00' : '#7FFFAA';
+								},
+								formatter: function (value) {
+									var resul = ratioCalculate(value, preClose);
+									return Number(resul).toFixed(2) + '%'
+								}
+							}
+						},
+						{
+							gridIndex: 2,  //对应坐标轴所在grid的索引
+							position:'right',//坐标轴位置，移至右边
+							offset: 10,
+							scale: true,
+							splitNumber: 2,
+							splitLine:{ //y轴网格线
+								show:true,
+								lineStyle: {
+									color: '#808080',
+									width: 1,
+									type: 'dotted', //（'solid'，实线类型；'dashed'，虚线类型；'dotted',点状类型）
+								}
+							},
+							axisLine: { //y轴坐标线设置
+								show: true,
+								lineStyle: {
+									color: '#D3D3D3', //y轴颜色
+									//width: 2,    // 坐标轴线宽
+									type: 'dotted',     // 坐标轴线线的类型（'solid'，实线类型；'dashed'，虚线类型；'dotted',点状类型）
+								},
+							},
+							axisLabel: {  //y轴标签设置
+								show: true,
+								formatter: function (value){
+									if(value != 0){
+										return NumberTransform(value)
+									}else{
+										return 0
+									}
+								}
+							}
+						}
+					],
+					/* dataZoom: [ //区间 */
+					/*	{
+						  type: 'inside',
+						  xAxisIndex: [0, 1],
+						  start: 0,
+						  end: 100
+						},
+						{
+						  show: true,
+						  xAxisIndex: [0, 1],
+						  type: 'slider',
+						  top: '85%',
+						  start: 0,
+						  end: 100
+						}*/
+					series: [
+						{
+							name: '分时',
+							type: 'line',
+							gridIndex: 0,
+							xAxisIndex: 0,
+							yAxisIndex: 0,
+							data: getParamValues("close", arr),
+							itemStyle: {
+								normal: {
+									lineStyle: {
+										width: 2,//折线宽度
+										color: "#D3D3D3"//折线颜色
+									},
+									color: '#D3D3D3',//拐点颜色
+								}
+							},
+							/* areaStyle: {
+								normal: {
+									color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{
+										offset: 0,
+										color: 'rgba(0, 136, 212, 0.7)'
+									}, {
+										offset: 0.8,
+										color: 'rgba(0, 136, 212, 0.02)'
+									}], false),
+									shadowColor: 'rgba(0, 0, 0, 0.1)',
+									shadowBlur: 10
+								}
+							}, */
+							markLine:{   //增加标注线
+								name:'昨日收盘价',
+								symbol: ['none', 'none'],
+								label:{
+									show:false,
+									formatter:  preClose,
+									position: 'start',
+								},
+								lineStyle: {
+									color: '#4289c5',
+									type: 'solid'
+								},
+								data: [{
+									yAxis: preClose
+								}]
+							}
+						},
+						{
+							name: '分时均价',
+							type: 'line',
+							gridIndex: 0,
+							xAxisIndex: 0,
+							yAxisIndex: 0,
+							data: getParamValues("jprice", arr),
+							itemStyle: {
+								normal: {
+									lineStyle: {
+										width: 2,//折线宽度
+										color: "#EBEB00"//折线颜色
+									},
+									color: '#EBEB00',//拐点颜色
+								}
+							}
+						},
+						{
+							name: '分时涨幅',
+							type: 'line',
+							gridIndex: 1,
+							xAxisIndex: 1,
+							yAxisIndex: 1,
+							data: getParamValues("close", arr),
+							smooth: true,
+							symbol: "none",
+							lineStyle: {
+								normal: {
+									width: 0
+								}
+							},
+							markLine:{ //增加标注线
+								name:'竞价',
+								symbol: ['none', 'none'],
+								label:{
+									show:false,
+									position: 'start',
+								},
+								lineStyle: {
+									color: '#fff',
+									type: 'solid'
+								},
+								data: [{
+									xAxis: jm
+								}]
+							}
+						},
+						{
+							name: '成交量',
+							type: 'bar',
+							gridIndex: 2,
+							xAxisIndex: 2,
+							yAxisIndex: 2,
+							data: getParamValues("vol", arr),
+							barWidth: 2,  //柱状图宽度
+							itemStyle: {
+								color: '#DAA520',
+							},
+							markLine: {   //增加标注线
+								name:'竞价',
+								symbol: ['none', 'none'],
+								label:{
+									show:false,
+									position: 'start',
+								},
+								lineStyle: {
+									color: '#fff',
+									type: 'solid'
+								},
+								data: [{
+									xAxis: jm
+								}]
+							}
+						},
+            {
+              type:'scatter',
+              data: getScatterSourceData(arr),
+              symbolSize:function (arg, opt){
+                if (arg === 0) return  0
+                const realValue = scatterData.find(v => v.realTime === opt.name).realVolumn
+                val = Math.abs(realValue)
+                const info = Math.floor(val / 1000)
+                const temp = 12
+    let circle = (temp + ((info - 1) * 0.1 + ((val - info * 1000) / 1000 * 0.1)) * temp).toFixed(2);
+    console.log(circle)
+    if (circle>60) circle=60;
+                return circle
+    
+              },
+              itemStyle:{
+                color:function (arg){
+                  const temp = scatterData.find(v => v.realTime === arg.name)
+                  let color = 'red'
+                  if (temp && temp.realVolumn < 0) {
+                    color = 'green'
+                  }
+                  return color
+                }
+              },
+              label: {
+                show: false
+              }
+            }
+					]
+				}
+				myChart.setOption(option);
+				$(window).resize(myChart.resize);   //解决Echarts 隐藏再显示后宽度高度变小的问题
+			}
+		</script>
+	</body>
+</html>

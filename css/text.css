@@ -1,0 +1,238 @@
+﻿/* Dashboard Layout */
+body {
+    margin: 0;
+    padding: 0;
+    background: #1e1e1e;
+    font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif;
+    color: #e0e0e0;
+}
+
+/* Brand Bar Styles */
+.brand-bar {
+    display: flex;
+    align-items: center;
+    padding: 0 32px;
+    height: 60px;
+    background: #151a23;
+    border-bottom: 1px solid #2a2a2a;
+}
+
+.brand-logo {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, #1976d2 60%, #42a5f5 100%);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    color: #fff;
+    margin-right: 16px;
+}
+
+.brand-title {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #fff;
+    margin-right: 18px;
+}
+
+.brand-sub {
+    font-size: 0.95rem;
+    color: #7a8599;
+    font-weight: 400;
+    margin-top: 2px;
+}
+
+/* Dashboard Layout */
+.dashboard {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 24px 32px 0 32px;
+    gap: 24px;
+    min-height: 90vh;
+}
+
+.dashboard-side {
+    flex: 0 0 400px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.dashboard-main {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+/* Card Styles */
+.card {
+    background: #2a2a2a;
+    border-radius: 4px;
+    box-sizing: border-box;
+    padding: 8px 12px 0 12px;
+    min-width: 180px;
+    min-height: 100px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-start;
+    box-shadow: none;
+    border: 1px solid #3a3a3a;
+}
+
+/* Card Height Adjustments */
+.dashboard-side .card:nth-child(2) {
+    min-height: 300px;
+}
+
+.dashboard-side .card:nth-child(2) .echart {
+    height: 220px;
+    width: 100%;
+    position: relative;
+}
+
+.dashboard-side .card:nth-child(3),
+.dashboard-side .card:nth-child(4),
+.dashboard-side .card:nth-child(5),
+.dashboard-side .card:nth-child(6) {
+    min-height: 180px;
+}
+
+.dashboard-side .card:nth-child(3) .echart,
+.dashboard-side .card:nth-child(4) .echart,
+.dashboard-side .card:nth-child(5) .echart,
+.dashboard-side .card:nth-child(6) .echart {
+    height: 120px !important;
+    width: 100%;
+    position: relative;
+}
+
+/* Card Components */
+.card-title-row {
+    display: flex;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 6px;
+    margin-bottom: 2px;
+}
+
+.card-title {
+    font-size: 13px;
+    color: #b0b0b0;
+    font-weight: 400;
+}
+
+.card-value {
+    font-size: 18px;
+    font-weight: 500;
+    color: #1ecb7b;
+}
+
+.card-value.red {
+    color: #ff4c4c;
+}
+
+.card-value.gray {
+    color: #888;
+}
+
+.card-value.up {
+    color: #1ecb7b;
+}
+
+/* Chart Containers */
+.echart {
+    width: 100%;
+    height: 60px;
+}
+
+/* Market Temperature Charts */
+#marketTempGauge {
+    width: 100%;
+    height: 150px;
+    margin-bottom: 10px;
+}
+
+#marketTempLineChart {
+    width: 100%;
+    height: 80px;
+}
+
+/* Chart.js Containers */
+.chartjs-container {
+    position: relative;
+    height: 250px;
+    width: 100%;
+    margin: 10px 0;
+    padding: 0;
+    box-sizing: border-box;
+    background-color: #2a2a2a;
+    border-radius: 4px;
+}
+
+.chartjs-container h3 {
+    margin: 0 0 10px 0;
+    text-align: center;
+    color: #e0e0e0;
+    font-size: 14px;
+}
+
+/* Fund Flow Card */
+.fund-flow-card {
+    height: 400px;
+}
+
+/* News Feed */
+.news-container {
+    margin: 5px;
+    padding: 5px;
+    border: 1px solid #333;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.news-item {
+    padding: 8px;
+    margin-bottom: 5px;
+    border-bottom: 1px solid #333;
+}
+
+.news-time {
+    color: #888;
+    font-size: 12px;
+    margin-bottom: 5px;
+}
+
+/* Responsive Design */
+@media (max-width: 1100px) {
+    .dashboard {
+        flex-direction: column;
+        gap: 12px;
+        padding: 16px 8px 0 8px;
+    }
+    
+    .dashboard-side,
+    .dashboard-main {
+        flex: 1 1 0;
+        gap: 12px;
+    }
+    
+    .card {
+        min-width: 140px;
+        width: 45vw;
+    }
+    
+    .echart {
+        width: 95%;
+    }
+    
+    .chartjs-container {
+        width: 95%;
+        height: 200px;
+        margin: 10px auto;
+    }
+}

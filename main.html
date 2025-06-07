@@ -621,18 +621,19 @@
 
             <!-- 行业/概念主力资金净流入卡片 -->
             <div class="card fund-flow-card" id="fund-flow-switch-card">
-                <div class="card-title-row" style="justify-content: space-between;">
-                    <div>
-                        <span class="card-title"><i class="fas fa-chart-bubble"></i>
-                            <span id="industryTabBtn" class="tab-btn active" style="cursor:pointer;">行业主力资金净流入</span>
-                            <span style="color:#444;margin:0 8px;">|</span>
-                            <span id="conceptTabBtn" class="tab-btn" style="cursor:pointer;">概念主力资金净流入</span>
-                        </span>
-                    </div>
-                </div>
-                <canvas id="industryChart" class="tab-pane" style="width: 100%; height: calc(100% - 40px); display: block;"></canvas>
-                <canvas id="conceptChart" class="tab-pane" style="width: 100%; height: calc(100% - 40px); display: none;"></canvas>
-            </div>
+    <div class="card-title-row" style="justify-content: space-between;">
+        <div>
+            <span class="card-title">
+                <i class="fas fa-chart-pie"></i> <!-- 添加图表图标 -->
+                <span id="industryTabBtn" class="tab-btn active" style="cursor:pointer;">行业主力资金净流入</span>
+                <span style="color:#444;margin:0 8px;">|</span>
+                <span id="conceptTabBtn" class="tab-btn" style="cursor:pointer;">概念主力资金净流入</span>
+            </span>
+        </div>
+    </div>
+    <canvas id="industryChart" class="tab-pane" style="width: 100%; height: calc(100% - 40px); display: block;"></canvas>
+    <canvas id="conceptChart" class="tab-pane" style="width: 100%; height: calc(100% - 40px); display: none;"></canvas>
+</div>
 
             <!-- 将最强风口卡片移到这里 -->
             <div class="card hotspot-card">

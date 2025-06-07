@@ -14,7 +14,7 @@ function fetchInflowStocks() {
         'fltt': 2,     // 数据格式
         'invt': 2,
         'ut': 'b2884a393a59ad64002292a3e90d46a5', // 可能需要根据实际情况调整或删除
-        'fs': 'm:1+t:2+f:!2',  // 仅主板非ST股票
+        'fs': 'm:0+t:6+f:!2,m:0+t:13+f:!2,m:0+t:80+f:!2,m:1+t:2+f:!2',  // 仅主板非ST股票
         'fields': 'f12,f14,f2,f3,f62,f605',  // 股票代码,名称,最新价,涨跌幅,主力净流入,净流速
         // filters参数需要特殊处理，因为URLSearchParams对其编码可能不符合API要求
         // 'filters': 'f20>0,f62!=0,f105>0'

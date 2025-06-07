@@ -277,8 +277,11 @@ async function fetchMarketSentiment() {
             if (titleRow) {
                 const values = titleRow.querySelectorAll('.card-value');
                 if (values.length >= 2) {
-                    values[0].textContent = `${lastUp}:${lastDown}`;
-                    values[1].style.display = 'none';
+                    values[0].textContent = lastUp;
+                    values[0].className = 'card-value red';
+                    values[1].textContent = lastDown;
+                    values[1].className = 'card-value up';
+                    values[1].style.display = '';
                 }
             }
         }
@@ -364,7 +367,27 @@ async function fetchMarketSentiment() {
                 break;
             }
         }
-        document.querySelector('.dashboard-side .card:nth-child(3) .card-title-row .card-value').textContent = `${lastRise}:${lastFall}`;
+        const riseFallCard = document.querySelector('.dashboard-side .card:nth-child(3)');
+        if (riseFallCard) {
+            const titleRow = riseFallCard.querySelector('.card-title-row');
+            if (titleRow) {
+                const values = titleRow.querySelectorAll('.card-value');
+                if (values.length >= 1) {
+                    values[0].textContent = lastRise;
+                    values[0].className = 'card-value red';
+                    if (values.length >= 2) {
+                        values[1].textContent = lastFall;
+                        values[1].className = 'card-value up';
+                    } else {
+                        // Create second value element if it doesn't exist
+                        const fallValue = document.createElement('span');
+                        fallValue.className = 'card-value up';
+                        fallValue.textContent = lastFall;
+                        titleRow.appendChild(fallValue);
+                    }
+                }
+            }
+        }
 
         // 设置涨跌家数对比图表
         line2.setOption({
@@ -587,4 +610,4 @@ async function fetchMarketSentiment() {
             }
         });
     } catch(e) { console.error('市场情绪接口异常',e); }
-} 
+}

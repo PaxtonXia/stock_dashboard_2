@@ -110,6 +110,9 @@ async function fetchMainIndexTrend() {
                     width: 1.5,
                     color: '#ff5252'
                 },
+                itemStyle: {
+                    color: '#ff5252'
+                },
                 connectNulls: true
             }, {
                 name: '深证成指',
@@ -118,6 +121,9 @@ async function fetchMainIndexTrend() {
                 symbol: 'none',
                 lineStyle: { 
                     width: 1.5,
+                    color: '#22e090'
+                },
+                itemStyle: {
                     color: '#22e090'
                 },
                 connectNulls: true
@@ -130,6 +136,9 @@ async function fetchMainIndexTrend() {
                     width: 1.5,
                     color: '#ffdd00'
                 },
+                itemStyle: {
+                    color: '#ffdd00'
+                },
                 connectNulls: true
             }, {
                 name: 'A500',
@@ -140,24 +149,40 @@ async function fetchMainIndexTrend() {
                     width: 1.5,
                     color: '#3388ff'
                 },
+                itemStyle: {
+                    color: '#3388ff'
+                },
                 connectNulls: true
             }],
             tooltip: {
                 trigger: 'axis',
+                axisPointer: { type: 'cross', label: { backgroundColor: '#6a7985' } },
+                backgroundColor: 'rgba(30,30,45,0.95)',
+                borderColor: '#444',
+                borderWidth: 1,
+                textStyle: { color: '#fff' },
+                extraCssText: 'box-shadow: 0 2px 8px rgba(0,0,0,0.4);',
                 formatter: function(params) {
-                    let result = params[0].axisValue + '<br/>';
-                    params.forEach(param => {
-                        if (param.value !== null && param.value !== undefined) {
-                            const color = param.value >= 0 ? '#ff5252' : '#22e090';
-                            const sign = param.value >= 0 ? '+' : '';
-                            result += `<span style="color:${color}">${param.seriesName}: ${sign}${param.value.toFixed(2)}%</span><br/>`;
-                        }
-                    });
-                    return result;
+                    let time = params[0]?.axisValue || '';
+                    let html = `<div style="margin-bottom:4px;color:#aaa;">时间：${time}</div>`;
+                    html += params.map(item => {
+                        const value = item.value != null ? item.value.toFixed(2) : '--';
+                        const valueColor = value > 0 ? '#ff5252' : (value < 0 ? '#22e090' : '#aaa');
+                        // 使用 item.color 来获取折线的颜色
+                        return `
+                            ${item.marker}
+                            <span style="color:${item.seriesName == '上证指数' ? '#ff5252' : 
+                                         item.seriesName == '深证成指' ? '#22e090' : 
+                                         item.seriesName == '中证1000' ? '#ffdd00' : 
+                                         '#3388ff'}">${item.seriesName}</span>: 
+                            <span style="color:${valueColor}">${value}%</span>
+                        `;
+                    }).join('<br>');
+                    return html;
                 }
             }
         });
     } catch (error) {
         console.error('获取大盘指数数据失败:', error);
     }
-} 
+}

@@ -35,26 +35,30 @@ async function fetchMarketSentiment() {
             const adviceType = document.getElementById('adviceType');
             const adviceContent = document.getElementById('adviceContent');
             
-            if (marketTemp < 20) {
-                adviceType.textContent = '谨慎观望';
-                adviceType.style.color = '#22e090';
-                adviceContent.textContent = '市场热度低迷，交投不活跃，建议以观望为主，控制仓位，等待市场企稳信号。';
-            } else if (marketTemp >= 20 && marketTemp < 40) {
-                adviceType.textContent = '轻仓试探';
-                adviceType.style.color = '#ffcc00';
-                adviceContent.textContent = '市场热度温和，可轻仓参与，关注强势板块，设置止损位，控制风险。';
-            } else if (marketTemp >= 40 && marketTemp < 60) {
-                adviceType.textContent = '积极参与';
-                adviceType.style.color = '#ff9900';
-                adviceContent.textContent = '市场热度适中，可适当加仓，跟踪市场热点，注意个股基本面，波段操作为宜。';
-            } else if (marketTemp >= 60 && marketTemp < 80) {
-                adviceType.textContent = '波段操作';
-                adviceType.style.color = '#ff5252';
-                adviceContent.textContent = '市场热度较高，短线机会增多，可适度参与，但需注意高位风险，及时止盈。';
+            if (adviceType && adviceContent) {
+                if (marketTemp < 20) {
+                    adviceType.textContent = '谨慎观望';
+                    adviceType.style.color = '#22e090';
+                    adviceContent.textContent = '市场热度低迷，交投不活跃，建议以观望为主，控制仓位，等待市场企稳信号。';
+                } else if (marketTemp >= 20 && marketTemp < 40) {
+                    adviceType.textContent = '轻仓试探';
+                    adviceType.style.color = '#ffcc00';
+                    adviceContent.textContent = '市场热度温和，可轻仓参与，关注强势板块，设置止损位，控制风险。';
+                } else if (marketTemp >= 40 && marketTemp < 60) {
+                    adviceType.textContent = '积极参与';
+                    adviceType.style.color = '#ff9900';
+                    adviceContent.textContent = '市场热度适中，可适当加仓，跟踪市场热点，注意个股基本面，波段操作为宜。';
+                } else if (marketTemp >= 60 && marketTemp < 80) {
+                    adviceType.textContent = '波段操作';
+                    adviceType.style.color = '#ff5252';
+                    adviceContent.textContent = '市场热度较高，短线机会增多，可适度参与，但需注意高位风险，及时止盈。';
+                } else {
+                    adviceType.textContent = '注意风险';
+                    adviceType.style.color = '#ff0000';
+                    adviceContent.textContent = '市场热度过高，存在泡沫风险，建议降低仓位，落袋为安，规避风险。';
+                }
             } else {
-                adviceType.textContent = '注意风险';
-                adviceType.style.color = '#ff0000';
-                adviceContent.textContent = '市场热度过高，存在泡沫风险，建议降低仓位，落袋为安，规避风险。';
+                console.error('Advice elements not found');
             }
         } else {
             console.error('Market temperature element not found');
@@ -271,7 +275,8 @@ async function fetchMarketSentiment() {
                 break;
             }
         }
-        const limitUpCard = document.querySelector('.dashboard-side .card:nth-child(4)');
+        // 涨跌停对比卡片现在是第5个子元素（因为新增了股吧情绪卡片）
+        const limitUpCard = document.querySelector('.dashboard-side .card:nth-child(5)');
         if (limitUpCard) {
             const titleRow = limitUpCard.querySelector('.card-title-row');
             if (titleRow) {
@@ -282,8 +287,14 @@ async function fetchMarketSentiment() {
                     values[1].textContent = lastDown;
                     values[1].className = 'card-value up';
                     values[1].style.display = '';
+                } else {
+                    console.error('Not enough value elements in limit up card');
                 }
+            } else {
+                console.error('Title row not found in limit up card');
             }
+        } else {
+            console.error('Limit up card not found');
         }
         line1.setOption({
             animation: false, // Disable animation for better performance
@@ -367,7 +378,8 @@ async function fetchMarketSentiment() {
                 break;
             }
         }
-        const riseFallCard = document.querySelector('.dashboard-side .card:nth-child(3)');
+        // 涨跌家数对比卡片现在是第4个子元素（因为新增了股吧情绪卡片）
+        const riseFallCard = document.querySelector('.dashboard-side .card:nth-child(4)');
         if (riseFallCard) {
             const titleRow = riseFallCard.querySelector('.card-title-row');
             if (titleRow) {
@@ -481,7 +493,13 @@ async function fetchMarketSentiment() {
                 break;
             }
         }
-        document.querySelector('.dashboard-side .card:nth-child(5) .card-title-row .card-value.gray').textContent = `（炸板率${lastRatio}%）`;
+        // 封板未遂卡片现在是第6个子元素（因为新增了股吧情绪卡片）
+        const brokenRateElement = document.querySelector('.dashboard-side .card:nth-child(6) .card-title-row .card-value.gray');
+        if (brokenRateElement) {
+            brokenRateElement.textContent = `（炸板率${lastRatio}%）`;
+        } else {
+            console.error('Broken rate element not found');
+        }
 
         // 设置封板未遂图表
         line3.setOption({
@@ -552,7 +570,8 @@ async function fetchMarketSentiment() {
             }
         });
         const lastValue = yArr.filter(v => typeof v === 'number' && !isNaN(v)).slice(-1)[0] || 0;
-        const yesterdayLimitUpElement = document.querySelector('.dashboard-side .card:nth-child(6) .card-title-row .card-value.red');
+        // 昨日涨停今日表现卡片现在是第7个子元素（因为新增了股吧情绪卡片）
+        const yesterdayLimitUpElement = document.querySelector('.dashboard-side .card:nth-child(7) .card-title-row .card-value.red');
         if (yesterdayLimitUpElement) {
             yesterdayLimitUpElement.textContent = lastValue.toFixed(2) + '%';
         } else {

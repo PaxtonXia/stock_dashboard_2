@@ -566,6 +566,19 @@
             </div>
             <div class="card">
                 <div class="card-title-row">
+                    <span class="card-title"><i class="fas fa-comments"></i> 股吧情绪</span>
+                    <span class="card-value">63.0%</span>
+                </div>
+                <div id="gubaSentimentGauge" class="echart" style="height: 150px;"></div>
+                <div id="gubaSentimentChart" class="echart" style="height: 80px;"></div>
+                <!-- 添加操作建议区域 -->
+                <div class="market-advice" style="padding: 8px 5px; margin-top: 5px; border-top: 1px dashed #444; font-size: 12px;">
+                    <div style="font-weight: bold; margin-bottom: 5px; color: #aaa;">操作建议：<span id="gubaAdviceType" style="color: #ffcc00;">-</span></div>
+                    <div id="gubaAdviceContent" style="color: #ddd; line-height: 1.4;">-</div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title-row">
                     <span class="card-title"><i class="fas fa-chart-bar"></i> 涨跌分布</span>
                 </div>
                 <div id="bar" class="echart"></div>
@@ -593,14 +606,14 @@
                     <span class="card-title"><i class="fas fa-ban"></i> 封板未遂</span>
                     <span class="card-value gray">（炸板率37%）</span>
                 </div>
-                <div id="line3" class="echart"></div>
+                <div id="line3" class="echart" style="height: 120px;"></div>
             </div>
             <div class="card">
                 <div class="card-title-row">
                     <span class="card-title"><i class="fas fa-history"></i> 昨日涨停今日表现</span>
                     <span class="card-value red">-</span>
                 </div>
-                <div id="line4" class="echart"></div>
+                <div id="line4" class="echart" style="height: 120px;"></div>
             </div>
         </div>
         <div class="dashboard-main">
@@ -1075,6 +1088,183 @@
         document.getElementById('styleMarketTabBtn').classList.remove('active');
     });
 });
+    </script>
+    <script>
+        // 股吧情绪图表初始化
+        const gubaSentimentGauge = echarts.init(document.getElementById('gubaSentimentGauge'));
+        const gubaSentimentChart = echarts.init(document.getElementById('gubaSentimentChart'));
+        
+            // 获取股吧情绪数据
+            function fetchGubaSentiment() {
+                const url = 'https://gbapi.eastmoney.com/data/api/Data/GetIndexData?product=guba&version=9005000&plat=ipad&deviceid=1&callback=__jp0';
+                
+                // 使用JSONP方式获取数据
+                const script = document.createElement('script');
+                script.src = url;
+                document.body.appendChild(script);
+                
+                // 定义回调函数
+                window.__jp0 = function(data) {
+                    console.log('Raw API response:', data); // 调试日志
+                    try {
+                        if (data && data.re && Array.isArray(data.re)) {
+                            console.log('First data point:', data.re[0]); // 调试日志
+                            updateGubaChart(data.re);
+                            updateGubaAdvice(data.re[0].value);
+                        } else {
+                            console.error('Invalid data format:', data);
+                        }
+                    } catch (e) {
+                        console.error('Error processing data:', e);
+                    } finally {
+                        document.body.removeChild(script);
+                    }
+                };
+            }
+        
+            // 更新股吧情绪图表
+            function updateGubaChart(data) {
+                console.log('Raw guba data:', data); // 调试日志
+                
+                // 处理数据 - 取最近30个数据点
+                const recentData = data.slice(0, 30).reverse();
+                const times = recentData.map(item => {
+                    const date = new Date(item.time);
+                    return `${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
+                });
+                const values = recentData.map(item => {
+                    const val = parseFloat(item.value) * 100;
+                    return isNaN(val) ? null : val;
+                });
+                const currentValue = values[0] || 0;
+                
+                console.log('Processed values:', values); // 调试日志
+            
+            // 更新当前值显示
+            const cardValueElement = document.querySelector('.card-title:has(i.fa-comments)')?.nextElementSibling;
+            if (cardValueElement && cardValueElement.classList.contains('card-value')) {
+                console.log('Updating card value to:', currentValue.toFixed(1)); // 调试日志
+                cardValueElement.textContent = `${currentValue.toFixed(1)}%`;
+            } else {
+                console.error('Failed to find card value element');
+            }
+            
+            // 更新仪表盘 - 使用和市场情绪相同的样式
+            gubaSentimentGauge.setOption({
+                series: [{
+                    type: 'gauge',
+                    startAngle: 180,
+                    endAngle: 0,
+                    min: 0,
+                    max: 100,
+                    splitNumber: 4,
+                    axisLine: {
+                        lineStyle: {
+                            width: 8,
+                            color: [[0.4, '#22e090'], [0.6, '#ffcc00'], [1, '#ff5252']]
+                        }
+                    },
+                    pointer: { show: true },
+                    progress: { show: false },
+                    axisTick: { show: false },
+                    splitLine: { show: false },
+                    axisLabel: { show: false },
+                    detail: { 
+                        show: true,
+                        formatter: function (value) {
+                            return value.toFixed(1) + '%热度';
+                        },
+                        fontSize: 20,
+                        offsetCenter: ['0%', '80%'],
+                        color: 'auto'
+                    },
+                    data: [{ value: currentValue }]
+                }],
+                textStyle: { color: '#ffffff' }
+            });
+            
+            // 设置图表选项 - 使用和市场情绪相同的样式
+            const option = {
+                grid: { left: 5, right: 5, top: 5, bottom: 5, containLabel: true },
+                xAxis: { 
+                    type: 'category',
+                    data: times,
+                    axisLine: { lineStyle: { color: '#666' } },
+                    axisLabel: { 
+                        color: '#d0d0d0',
+                        fontSize: 10,
+                        formatter: function(value) {
+                            return value.substring(0,5); // 只显示HH:MM
+                        }
+                    },
+                    splitLine: {
+                        show: true,
+                        lineStyle: {
+                            type: 'dashed',
+                            color: 'rgba(255,255,255,0.15)'
+                        }
+                    }
+                },
+                yAxis: { 
+                    type: 'value', 
+                    show: false,
+                    scale: true
+                },
+                series: [{
+                    name: '股吧情绪',
+                    type: 'line',
+                    data: values,
+                    smooth: true,
+                    showSymbol: false,
+                    lineStyle: { color: '#3388ff', width: 1.5 },
+                    areaStyle: { color: 'rgba(51, 136, 255, 0.15)' }
+                }],
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: 'rgba(30,30,45,0.95)',
+                    borderColor: '#444',
+                    textStyle: { color: '#fff' },
+                    formatter: function (params) {
+                        const idx = params[0].dataIndex;
+                        const t = times[idx];
+                        const v = params[0].value;
+                        return `${t}\n情绪: ${typeof v === 'number' && !isNaN(v) ? v.toFixed(2) : '--'}%`;
+                    }
+                }
+            };
+            
+            gubaSentimentChart.setOption(option);
+        }
+        
+        // 更新操作建议
+        function updateGubaAdvice(value) {
+            const valuePercent = value * 100;
+            const adviceType = document.getElementById('gubaAdviceType');
+            const adviceContent = document.getElementById('gubaAdviceContent');
+            
+            if (valuePercent > 70) {
+                adviceType.textContent = '积极';
+                adviceType.style.color = '#22e090';
+                adviceContent.textContent = '股吧情绪高涨，投资者乐观情绪较强，可考虑适当参与热门话题个股';
+            } else if (valuePercent > 50) {
+                adviceType.textContent = '中性';
+                adviceType.style.color = '#ffcc00';
+                adviceContent.textContent = '股吧情绪平稳，投资者观望情绪较浓，建议谨慎操作';
+            } else {
+                adviceType.textContent = '谨慎';
+                adviceType.style.color = '#ff5252';
+                adviceContent.textContent = '股吧情绪低迷，投资者悲观情绪较重，建议控制仓位等待机会';
+            }
+        }
+        
+        // 初始化并获取数据
+        fetchGubaSentiment();
+        setInterval(fetchGubaSentiment, 60000); // 每分钟更新一次
+        
+        // 窗口大小变化时重绘图表
+        window.addEventListener('resize', function() {
+            gubaSentimentChart.resize();
+        });
     </script>
     <style>
 /* 修改最强风口卡片样式 */

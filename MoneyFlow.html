@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>资金流向可视化</title>
+    <script src="js/jquery-1.12.4.min.js"></script>
+    <script src="js/chart/Chart.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #1a1a2e;
+            color: #e0e0e0;
+        }
+
+        .dashboard {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #4a9eff;
+            margin-bottom: 10px;
+        }
+
+        .market-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: #252538;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-title i {
+            color: #4a9eff;
+        }
+
+        .flow-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .flow-label {
+            color: #888;
+        }
+
+        .flow-value {
+            font-weight: bold;
+        }
+
+        .positive {
+            color: #22e090;
+        }
+
+        .negative {
+            color: #ff5252;
+        }
+
+        .chart-container {
+            margin-top: 30px;
+            background: #252538;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+
+        .error {
+            color: #ff5252;
+            text-align: center;
+            padding: 20px;
+            background: rgba(255, 82, 82, 0.1);
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+
+        @media (max-width: 768px) {
+            .market-cards {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="header">
+            <h1><i class="fas fa-money-bill-wave"></i> 资金流向可视化</h1>
+            <p>展示各市场主力资金流向数据</p>
+        </div>
+
+        <div id="data-container">
+            <div class="loading">
+                <i class="fas fa-spinner fa-spin"></i>
+                加载数据中...
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <canvas id="flowChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            // Market definitions - only keep 沪深
+            const markets = [
+                { code: "1", name: "沪深", icon: "fas fa-chart-line" }
+            ];
+
+            // Fetch data for all markets
+            fetchAllMarketData();
+
+            async function fetchAllMarketData() {
+                try {
+                    const promises = markets.map(market => 
+                        fetchMarketData(market.code, market.name)
+                    );
+                    
+                    await Promise.all(promises);
+                    renderCombinedChart();
+                } catch (error) {
+                    console.error("Error fetching data:", error);
+                    $('#data-container').append('<div class="error">数据加载失败: ' + error.message + '</div>');
+                }
+            }
+
+            function fetchMarketData(marketCode, marketName) {
+                return new Promise((resolve, reject) => {
+                    $.ajax({
+                        url: 'https://gbapi.eastmoney.com/data/api/Data/GetIndexData',
+                        data: {
+                            product: 'guba',
+                            version: '9005000',
+                            plat: 'ipad',
+                            deviceid: '1',
+                            callback: '__jp0',
+                            _: Date.now()
+                        },
+                        dataType: 'jsonp',
+                        jsonpCallback: '__jp0',
+                        success: function(response) {
+                            console.log("API Response:", response);
+                            if (response && response.re && response.re.length > 0) {
+                                // Process all time series data
+                                const processedData = response.re.map(item => ({
+                                    time: item.time,
+                                    value: item.value
+                                }));
+                                renderMarketCard(marketName, marketCode, processedData);
+                                marketData = processedData; // Store all data for chart
+                                resolve();
+                            } else {
+                                $('#data-container').append(`<div class="error">${marketName}数据为空，可能市场已收盘或无数据</div>`);
+                                resolve();
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            console.error("API Error:", status, error);
+                            $('#data-container').append(`<div class="error">${marketName}数据获取失败: ${error}</div>`);
+                            resolve();
+                        }
+                    });
+                });
+            }
+
+            function renderMarketCard(marketName, marketCode, dataArray) {
+                const marketIcon = markets.find(m => m.name === marketName).icon;
+                
+                // Check if data exists
+                if (!dataArray || dataArray.length === 0) {
+                    return;
+                }
+
+                // Get latest data point
+                const latestData = dataArray[0];
+                
+                // Format value
+                const formatValue = (value) => {
+                    return formatNumber(value);
+                };
+
+                let html = `
+                    <div class="card">
+                        <div class="card-title">
+                            <i class="${marketIcon}"></i>
+                            ${marketName}
+                        </div>
+                        <div class="flow-item">
+                            <span class="flow-label">最新值</span>
+                            <span class="flow-value">
+                                ${formatValue(latestData.value)}
+                            </span>
+                        </div>
+                        <div class="flow-item">
+                            <span class="flow-label">更新时间</span>
+                            <span class="flow-value">
+                                ${new Date(latestData.time).toLocaleString()}
+                            </span>
+                        </div>
+                    </div>
+                `;
+
+                if ($('#data-container').children().length === 1 && $('#data-container').children().hasClass('loading')) {
+                    $('#data-container').html('<div class="market-cards">' + html + '</div>');
+                } else {
+                    $('.market-cards').append(html);
+                }
+            }
+
+            let marketData = [];
+            
+            function renderCombinedChart() {
+                const ctx = document.getElementById('flowChart').getContext('2d');
+                
+                // Prepare chart data with time labels
+                const labels = marketData.map(data => new Date(data.time).toLocaleTimeString());
+                const values = marketData.map(data => data.value);
+                
+                const chartData = {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '资金流向指数',
+                            data: values,
+                            borderColor: 'rgba(74, 158, 255, 0.7)',
+                            backgroundColor: 'rgba(74, 158, 255, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4
+                        }
+                    ]
+                };
+
+                new Chart(ctx, {
+                    type: 'line',
+                    data: chartData,
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: '沪深资金流向指数趋势',
+                                color: '#fff'
+                            },
+                            legend: {
+                                labels: {
+                                    color: '#fff'
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    color: '#888'
+                                },
+                                grid: {
+                                    color: 'rgba(255, 255, 255, 0.1)'
+                                }
+                            },
+                            x: {
+                                ticks: {
+                                    color: '#888'
+                                },
+                                grid: {
+                                    color: 'rgba(255, 255, 255, 0.1)'
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            function formatNumber(num) {
+                return num ? num.toLocaleString('zh-CN') : '0';
+            }
+        });
+    </script>
+</body>
+</html>
+                            renderMarketCard(marketName, marketCode, marketDataItem);
+                            resolve();
+                        } else {
+                            console.warn(`No valid data in response for ${marketName}:`, response);
+                            reject(new Error(`No data available or invalid format for ${marketName}`));
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error(`Failed to fetch ${marketName} data. Status: ${status}, Error:`, error, xhr);
+                        reject(new Error(`Failed to fetch ${marketName} data: ${status} - ${error}`));
+                    }
+                });
+            });
+
+            return fetchWithRetry(fetchData);
+        }
+
+        async function fetchAllMarketData() {
+            $('#data-container').html('<div class="loading"><i class="fas fa-spinner fa-spin"></i> 加载数据中...</div>');
+            marketData = [];
+            $('.market-cards').remove();
+            
+            try {
+                const results = await Promise.allSettled(
+                    markets.map(market => fetchMarketData(market.code, market.name))
+                );
+                
+                const successfulRequests = results.filter(result => result.status === 'fulfilled');
+                
+                results.forEach(result => {
+                    if (result.status === 'rejected') {
+                        console.error(`Failed to load data for a market:`, result.reason);
+                    }
+                });
+
+                if (successfulRequests.length === 0) {
+                    $('#data-container').html('<div class="error">未能获取到任何市场数据，请稍后重试</div>');
+                    return;
+                }
+                
+                if (successfulRequests.length < markets.length) {
+                    console.warn(`Only ${successfulRequests.length} out of ${markets.length} markets loaded successfully`);
+                }
+
+                if (marketData.length > 0) {
+                    renderCombinedChart();
+                }
+            } catch (error) {
+                console.error("Error fetching data:", error);
+                $('#data-container').html('<div class="error">数据加载失败: ' + error.message + '</div>');
+            }
+        }
+
+        // Initialize when document is ready
+        $(document).ready(function() {
+            fetchAllMarketData();
+        });
+    </script>
+</body>
+</html>

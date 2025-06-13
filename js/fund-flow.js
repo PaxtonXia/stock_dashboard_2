@@ -74,6 +74,14 @@ function loadFundFlowCharts() {
         // dataArray[0] is industry data, dataArray[1] is concept data
         renderScatterChart(transformedDataArray[0], 'industryChart');
         renderScatterChart(transformedDataArray[1], 'conceptChart');
+        
+        // Update floating layers with data
+        if (window.updateFloatingFundFlow) {
+            window.updateFloatingFundFlow(transformedDataArray[0]); // Industry data
+        }
+        if (window.updateFloatingConceptFlow) {
+            window.updateFloatingConceptFlow(transformedDataArray[1]); // Concept data
+        }
     })
     .catch(function(error) {
         console.error('Error loading fund flow data:', error);
@@ -281,8 +289,128 @@ function renderScatterChart(data, canvasId) {
     });
 }
 
-// Initial data load
-loadFundFlowCharts();
+// Update concept floating fund flow layer
+function updateFloatingConceptFlow(data) {
+    // Sort by net inflow (descending)
+    const sorted = [...data].sort((a, b) => b['主力净流入_亿'] - a['主力净流入_亿']);
+    
+    // Get top 5 inflows (positive values)
+    const topInflows = sorted.filter(item => item['主力净流入_亿'] > 0).slice(0, 5);
+    
+    // Get top 5 outflows (negative values, sorted by most negative)
+    const topOutflows = sorted.filter(item => item['主力净流入_亿'] < 0)
+                            .sort((a, b) => a['主力净流入_亿'] - b['主力净流入_亿'])
+                            .slice(0, 5);
+    
+    // Update inflows list
+    const inflowsList = document.getElementById('topConceptInflowsList');
+    inflowsList.innerHTML = topInflows.map(item => `
+        <div class="floating-fund-flow-item">
+            <span class="floating-fund-flow-name">${item['板块名称']}</span>
+            <span class="floating-fund-flow-value positive">+${item['主力净流入_亿'].toFixed(2)}亿</span>
+        </div>
+    `).join('');
+    
+    // Update outflows list
+    const outflowsList = document.getElementById('topConceptOutflowsList');
+    outflowsList.innerHTML = topOutflows.map(item => `
+        <div class="floating-fund-flow-item">
+            <span class="floating-fund-flow-name">${item['板块名称']}</span>
+            <span class="floating-fund-flow-value negative">${item['主力净流入_亿'].toFixed(2)}亿</span>
+        </div>
+    `).join('');
+}
 
-// Refresh data every minute (60000 milliseconds)
-setInterval(loadFundFlowCharts, 60000); 
+// Wait for DOM to be fully loaded before setting up event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    // Tab switch handlers
+    const industryTabBtn = document.getElementById('industryTabBtn');
+    const conceptTabBtn = document.getElementById('conceptTabBtn');
+    const floatingFundFlow = document.getElementById('floatingFundFlow');
+    const floatingConceptFlow = document.getElementById('floatingConceptFlow');
+    const floatingFundFlowClose = document.getElementById('floatingFundFlowClose');
+    const floatingConceptFlowClose = document.getElementById('floatingConceptFlowClose');
+
+    if (industryTabBtn && conceptTabBtn && floatingFundFlow && floatingConceptFlow) {
+        // Position both floating layers in the same location (right side)
+        floatingConceptFlow.style.right = '10px';
+        floatingConceptFlow.style.left = 'auto';
+        floatingConceptFlow.style.top = '60px';
+
+        // Make both floating layers draggable
+        function makeDraggable(element) {
+            let isDragging = false;
+            let offsetX, offsetY;
+
+            element.addEventListener('mousedown', function(e) {
+                if (e.target === element || e.target.classList.contains('floating-fund-flow-header')) {
+                    isDragging = true;
+                    offsetX = e.clientX - element.getBoundingClientRect().left;
+                    offsetY = e.clientY - element.getBoundingClientRect().top;
+                    element.style.cursor = 'grabbing';
+                }
+            });
+
+            document.addEventListener('mousemove', function(e) {
+                if (!isDragging) return;
+                
+                const parentRect = element.parentElement.getBoundingClientRect();
+                let left = e.clientX - offsetX - parentRect.left;
+                let top = e.clientY - offsetY - parentRect.top;
+                
+                // Constrain to parent bounds
+                left = Math.max(0, Math.min(left, parentRect.width - element.offsetWidth));
+                top = Math.max(0, Math.min(top, parentRect.height - element.offsetHeight));
+                
+                element.style.left = left + 'px';
+                element.style.right = 'auto';
+                element.style.top = top + 'px';
+            });
+
+            document.addEventListener('mouseup', function() {
+                isDragging = false;
+                element.style.cursor = 'grab';
+            });
+        }
+
+        makeDraggable(floatingFundFlow);
+        makeDraggable(floatingConceptFlow);
+
+        // Initialize cursor style
+        floatingFundFlow.style.cursor = 'grab';
+        floatingConceptFlow.style.cursor = 'grab';
+
+        industryTabBtn.addEventListener('click', function() {
+            floatingFundFlow.style.display = 'block';
+            floatingConceptFlow.style.display = 'none';
+        });
+
+        conceptTabBtn.addEventListener('click', function() {
+            floatingFundFlow.style.display = 'none';
+            floatingConceptFlow.style.display = 'block';
+        });
+    }
+
+    if (floatingFundFlowClose) {
+        floatingFundFlowClose.addEventListener('click', function() {
+            floatingFundFlow.style.display = 'none';
+        });
+    }
+
+    if (floatingConceptFlowClose) {
+        floatingConceptFlowClose.addEventListener('click', function() {
+            floatingConceptFlow.style.display = 'none';
+        });
+    }
+
+    // Initialize visibility
+    if (floatingConceptFlow) {
+        floatingConceptFlow.style.display = 'none';
+    }
+
+    // Initial data load
+    loadFundFlowCharts();
+
+    // Refresh data every minute (60000 milliseconds)
+    setInterval(loadFundFlowCharts, 60000);
+});

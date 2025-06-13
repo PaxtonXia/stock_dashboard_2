@@ -287,6 +287,82 @@
             font-size: 11px;
             font-family: Consolas, monospace;
         }
+        /* Floating fund flow layer styles */
+        .floating-fund-flow {
+            position: absolute;
+            right: 10px;
+            top: 60px;
+            width: 200px;
+            background: rgba(30, 30, 45, 0.8);
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            border: 1px solid #3a3a5a;
+            z-index: 10;
+            padding: 10px;
+        }
+        
+        .floating-concept-flow {
+            position: absolute;
+            right: 10px;
+            top: 60px;
+            width: 200px;
+            background: rgba(30, 30, 45, 0.8);
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            border: 1px solid #3a3a5a;
+            z-index: 10;
+            padding: 10px;
+        }
+        .fund-flow-card {
+            position: relative; /* Make card a positioning context */
+        }
+        .floating-fund-flow-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #3a3a5a;
+        }
+        .floating-fund-flow-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #e0e0e0;
+            margin-bottom: 8px;
+        }
+        .floating-fund-flow-close {
+            cursor: pointer;
+            color: #aaa;
+            font-size: 16px;
+        }
+        .floating-fund-flow-section {
+            margin-bottom: 16px;
+        }
+        .floating-fund-flow-section-title {
+            font-size: 12px;
+            color: #aaa;
+            margin-bottom: 8px;
+        }
+        .floating-fund-flow-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px dashed #3a3a5a;
+        }
+        .floating-fund-flow-name {
+            font-size: 12px;
+            color: #e0e0e0;
+        }
+        .floating-fund-flow-value {
+            font-size: 12px;
+            font-family: Consolas, monospace;
+        }
+        .floating-fund-flow-value.positive {
+            color: #ff5252;
+        }
+        .floating-fund-flow-value.negative {
+            color: #22e090;
+        }
         /* Enhanced styles for hotspot interpretation card */
         .plate-container-hotspot {
             margin: 10px;
@@ -646,6 +722,58 @@
     </div>
     <canvas id="industryChart" class="tab-pane" style="width: 100%; height: calc(100% - 40px); display: block;"></canvas>
     <canvas id="conceptChart" class="tab-pane" style="width: 100%; height: calc(100% - 40px); display: none;"></canvas>
+    
+    <!-- Industry floating fund flow layer -->
+    <div class="floating-fund-flow" id="floatingFundFlow" style="right: 10px;">
+        <div class="floating-fund-flow-header">
+                <div class="floating-fund-flow-title">
+                    <i class="fas fa-money-bill-wave"></i> 行业主力资金流向
+                </div>
+            <div class="floating-fund-flow-close" id="floatingFundFlowClose">
+                <i class="fas fa-times"></i>
+            </div>
+        </div>
+        
+        <div class="floating-fund-flow-section">
+            <div class="floating-fund-flow-section-title">
+                <i class="fas fa-arrow-up"></i> 净流入TOP5
+            </div>
+            <div id="topInflowsList"></div>
+        </div>
+        
+        <div class="floating-fund-flow-section">
+            <div class="floating-fund-flow-section-title">
+                <i class="fas fa-arrow-down"></i> 净流出TOP5
+            </div>
+            <div id="topOutflowsList"></div>
+        </div>
+    </div>
+
+    <!-- Concept floating fund flow layer -->
+    <div class="floating-fund-flow" id="floatingConceptFlow" style="left: 10px;">
+        <div class="floating-fund-flow-header">
+                <div class="floating-fund-flow-title">
+                    <i class="fas fa-lightbulb"></i> 概念主力资金流向
+                </div>
+            <div class="floating-fund-flow-close" id="floatingConceptFlowClose">
+                <i class="fas fa-times"></i>
+            </div>
+        </div>
+        
+        <div class="floating-fund-flow-section">
+            <div class="floating-fund-flow-section-title">
+                <i class="fas fa-arrow-up"></i> 净流入TOP5
+            </div>
+            <div id="topConceptInflowsList"></div>
+        </div>
+        
+        <div class="floating-fund-flow-section">
+            <div class="floating-fund-flow-section-title">
+                <i class="fas fa-arrow-down"></i> 净流出TOP5
+            </div>
+            <div id="topConceptOutflowsList"></div>
+        </div>
+    </div>
 </div>
 
             <!-- 将最强风口卡片移到这里 -->
@@ -752,6 +880,8 @@
 </div>
         </div>
     </div>
+
+    <!-- Floating fund flow layer moved inside fund-flow-card -->
 
     <script type="text/javascript">
         // Update current time with full date and market status
@@ -1265,6 +1395,57 @@
         window.addEventListener('resize', function() {
             gubaSentimentChart.resize();
         });
+
+        // Update floating fund flow layer
+        function updateFloatingFundFlow(data) {
+            // Sort by net inflow (descending)
+            const sorted = [...data].sort((a, b) => b['主力净流入_亿'] - a['主力净流入_亿']);
+            
+            // Get top 5 inflows (positive values)
+            const topInflows = sorted.filter(item => item['主力净流入_亿'] > 0).slice(0, 5);
+            
+            // Get top 5 outflows (negative values, sorted by most negative)
+            const topOutflows = sorted.filter(item => item['主力净流入_亿'] < 0)
+                                    .sort((a, b) => a['主力净流入_亿'] - b['主力净流入_亿'])
+                                    .slice(0, 5);
+            
+            // Update inflows list
+            const inflowsList = document.getElementById('topInflowsList');
+            inflowsList.innerHTML = topInflows.map(item => `
+                <div class="floating-fund-flow-item">
+                    <span class="floating-fund-flow-name">${item['板块名称']}</span>
+                    <span class="floating-fund-flow-value positive">+${item['主力净流入_亿'].toFixed(2)}亿</span>
+                </div>
+            `).join('');
+            
+            // Update outflows list
+            const outflowsList = document.getElementById('topOutflowsList');
+            outflowsList.innerHTML = topOutflows.map(item => `
+                <div class="floating-fund-flow-item">
+                    <span class="floating-fund-flow-name">${item['板块名称']}</span>
+                    <span class="floating-fund-flow-value negative">${item['主力净流入_亿'].toFixed(2)}亿</span>
+                </div>
+            `).join('');
+        }
+
+        // Close button handler
+        document.getElementById('floatingFundFlowClose').addEventListener('click', function() {
+            document.getElementById('floatingFundFlow').style.display = 'none';
+        });
+
+        // Initial update with sample data (will be replaced with real data)
+        updateFloatingFundFlow([
+            {"板块名称":"电子元件","主力净流入_亿":12.5},
+            {"板块名称":"医药制造","主力净流入_亿":8.7},
+            {"板块名称":"银行","主力净流入_亿":-3.2},
+            {"板块名称":"房地产","主力净流入_亿":-5.8},
+            {"板块名称":"汽车制造","主力净流入_亿":6.3},
+            {"板块名称":"钢铁","主力净流入_亿":-2.1},
+            {"板块名称":"煤炭","主力净流入_亿":3.9},
+            {"板块名称":"食品饮料","主力净流入_亿":7.2},
+            {"板块名称":"计算机","主力净流入_亿":9.8},
+            {"板块名称":"通信","主力净流入_亿":5.4}
+        ]);
     </script>
     <style>
 /* 修改最强风口卡片样式 */

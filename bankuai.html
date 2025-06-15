@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>板块股票列表</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #1a1a2e;
+            color: #e0e0e0;
+        }
+
+        .sortable {
+            cursor: pointer;
+            position: relative;
+            padding-right: 20px !important;
+        }
+
+        .sortable:hover {
+            color: #4a9eff;
+        }
+
+        .sortable::after {
+            content: "↕";
+            position: absolute;
+            right: 5px;
+            opacity: 0.5;
+            font-size: 14px;
+        }
+
+        .sortable.asc::after {
+            content: "↑";
+            opacity: 1;
+        }
+
+        .sortable.desc::after {
+            content: "↓";
+            opacity: 1;
+        }
+
+        .dashboard {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: #252538;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-top: 15px;
+        }
+
+        th, td {
+            border: none;
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #333;
+            font-size: 0.9rem;
+        }
+
+        th {
+            background-color: #1a1a2e;
+            color: #888;
+            font-weight: normal;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            font-size: 0.85rem;
+        }
+
+        tr:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        #chartContainer {
+            width: 100%;
+            height: 400px;
+            margin-top: 20px;
+            background: #252538;
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .chart-btn {
+            cursor: pointer;
+            color: #4a9eff;
+            text-decoration: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: rgba(74, 158, 255, 0.1);
+            transition: all 0.2s;
+            border: none;
+            outline: none;
+        }
+
+        .chart-btn:hover {
+            background: rgba(74, 158, 255, 0.2);
+        }
+
+        .positive {
+            color: #22e090;
+        }
+
+        .negative {
+            color: #ff5252;
+        }
+
+        input, button {
+            background: #252538;
+            border: 1px solid #333;
+            color: #e0e0e0;
+            padding: 6px 10px;
+            border-radius: 4px;
+            margin-right: 8px;
+            font-size: 0.9rem;
+        }
+
+        button {
+            background: #4a9eff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: #3a8eff;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            th, td {
+                padding: 8px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="card">
+            <div class="card-title">
+                <i class="fas fa-chart-line"></i>
+                板块股票列表
+            </div>
+            <div>
+                板块：<span id="blockName"></span>
+            </div>
+        </div>
+    </div>
+    <div id="result"></div>
+    <!-- 模态框 -->
+    <div id="chartModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:1000;">
+        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:90%;max-width:800px;background:#252538;padding:20px;border-radius:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+                <h3 id="modalTitle" style="margin:0;">分时图</h3>
+                <button onclick="document.getElementById('chartModal').style.display='none'" style="background:none;border:none;color:#aaa;font-size:20px;cursor:pointer;">×</button>
+            </div>
+            <div id="modalChartContainer" style="width:100%;height:400px;"></div>
+        </div>
+    </div>
+
+    <script src="js/jquery.min.js"></script>
+    <script src="js/echarts.js"></script>
+    <script>
+        let currentSortField = null;
+        let sortDirection = 1; // 1 for asc, -1 for desc
+        let currentData = null;
+
+        function getBlockCodeFromUrl() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const blockCode = urlParams.get('blockCode');
+            console.log('Received blockCode from URL:', blockCode); // 调试日志
+            // 标准化板块代码格式（确保以BK开头）
+            if (blockCode && !blockCode.startsWith('BK')) {
+                return 'BK' + blockCode;
+            }
+            return blockCode && blockCode.trim() !== '' ? blockCode : null;
+        }
+
+        // 初始化加载板块数据
+        const blockCode = getBlockCodeFromUrl();
+        if (blockCode) {
+            console.log('Initializing with blockCode:', blockCode);
+            fetchStockList(blockCode);
+        } else {
+            console.warn('No blockCode found in URL');
+            $('#result').html('<p>请通过正确途径访问本页面</p>');
+        }
+
+        function fetchBlockName(blockCode, callback) {
+            console.log('Fetching block name for:', blockCode);
+            
+            // 尝试从全局变量中获取板块数据
+            if (window.industryBoards && window.conceptBoards) {
+                console.log('Using global boards data');
+                findBlockName(blockCode, window.industryBoards, window.conceptBoards, callback);
+                return;
+            }
+            
+            // 如果没有全局数据，尝试从localStorage加载
+            try {
+                const industryBoards = JSON.parse(localStorage.getItem('industryBoards') || '[]');
+                const conceptBoards = JSON.parse(localStorage.getItem('conceptBoards') || '[]');
+                
+                if (industryBoards.length > 0 && conceptBoards.length > 0) {
+                    console.log('Using localStorage boards data');
+                    findBlockName(blockCode, industryBoards, conceptBoards, callback);
+                    return;
+                }
+            } catch (e) {
+                console.error('加载本地存储的板块数据失败', e);
+            }
+            
+            // 如果本地没有数据，尝试从API获取
+            console.log('Fetching boards data from API');
+            const industryUrl = 'https://push2.eastmoney.com/api/qt/clist/get?fid=f12&po=1&pz=1000&pn=1&np=1&fltt=2&invt=2&fs=m:90+t:2';
+            const conceptUrl = 'https://push2.eastmoney.com/api/qt/clist/get?fid=f12&po=1&pz=1000&pn=1&np=1&fltt=2&invt=2&fs=m:90+t:3';
+            
+            Promise.all([
+                fetch(industryUrl).then(res => res.json()),
+                fetch(conceptUrl).then(res => res.json())
+            ]).then(([industryData, conceptData]) => {
+                console.log('API industry data:', industryData);
+                console.log('API concept data:', conceptData);
+                
+                const industryBoards = industryData.data?.diff?.map(item => ({
+                    code: item.f12,
+                    name: item.f14
+                })) || [];
+                
+                const conceptBoards = conceptData.data?.diff?.map(item => ({
+                    code: item.f12,
+                    name: item.f14
+                })) || [];
+                
+                console.log('Processed industry boards:', industryBoards);
+                console.log('Processed concept boards:', conceptBoards);
+                
+                // 保存到全局变量和localStorage
+                window.industryBoards = industryBoards;
+                window.conceptBoards = conceptBoards;
+                try {
+                    localStorage.setItem('industryBoards', JSON.stringify(industryBoards));
+                    localStorage.setItem('conceptBoards', JSON.stringify(conceptBoards));
+                } catch (e) {
+                    console.error('保存到localStorage失败', e);
+                }
+                
+                console.log('API boards data loaded and processed');
+                findBlockName(blockCode, industryBoards, conceptBoards, callback);
+            }).catch(error => {
+                console.error('从API获取板块数据失败:', error);
+                callback(blockCode);
+            });
+        }
+        
+        function findBlockName(blockCode, industryBoards, conceptBoards, callback) {
+            console.log('Searching for block:', blockCode);
+            console.log('Industry boards:', industryBoards);
+            console.log('Concept boards:', conceptBoards);
+            
+            // 提取纯数字代码 (去掉BK前缀)
+            const numericCode = blockCode.startsWith('BK') ? blockCode.substring(2) : blockCode;
+            
+            // 搜索行业板块 (匹配完整BK代码或纯数字代码)
+            const industryMatch = industryBoards.find(board => {
+                const match = board.code === blockCode || 
+                             board.code === numericCode ||
+                             board.code === `BK${numericCode}`;
+                if (match) console.log('Industry match:', board);
+                return match;
+            });
+            
+            if (industryMatch) {
+                console.log('Found industry match:', industryMatch);
+                callback(industryMatch.name);
+                return;
+            }
+            
+            // 搜索概念板块 (匹配完整BK代码或纯数字代码)
+            const conceptMatch = conceptBoards.find(board => {
+                const match = board.code === blockCode || 
+                             board.code === numericCode ||
+                             board.code === `BK${numericCode}`;
+                if (match) console.log('Concept match:', board);
+                return match;
+            });
+            
+            if (conceptMatch) {
+                console.log('Found concept match:', conceptMatch);
+                callback(conceptMatch.name);
+                return;
+            }
+            
+            console.log('No match found for block:', blockCode);
+            callback(blockCode);
+        }
+
+        function fetchStockList(blockCode) {
+            if (!blockCode) {
+                blockCode = getBlockCodeFromUrl();
+                if (!blockCode) {
+                    $('#result').html('<p>请提供板块代码或名称</p>');
+                    return;
+                }
+            }
+            
+            // 如果是纯数字，确保以BK开头
+            if (/^\d+$/.test(blockCode)) {
+                blockCode = 'BK' + blockCode;
+            }
+            // 对于非数字的板块名称，直接使用
+            
+            // 获取并显示板块名称
+            fetchBlockName(blockCode, function(blockName) {
+                console.log('Fetched block name:', blockName, 'for code:', blockCode);
+                if (blockName && blockName !== blockCode) {
+                    $('#blockName').text(blockName + ' (' + blockCode + ')');
+                } else {
+                    $('#blockName').text(blockCode);
+                }
+            });
+
+            $.ajax({
+                url: `https://push2.eastmoney.com/api/qt/clist/get?fid=f12&po=1&pz=100&pn=1&np=1&fltt=2&invt=2&fs=b:${blockCode}&fields=f12,f14,f2,f3,f4,f62,f184,f66,f69,f72,f75,f78,f81,f84,f87,f204,f205,f124`,
+                type: 'GET',
+                dataType: 'json',
+                success: function(data) {
+                    displayStockList(data);
+                },
+                error: function(error) {
+                    console.error('Error:', error);
+                    $('#result').html('<p>获取数据失败，请重试</p>');
+                }
+            });
+        }
+
+        function displayStockList(data) {
+            if (!data.data || !data.data.diff) {
+                $('#result').html('<p>没有找到股票数据</p>');
+                return;
+            }
+            
+            // Save current data for sorting
+            currentData = data;
+
+            let html = '<table><tr>' +
+                '<th>代码</th>' +
+                '<th>名称</th>' +
+                '<th>最新价</th>' +
+                '<th class="sortable" onclick="sortTable(\'f3\')">涨跌幅</th>' +
+                '<th class="sortable" onclick="sortTable(\'f62\')">主力净流入(万)</th>' +
+                '<th class="sortable" onclick="sortTable(\'f66\')">净流速(万)</th>' +
+                '<th>分时图</th>' +
+                '</tr>';
+            
+            data.data.diff.forEach(stock => {
+                // 格式化主力净流入(转换为万元)
+                const inflow = stock.f62 ? (stock.f62 / 10000).toFixed(2) : '--';
+                const inflowColor = stock.f62 > 0 ? 'color:#f44336' : 'color:#4CAF50';
+                
+                // 格式化净流速(转换为万元)
+                const flowRate = stock.f66 ? (stock.f66 / 10000).toFixed(2) : '--';
+                const flowRateColor = stock.f66 > 0 ? 'color:#f44336' : 'color:#4CAF50';
+                
+                html += `<tr>
+                    <td>${stock.f12}</td>
+                    <td>${stock.f14}</td>
+                    <td>${stock.f2}</td>
+                    <td style="${stock.f3 > 0 ? 'color:#f44336' : 'color:#4CAF50'}">${stock.f3}%</td>
+                    <td style="${inflowColor}">${inflow}</td>
+                    <td style="${flowRateColor}">${flowRate}</td>
+                    <td><span class="chart-btn" onclick="showTimeChart('${stock.f12}', '${stock.f14}')">查看</span></td>
+                </tr>`;
+            });
+
+            html += '</table>';
+            $('#result').html(html);
+        }
+
+        function showTimeChart(stockCode, stockName) {
+            const timestamp = Date.now();
+            // 根据股票代码确定市场（沪市:1，深市:0）
+            const marketPrefix = (stockCode.startsWith('6') ? '1' : '0');
+            const url = `https://push2his.eastmoney.com/api/qt/stock/trends2/get?fields1=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13&fields2=f51,f52,f53,f54,f55,f56,f57,f58&secid=${marketPrefix}.${stockCode}&_=${timestamp}`;
+            
+            // 显示加载中
+            const modal = document.getElementById('chartModal');
+            const chartContainer = document.getElementById('modalChartContainer');
+            
+            // 清除之前的图表实例
+            let chart = echarts.getInstanceByDom(chartContainer);
+            if (chart) {
+                chart.dispose();
+            }
+            
+            chartContainer.innerHTML = '<div style="text-align:center;padding:50px;color:#aaa;">加载中...</div>';
+            modal.style.display = 'block';
+            document.getElementById('modalTitle').textContent = `${stockName}（${stockCode}）分时图`;
+            
+            $.ajax({
+                url: url,
+                type: 'GET',
+                dataType: 'json',
+                success: function(data) {
+                    if (data.data && data.data.trends) {
+                        drawTimeChart(stockCode, data);
+                    } else {
+                        chartContainer.innerHTML = '<div style="text-align:center;padding:50px;color:#ff5252;">没有获取到有效的分时图数据</div>';
+                        console.log('分时图API返回:', data);
+                    }
+                },
+                error: function(error) {
+                    console.error('获取分时图数据失败:', error);
+                    chartContainer.innerHTML = '<div style="text-align:center;padding:50px;color:#ff5252;">获取分时图数据失败</div>';
+                }
+            });
+        }
+
+        function sortTable(field) {
+            if (!currentData || !currentData.data || !currentData.data.diff) return;
+            
+            // Toggle direction if same field clicked
+            if (currentSortField === field) {
+                sortDirection *= -1;
+            } else {
+                currentSortField = field;
+                sortDirection = 1;
+            }
+            
+            // Remove all sort classes
+            document.querySelectorAll('.sortable').forEach(el => {
+                el.classList.remove('asc', 'desc');
+            });
+            
+            // Add class to current sorted header
+            const header = document.querySelector(`th[onclick="sortTable('${field}')"]`);
+            header.classList.add(sortDirection === 1 ? 'asc' : 'desc');
+            
+            // Sort data
+            currentData.data.diff.sort((a, b) => {
+                const valA = a[field] || 0;
+                const valB = b[field] || 0;
+                return (valA - valB) * sortDirection;
+            });
+            
+            // Re-render table
+            displayStockList(currentData);
+        }
+
+        function drawTimeChart(stockCode, data) {
+            if (!data.data || !data.data.trends) {
+                alert('没有分时图数据');
+                return;
+            }
+
+            const chart = echarts.init(document.getElementById('modalChartContainer'));
+            const timeData = [];
+            const priceData = [];
+            const volumeData = [];
+
+            data.data.trends.forEach(item => {
+                const parts = item.split(',');
+                timeData.push(parts[0].substring(11));
+                priceData.push(parseFloat(parts[1]));
+                volumeData.push(parseInt(parts[5]));
+            });
+
+            const option = {
+                title: {
+                    text: `${stockCode} 分时图`,
+                    left: 'center',
+                    textStyle: {
+                        color: '#fff',
+                        fontSize: 18,
+                        fontWeight: 'bold'
+                    }
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: {
+                        type: 'line',
+                        lineStyle: {
+                            color: 'rgba(255,255,255,0.3)'
+                        }
+                    },
+                    backgroundColor: 'rgba(30,30,48,0.9)',
+                    borderColor: '#4a9eff',
+                    borderWidth: 1,
+                    textStyle: {
+                        color: '#fff',
+                        fontSize: 14
+                    },
+                    padding: 10
+                },
+                legend: {
+                    data: ['价格', '成交量'],
+                    top: 35,
+                    textStyle: {
+                        color: '#e0e0e0',
+                        fontSize: 14
+                    }
+                },
+                grid: [
+                    {
+                        left: '10%',
+                        right: '10%',
+                        top: '25%',
+                        height: '50%',
+                        backgroundColor: 'rgba(255,255,255,0.05)',
+                        borderColor: 'rgba(255,255,255,0.1)'
+                    },
+                    {
+                        left: '10%',
+                        right: '10%',
+                        top: '80%',
+                        height: '15%'
+                    }
+                ],
+                xAxis: [
+                    {
+                        type: 'category',
+                        data: timeData,
+                        boundaryGap: false,
+                        axisLine: { 
+                            onZero: false,
+                            lineStyle: {
+                                color: '#aaa'
+                            }
+                        },
+                        axisLabel: {
+                            color: '#aaa',
+                            fontSize: 12
+                        },
+                        splitLine: {
+                            show: true,
+                            lineStyle: {
+                                color: 'rgba(100,100,100,0.3)'
+                            }
+                        }
+                    },
+                    {
+                        gridIndex: 1,
+                        type: 'category',
+                        data: timeData,
+                        boundaryGap: false,
+                        axisLine: { 
+                            onZero: false,
+                            lineStyle: {
+                                color: '#aaa'
+                            }
+                        },
+                        axisLabel: {
+                            color: '#aaa',
+                            fontSize: 12
+                        }
+                    }
+                ],
+                yAxis: [
+                    {
+                        name: '价格',
+                        type: 'value',
+                        scale: true,
+                        nameTextStyle: {
+                            color: '#aaa',
+                            fontSize: 12
+                        },
+                        axisLine: {
+                            lineStyle: {
+                                color: '#aaa'
+                            }
+                        },
+                        axisLabel: {
+                            color: '#aaa',
+                            fontSize: 12
+                        },
+                        splitLine: {
+                            lineStyle: {
+                                color: 'rgba(100,100,100,0.3)'
+                            }
+                        }
+                    },
+                    {
+                        gridIndex: 1,
+                        name: '成交量',
+                        type: 'value',
+                        scale: true,
+                        nameTextStyle: {
+                            color: '#aaa',
+                            fontSize: 12
+                        },
+                        axisLine: {
+                            lineStyle: {
+                                color: '#aaa'
+                            }
+                        },
+                        axisLabel: {
+                            color: '#aaa',
+                            fontSize: 12
+                        },
+                        splitLine: {
+                            show: true,
+                            lineStyle: {
+                                type: 'dashed',
+                                color: 'rgba(100,100,100,0.3)'
+                            }
+                        }
+                    }
+                ],
+                series: [
+                    {
+                        name: '价格',
+                        type: 'line',
+                        data: priceData,
+                        smooth: true,
+                        lineStyle: {
+                            width: 3,
+                            color: '#ffcc00'
+                        },
+                        itemStyle: {
+                            color: '#ffcc00'
+                        },
+                        showSymbol: false,
+                        areaStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: 'rgba(255,204,0,0.3)' },
+                                { offset: 1, color: 'rgba(255,204,0,0.01)' }
+                            ])
+                        }
+                    },
+                    {
+                        name: '成交量',
+                        type: 'bar',
+                        xAxisIndex: 1,
+                        yAxisIndex: 1,
+                        data: volumeData,
+                        itemStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: '#4a9eff' },
+                                { offset: 1, color: '#1a5fb4' }
+                            ])
+                        },
+                        barMaxWidth: '60%'
+                    }
+                ]
+            };
+
+            chart.setOption(option);
+        }
+
+        $(document).ready(function() {
+            // 检查URL参数并自动查询
+            const blockCode = getBlockCodeFromUrl();
+            if (blockCode) {
+                fetchStockList(blockCode);
+            }
+        });
+    </script>
+</body>
+</html>

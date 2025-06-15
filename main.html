@@ -2,8 +2,9 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>A股日内交易投资决策系统</title>
+    <title>A股实时数据可视化看板</title>
     <link rel="stylesheet" href="css/font-awesome/all.min.css">
     <style>
         body {
@@ -542,7 +543,7 @@
         background: #23233a;
         font-weight: bold;
     }
-    .tab-pane { width: 100%; }
+        .tab-pane { width: 100%; }
     </style>
     <!-- Modal styles -->
     <style>
@@ -620,8 +621,8 @@
     <div class="brand-bar">
         <div class="brand-logo"><i class="fas fa-chart-line"></i></div>
         <div>
-            <div class="brand-title">A股日内交易投资决策系统</div>
-            <div class="brand-sub">实时金融数据可视化看板</div>
+            <div class="brand-title">A股实时数据可视化看板</div>
+            <div class="brand-sub">短线交易投资决策</div>
         </div>
         <div id="current-time" style="margin-left: auto; padding-right: 20px; font-size: 14px; color: #d0d0d0;"></div>
     </div>
@@ -649,7 +650,7 @@
                 <div id="gubaSentimentChart" class="echart" style="height: 80px;"></div>
                 <!-- 添加操作建议区域 -->
                 <div class="market-advice" style="padding: 8px 5px; margin-top: 5px; border-top: 1px dashed #444; font-size: 12px;">
-                    <div style="font-weight: bold; margin-bottom: 5px; color: #aaa;">操作建议：<span id="gubaAdviceType" style="color: #ffcc00;">-</span></div>
+                    <div style="font-weight: bold; margin-bottom: 5px; color:#aaa;">操作建议：<span id="gubaAdviceType" style="color: #ffcc00;">-</span></div>
                     <div id="gubaAdviceContent" style="color: #ddd; line-height: 1.4;">-</div>
                 </div>
             </div>
@@ -951,7 +952,7 @@
         // 市场风格走势相关
         const apiUrls = [
             { url: 'https://push2.eastmoney.com/api/qt/stock/trends2/get?wbp2u=0%7C0%7C0%7C0%7Capprn&ut=7e4f3ebb6c51ccc48f333bf648b58749&dpt=apprn.nxfxb&fields1=f1,f2,f5,f10,f13&fields2=f51,f53&iscr=0&iscca=0&secid=0.399373', name: '大盘价值 (0.399373)' },
-            { url: 'https://push2.eastmoney.com/api/qt/stock/trends2/get?wbp2u=0%7C0%7C0%7C0%7Capprn&ut=7e4f3ebb6c51ccc48f333bf648b58749&dpt=apprn.nxfxb&fields1=f1,f2,f5,f10,f13&fields2=f51,f53&iscr=0&iscca=0&secid=0.399372', name: '大盘成长 (0.399372)' },
+            { url: 'https://push2.eastmoney.com/api/qt/stock/trends2/get?wbp2u=0%7C0%7C0%7C0%7Capprn&ut=7e4f3ebb6c51ccc48f333bf648b58749&dpt= apprn.nxfxb&fields1=f1,f2,f5,f10,f13&fields2=f51,f53&iscr=0&iscca=0&secid=0.399372', name: '大盘成长 (0.399372)' },
             { url: 'https://push2.eastmoney.com/api/qt/stock/trends2/get?wbp2u=0%7C0%7C0%7C0%7Capprn&ut=7e4f3ebb6c51ccc48f333bf648b58749&dpt=apprn.nxfxb&fields1=f1,f2,f5,f10,f13&fields2=f51,f53&iscr=0&iscca=0&secid=0.399377', name: '小盘价值 (0.399377)' },
             { url: 'https://push2.eastmoney.com/api/qt/stock/trends2/get?wbp2u=0%7C0%7C0%7C0%7Capprn&ut=7e4f3ebb6c51ccc48f333bf648b58749&dpt=apprn.nxfxb&fields1=f1,f2,f5,f10,f13&fields2=f51,f53&iscr=0&iscca=0&secid=0.399376', name: '小盘成长 (0.399376)' }
         ];
@@ -1413,7 +1414,7 @@
             const inflowsList = document.getElementById('topInflowsList');
             inflowsList.innerHTML = topInflows.map(item => `
                 <div class="floating-fund-flow-item">
-                    <span class="floating-fund-flow-name">${item['板块名称']}</span>
+                    <span class="floating-fund-flow-name" style="cursor:pointer;" onclick="openStockModal('bankuai.html?blockCode=${encodeURIComponent(item['板块代码'] || '')}')">${item['板块名称']}</span>
                     <span class="floating-fund-flow-value positive">+${item['主力净流入_亿'].toFixed(2)}亿</span>
                 </div>
             `).join('');
@@ -1422,7 +1423,7 @@
             const outflowsList = document.getElementById('topOutflowsList');
             outflowsList.innerHTML = topOutflows.map(item => `
                 <div class="floating-fund-flow-item">
-                    <span class="floating-fund-flow-name">${item['板块名称']}</span>
+                    <span class="floating-fund-flow-name" style="cursor:pointer;" onclick="openStockModal('bankuai.html?blockCode=${encodeURIComponent(item['板块代码'] || '')}')">${item['板块名称']}</span>
                     <span class="floating-fund-flow-value negative">${item['主力净流入_亿'].toFixed(2)}亿</span>
                 </div>
             `).join('');
@@ -1435,16 +1436,16 @@
 
         // Initial update with sample data (will be replaced with real data)
         updateFloatingFundFlow([
-            {"板块名称":"电子元件","主力净流入_亿":12.5},
-            {"板块名称":"医药制造","主力净流入_亿":8.7},
-            {"板块名称":"银行","主力净流入_亿":-3.2},
-            {"板块名称":"房地产","主力净流入_亿":-5.8},
-            {"板块名称":"汽车制造","主力净流入_亿":6.3},
-            {"板块名称":"钢铁","主力净流入_亿":-2.1},
-            {"板块名称":"煤炭","主力净流入_亿":3.9},
-            {"板块名称":"食品饮料","主力净流入_亿":7.2},
-            {"板块名称":"计算机","主力净流入_亿":9.8},
-            {"板块名称":"通信","主力净流入_亿":5.4}
+            {"板块名称":"电子元件","板块代码":"BK0451","主力净流入_亿":12.5},
+            {"板块名称":"医药制造","板块代码":"BK0465","主力净流入_亿":8.7},
+            {"板块名称":"银行","板块代码":"BK0475","主力净流入_亿":-3.2},
+            {"板块名称":"房地产","板块代码":"BK0451","主力净流入_亿":-5.8},
+            {"板块名称":"汽车制造","板块代码":"BK0481","主力净流入_亿":6.3},
+            {"板块名称":"钢铁","板块代码":"BK0479","主力净流入_亿":-2.1},
+            {"板块名称":"煤炭","板块代码":"BK0437","主力净流入_亿":3.9},
+            {"板块名称":"食品饮料","板块代码":"BK0438","主力净流入_亿":7.2},
+            {"板块名称":"计算机","板块代码":"BK0459","主力净流入_亿":9.8},
+            {"板块名称":"通信","板块代码":"BK0448","主力净流入_亿":5.4}
         ]);
     </script>
     <style>

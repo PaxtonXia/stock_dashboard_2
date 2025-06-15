@@ -56,9 +56,10 @@ function loadFundFlowCharts() {
         const transformedDataArray = dataArray.map(apiData => {
             // Assuming apiData has a structure like { data: { diff: [...] } }
             if (apiData && apiData.data && apiData.data.diff) {
-                return apiData.data.diff.map(item => ({
-                    // *** 推测性映射，可能需要根据实际API返回结构调整 ***
-                    板块名称: item.f14, // 板块名称
+                    return apiData.data.diff.map(item => ({
+                        // *** 根据实际API响应结构调整字段映射 ***
+                        板块名称: (item.f14 || '').trim(), // 去除前后空格
+                        板块代码: item.f12 || item.code, // 兼容不同数据源的代码字段
                     主力净流入_亿: item.f62 / 100000000, // 主力净流入 (单位从元转换为亿)
                     涨跌幅_百分比: item.f3, // 涨跌幅
                     换手_百分比: item.f184 // 换手率
@@ -138,15 +139,74 @@ function renderScatterChart(data, canvasId) {
         ctx.chart.destroy();
     }
 
-    // Create chart
-    new Chart(ctx, {
-        type: 'bubble',
-        data: chartData,
-        plugins: [], // Plugins are added in options.plugins now
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            events: ['click', 'mousemove'],
+            // Create chart
+            new Chart(ctx, {
+                type: 'bubble',
+                data: chartData,
+                plugins: [], // Plugins are added in options.plugins now
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    events: ['click', 'mousemove'],
+                    onHover: (event, chartElement) => {
+                        if (event.target) {
+                            event.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                        }
+                    },
+                    onClick: function(evt) {
+                        console.log('Chart click event triggered', evt);
+                        try {
+                            const elements = this.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
+                            console.log('Clicked elements:', elements);
+                            
+                            if (elements && elements.length > 0) {
+                                const firstElement = elements[0];
+                                console.log('Clicked element details:', firstElement);
+                                
+                                const datasetIndex = firstElement._datasetIndex;
+                                const index = firstElement._index;
+                                console.log(`Data index: ${index}, Dataset index: ${datasetIndex}`);
+                                
+                                if (this.data && this.data.datasets && this.data.datasets[datasetIndex] && 
+                                    this.data.datasets[datasetIndex].data && this.data.datasets[datasetIndex].data[index]) {
+                                    
+                                    const dataPoint = this.data.datasets[datasetIndex].data[index];
+                                    console.log('Clicked data point:', dataPoint);
+                                    
+                                    if (data && Array.isArray(data)) {
+                                        console.log('Searching in original data:', data);
+                                        const blockData = data.find(item => {
+                                            const match = item.板块名称 && dataPoint.name && 
+                                                item.板块名称.trim() === dataPoint.name.trim();
+                                            console.log(`Matching "${item.板块名称}" with "${dataPoint.name}": ${match}`);
+                                            return match;
+                                        });
+                                        
+                                        if (blockData) {
+                                            console.log('Found matching block data:', blockData);
+                                            if (blockData.板块代码) {
+                                                const url = `bankuai.html?blockCode=${encodeURIComponent(blockData.板块代码)}`;
+                                                console.log('Opening modal with URL:', url);
+                                                if (typeof openStockModal === 'function') {
+                                                    openStockModal(url);
+                                                } else {
+                                                    console.error('openStockModal is not a function');
+                                                }
+                                            } else {
+                                                console.warn('Block code missing in:', blockData);
+                                            }
+                                        } else {
+                                            console.warn('No matching block found for:', dataPoint.name);
+                                        }
+                                    } else {
+                                        console.error('Original data is invalid:', data);
+                                    }
+                                }
+                            }
+                        } catch (error) {
+                            console.error('Error handling chart click:', error);
+                        }
+                    },
             plugins: {
                  zoom: {
                      pan: {
@@ -306,7 +366,7 @@ function updateFloatingConceptFlow(data) {
     const inflowsList = document.getElementById('topConceptInflowsList');
     inflowsList.innerHTML = topInflows.map(item => `
         <div class="floating-fund-flow-item">
-            <span class="floating-fund-flow-name">${item['板块名称']}</span>
+            <span class="floating-fund-flow-name" style="cursor:pointer;" onclick="if(typeof openStockModal === 'function' && '${item['板块代码']}'){openStockModal('bankuai.html?blockCode=${item['板块代码']}')}else{console.error('无效的板块代码:', '${item['板块代码']}')}">${item['板块名称']}</span>
             <span class="floating-fund-flow-value positive">+${item['主力净流入_亿'].toFixed(2)}亿</span>
         </div>
     `).join('');
@@ -315,7 +375,7 @@ function updateFloatingConceptFlow(data) {
     const outflowsList = document.getElementById('topConceptOutflowsList');
     outflowsList.innerHTML = topOutflows.map(item => `
         <div class="floating-fund-flow-item">
-            <span class="floating-fund-flow-name">${item['板块名称']}</span>
+            <span class="floating-fund-flow-name" style="cursor:pointer;" onclick="if(typeof openStockModal === 'function' && '${item['板块代码']}'){openStockModal('bankuai.html?blockCode=${item['板块代码']}')}else{console.error('无效的板块代码:', '${item['板块代码']}')}">${item['板块名称']}</span>
             <span class="floating-fund-flow-value negative">${item['主力净流入_亿'].toFixed(2)}亿</span>
         </div>
     `).join('');

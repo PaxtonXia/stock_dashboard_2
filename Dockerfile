@@ -14,4 +14,4 @@ RUN ln -s main.html index.html
 EXPOSE 3030
 
 # 启动 Python HTTP 服务器，以 main.html 作为默认页面
-CMD ["python", "-m", "http.server", "3030"]
+CMD ["python", "-m", "http.server", "3030", "--bind", "0.0.0.0"]

@@ -63,85 +63,6 @@
 		width: auto; /* 保持图片原始宽高比 */
 		vertical-align: middle; /* 对于非flexbox布局，可能需要此属性 */
 	}
-  .trade-records {
-    width: 280px;
-    margin-right: 15px;
-    border: 2px solid #444;
-    border-radius: 6px;
-    background-color: #1a1a1a;
-    color: #f0f0f0;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-  }
-  .trade-records table {
-    width: 100%;
-    border-collapse: collapse;
-    display: flex; /* 使表格本身成为flex容器 */
-    flex-direction: column; /* 垂直排列thead和tbody */
-    height: 100%; /* 填充tradeRecords的高度 */
-    table-layout: fixed; /* 固定列宽 */
-  }
-  .trade-records thead {
-    /* 表头固定 */
-    flex-shrink: 0; /* 防止表头缩小 */
-  }
-  .trade-records tbody {
-    display: block; /* 使 tbody 成为块级元素以便设置高度和滚动条 */
-    flex-grow: 1; /* 让 tbody 填充剩余空间 */
-    overflow-y: auto; /* 启用垂直滚动条 */
-  }
-  .trade-records th, .trade-records td {
-    padding: 6px 4px;
-    text-align: center;
-    border-bottom: 1px solid #444;
-  }
-  .trade-records th {
-    background-color: #2a2a2a;
-    font-weight: bold;
-    letter-spacing: 0.5px;
-  }
-  /* tbody tr display: table; might interfere with flex in tbody */
-  /* .trade-records tbody tr {
-    display: table;
-    width: 100%;
-    table-layout: fixed;
-  } */
-
-  /* 调整th和td的宽度以保持对齐 */
-  .trade-records th:nth-child(1), .trade-records tbody td:nth-child(1) {
-    width: 25%; /* 示例宽度，根据实际内容调整 */
-  }
-  .trade-records th:nth-child(2), .trade-records tbody td:nth-child(2) {
-    width: 25%; /* 示例宽度 */
-  }
-  .trade-records th:nth-child(3), .trade-records tbody td:nth-child(3) {
-    width: 25%; /* 示例宽度 */
-  }
-  .trade-records th:nth-child(4), .trade-records tbody td:nth-child(4) {
-    width: 25%; /* 示例宽度 */
-  }
-  
-  /* 为不同的交易类型设置颜色 */
-  .trade-records tbody tr.main-buy td {
-    color: #ff4444; /* 深红色 */
-  }
-  .trade-records tbody tr.main-sell td {
-    color: #00aa00; /* 深绿色 */
-  }
-  .trade-records tbody tr.passive-buy td {
-    color: #ff9999; /* 浅红色 */
-  }
-  .trade-records tbody tr.passive-sell td {
-    color: #44ff44; /* 浅绿色 */
-  }
-
-  /* 移除chart元素的float样式，flex容器会自动处理布局 */
-  #chart {
-    float: none !important;
-    /* 添加 flex: 1; 这里由内联样式控制 */
-    /* 移除 width: calc(...); 这里由内联样式控制 */
-  }
 		</style>
 		<script type="text/javascript" src="js/json2html.js"></script>
 		<script type="text/javascript" src="js/jquery.min.js"></script>
@@ -174,30 +95,8 @@
       </div>
 	  
 			<div id="title" style="height:20px;"></div>
-			<div id="container" style="display: flex; height: 100vh;">
-				<div id="tradeRecords" class="trade-records" style="width: 280px; flex-shrink: 0; display: flex; flex-direction: column;">
-					<table>
-						<thead>
-							<tr>
-								<th>时间</th>
-								<th>金额</th>
-								<th>均价</th>
-								<th>买卖</th>
-							</tr>
-						</thead>
-						<tbody>
-							<tr>
-								<td>15:00:00</td>
-								<td>386.7万</td>
-								<td>24.79</td>
-								<td>主动买</td>
-							</tr>
-							<!-- 可以在这里添加更多行 -->
-						</tbody>
-					</table>
-				</div>
-				<div id="chart" style="position:relative; flex: 1;"></div>
-			</div>
+			<div id="chart" style="position:relative; float:left;"></div>
+			<!-- <div id="towrite1" class="fixedBox" style="position:relative; float:left;margin-top:-18px;"></div> -->
 		</div>
 		
 		<script>
@@ -259,176 +158,118 @@
         v = 1
         getSource()
       }
-      
-      function updateTradeRecords(data) {
-        const tbody = document.querySelector('#tradeRecords tbody');
-        tbody.innerHTML = '';
-        data.forEach(record => {
-          // 计算均价：假设 value 单位为万， volume 单位为手， 1手 = 100股
-          let avgPrice = 'N/A';
-          const valueStr = (typeof record.value === 'string' ? record.value : '').replace('万', '').replace('亿', '');
-          const volumeStr = (typeof record.volume === 'string' ? record.volume : '').replace('手', '');
-          
-          const valueInYuan = parseFloat(valueStr) * (valueStr.indexOf('亿') !== -1 ? 100000000 : 10000);
-          const volumeInShares = parseFloat(volumeStr) * 100; // 假设1手=100股
+      function getScatterData(dm) {
+		dest_url = 'https://vaserviece.10jqka.com.cn/Level2/index.php?&op=mainMonitorDetail&stockcode='+dm;
+		console.log('getScatterData', dest_url)
+        $.ajax({
+          url: 'https://vaserviece.10jqka.com.cn/Level2/index.php?&op=mainMonitorDetail&stockcode='+dm,
+          type: "get",
+          // dataType: "text",
+          async : false,
+          cache:false,
+          timeout:30000,
+          success: function(data) {
+            const temp = JSON.parse(data)
+            scatterData = []
+            let listTemp = temp.list
+            listTemp = listTemp.filter((v) => {
+              return  (circleType !== 0 ? v.tradetype == circleType : true) && (circlePrice !== 0 ? fn(v.value) > circlePrice : true)
+            })
 
-          // 添加日志输出
-          console.log('Value:', record.value, 'Volume:', record.volume, 'Value in Yuan:', valueInYuan, 'Volume in Shares:', volumeInShares);
-
-          if (!isNaN(valueInYuan) && !isNaN(volumeInShares) && volumeInShares > 0) {
-            avgPrice = (valueInYuan / volumeInShares).toFixed(2);
+			let isbuy = false;
+			let bigmoney = false;
+			let bigmoneyLastTime = '';
+            listTemp.forEach((item) => {
+              const curTime = item.ctime.slice(0, 5)
+              item.realTime = curTime
+              item.realVolumn = Math.floor(item.volume.split('手')[0])
+              item.realValue = Math.floor(item.value.split('万')[0])
+              item.others = [
+                {
+                  realVolumn: item.volume,
+                  realValue: item.value,
+                  nature: item.nature
+                }
+              ]
+              const isBuy = item.tradetype === '1'
+			  // 判断是否超过500万
+			  if (item.realValue >= 500) {
+				bigmoney = true;
+			  	isbuy = isBuy;
+				bigmoneyLastTime = item.realTime;
+				console.log('getScatterData', isbuy, item.realTime, item.realValue, item.realVolumn);
+			  }
+              if (!isBuy) {
+                item.realValue = -item.realValue
+                item.realVolumn = -item.realVolumn
+              }
+              const isExistScatter = scatterData.find(v => v.realTime === curTime)
+              if (isExistScatter) {
+                isExistScatter.realValue = isExistScatter.realValue + item.realValue
+                isExistScatter.realVolumn =  isExistScatter.realVolumn + item.realVolumn
+                isExistScatter.others.push({
+                  realVolumn: item.volume,
+                  realValue: item.value,
+                  nature: item.nature
+                })
+              } else {
+                scatterData.push(item)
+              }
+            })
+           
+            const fn2 = (val) => {
+              val = Math.abs(val)
+              let num = 10000
+              var sizesValue = ''
+              /**
+               * 判断取哪个单位
+               */
+              if(val < 1000){
+                // 如果小于1000则直接返回
+                sizesValue = ''
+                return val
+              }else if(val > 1000 && val < 9999){
+                sizesValue = '千'
+              } else if(val > 10000 && val < 99999999){
+                sizesValue = '万'
+              } else if(val > 100000000){
+                sizesValue = '亿'
+              }
+              /**
+               * 大于一万则运行下方计算
+               */
+              let i = Math.floor(Math.log(val) / Math.log(num))
+              /**
+               * toFixed(0)看你们后面想要取值多少，我是不取所以填了0，一般都是取2个值
+               */
+              var sizes = ((val / Math.pow(num, i))).toFixed(0)
+              sizes = sizes + sizesValue
+              return sizes
+            }
+            const temp3 = (fn(temp.title.mainbuy) - fn(temp.title.mainsell)).toFixed(0)
+            const temp2 = temp3 < 0 ? '-' + fn2(temp3) : fn2(temp3)
+            const tempColor1 = temp3 < 0 ? 'green' : 'red'
+            document.getElementById('tempTitle').innerHTML = `主力买：<span style="color:red;margin-right:6px;">${temp.title.mainbuy}</span>主力卖：<span style="color:green;margin-right:6px;">${temp.title.mainsell}</span>主力净：<span style="color:${tempColor1};margin-right:6px;">${temp2}</span>`
+			
+			// 大资金播放提示音
+			if (bigmoney) {
+				//  出现大资金比较上次播放时间戳，如果时间戳有变更再播放
+				if (!(dm in codeBigMoneyLastTimeMap) || (codeBigMoneyLastTimeMap[dm] < bigmoneyLastTime)) {
+					console.log('getSource', dm, bigmoneyLastTime)
+					// 更新最新播放时间
+					codeBigMoneyLastTimeMap[dm] = bigmoneyLastTime;
+					// 如果语音播报开关未打开则不进行播音
+					if (bigmoneyPlaySoundFlag) {
+						playsound(isbuy);
+					}
+				}
+			}
+          },
+          error: function(xhr, status, errorThrown) {
+            console.log(xhr, status, errorThrown);
           }
-
-          // 添加日志输出
-          console.log('Calculated Avg Price:', avgPrice);
-
-          const row = document.createElement('tr');
-          
-          // 根据 record.nature 添加 CSS 类
-          let rowClass = '';
-          if (record.nature === '主力主买') {
-            rowClass = 'main-buy';
-          } else if (record.nature === '主力主卖') {
-            rowClass = 'main-sell';
-          } else if (record.nature === '主力被买') {
-            rowClass = 'passive-buy';
-          } else if (record.nature === '主力被卖') {
-            rowClass = 'passive-sell';
-          }
-          if (rowClass) {
-            row.classList.add(rowClass);
-          }
-
-          row.innerHTML = `
-            <td>${record.ctime}</td>
-            <td>${record.value}</td>
-            <td>${avgPrice}</td>
-            <td>${record.nature}</td>
-          `;
-          tbody.appendChild(row);
         });
       }
-
-      function getScatterData(dm) {
-		
-			dest_url = 'https://vaserviece.10jqka.com.cn/Level2/index.php?&op=mainMonitorDetail&stockcode='+dm;
-			console.log('getScatterData', dest_url)
-			$.ajax({
-				url: dest_url,
-				type: "get",
-				async : false,
-				cache:false,
-				timeout:30000,
-				success: function(data) {
-					const temp = JSON.parse(data)
-					let listTemp = temp.list;
-
-					// 更新交易记录表格 (使用原始数据)
-					if (listTemp) {
-						// 直接将原始数据传递给 updateTradeRecords
-						updateTradeRecords(listTemp);
-					}
-
-					// 过滤数据用于生成图表 scatterData
-					scatterData = [];
-					let filteredListTemp = listTemp.filter((v) => {
-						return  (circleType !== 0 ? v.tradetype == circleType : true) && (circlePrice !== 0 ? fn(v.value) > circlePrice : true)
-					});
-
-					let isbuy = false;
-					let bigmoney = false;
-					let bigmoneyLastTime = '';
-					filteredListTemp.forEach((item) => {
-						const curTime = item.ctime.slice(0, 5)
-						item.realTime = curTime
-						item.realVolumn = Math.floor(item.volume.split('手')[0])
-						item.realValue = Math.floor(item.value.split('万')[0])
-						item.others = [
-							{
-								realVolumn: item.volume,
-								realValue: item.value,
-								nature: item.nature
-							}
-						]
-						const isBuy = item.tradetype === '1'
-						// 判断是否超过500万
-						if (item.realValue >= 500) {
-							bigmoney = true;
-							isbuy = isBuy;
-							bigmoneyLastTime = item.realTime;
-							console.log('getScatterData', isbuy, item.realTime, item.realValue, item.realVolumn);
-						}
-						if (!isBuy) {
-							item.realValue = -item.realValue
-							item.realVolumn = -item.realVolumn
-						}
-						const isExistScatter = scatterData.find(v => v.realTime === curTime)
-						if (isExistScatter) {
-							isExistScatter.realValue = isExistScatter.realValue + item.realValue
-							isExistScatter.realVolumn =  isExistScatter.realVolumn + item.realVolumn
-							isExistScatter.others.push({
-								realVolumn: item.volume,
-								realValue: item.value,
-								nature: item.nature
-							})
-						} else {
-							scatterData.push(item)
-						}
-					})
-					
-					const fn2 = (val) => {
-						val = Math.abs(val)
-						let num = 10000
-						var sizesValue = ''
-						/**
-						 * 判断取哪个单位
-						 */
-						if(val < 1000){
-							// 如果小于1000则直接返回
-							sizesValue = ''
-							return val
-						}else if(val > 1000 && val < 9999){
-							sizesValue = '千'
-						} else if(val > 10000 && val < 99999999){
-							sizesValue = '万'
-						} else if(val > 100000000){
-							sizesValue = '亿'
-						}
-						/**
-						 * 大于一万则运行下方计算
-						 */
-						let i = Math.floor(Math.log(val) / Math.log(num))
-						/**
-						 * toFixed(0)看你们后面想要取值多少，我是不取所以填了0，一般都是取2个值
-						 */
-						var sizes = ((val / Math.pow(num, i))).toFixed(0)
-						sizes = sizes + sizesValue
-						return sizes
-					}
-					const temp3 = (fn(temp.title.mainbuy) - fn(temp.title.mainsell)).toFixed(0)
-					const temp2 = temp3 < 0 ? '-' + fn2(temp3) : fn2(temp3)
-					const tempColor1 = temp3 < 0 ? 'green' : 'red'
-					document.getElementById('tempTitle').innerHTML = `主力买：<span style="color:red;margin-right:6px;">${temp.title.mainbuy}</span>主力卖：<span style="color:green;margin-right:6px;">${temp.title.mainsell}</span>主力净：<span style="color:${tempColor1};margin-right:6px;">${temp2}</span>`
-					
-					// 大资金播放提示音
-					if (bigmoney) {
-						//  出现大资金比较上次播放时间戳，如果时间戳有变更再播放
-						if (!(dm in codeBigMoneyLastTimeMap) || (codeBigMoneyLastTimeMap[dm] < bigmoneyLastTime)) {
-							console.log('getSource', dm, bigmoneyLastTime)
-							// 更新最新播放时间
-							codeBigMoneyLastTimeMap[dm] = bigmoneyLastTime;
-							// 如果语音播报开关未打开则不进行播音
-							if (bigmoneyPlaySoundFlag) {
-								playsound(isbuy);
-							}
-						}
-					}
-				},
-				error: function(xhr, status, errorThrown) {
-					console.log(xhr, status, errorThrown);
-				}
-			});
-		}
 			var yy = 1;  //部分显示（小图）；
 			window.onload = function() {
 				changeStyle();
@@ -492,11 +333,11 @@
 				div1.style.width= "94%";
 				div1.style.height= "92%";
 				
-				/* var div2 = document.getElementById("towrite1");					 */
-				/* div2.style.border= "1px solid #696969";				 */
-				/* div2.style.left= "0px"; 				 */
-				/* div2.style.width= "90%";	 */
-				/* div2.style.height= "30%";						 */
+				<!-- var div2 = document.getElementById("towrite1");					 -->
+				<!-- div2.style.border= "1px solid #696969";				 -->
+				<!-- div2.style.left= "0px"; 				 -->
+				<!-- div2.style.width= "90%";	 -->
+				<!-- div2.style.height= "30%";						 -->
 			}
 			
 			Date.prototype.Format = function (fmt) {
@@ -590,7 +431,7 @@
 						dmt = "0." + dm;
 					}
 					
-					var url ="https://push2his.eastmoney.com/api/qt/stock/trends2/get?fields1=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13&fields2=f51,f52,f53,f54,f55,f56,f57,f58&secid=" + dmt;
+					var url ="http://push2his.eastmoney.com/api/qt/stock/trends2/get?fields1=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13&fields2=f51,f52,f53,f54,f55,f56,f57,f58&secid=" + dmt;
 					var res = [];
 					$.ajax({
 						type: "get",
@@ -624,8 +465,7 @@
 							}
 						}
 					})
-          		getScatterData(dm); // 调用新函数获取表格数据
-          
+          			getScatterData(dm)
 					//alert(JSON.stringify(res))
 					//document.write("<br>"+rq + "<br>");
 					//document.write(JSON.stringify(res));
@@ -669,10 +509,9 @@
 				for (var i = 0; i < len; i++) {
 					if(arr[i] != undefined){
 						ret.push(arr[i][name])
+					}else{
+						ret.push(null)
 					}
-					// else{
-					//	ret.push(null)
-					//}
 				}
 				return ret
 			}
@@ -681,6 +520,8 @@
 			  return ((price - yclose) / yclose * 100).toFixed(2);
 			}
 			
+		</script>
+		<script>
 			function GetChart(arr) {
 				var res = getParamValues("close", arr);
 				
@@ -835,7 +676,7 @@
 											// Add total buy/sell in one line
 											str += `<div style="display:flex;justify-content:space-between;margin:5px 0;color:#fff;">
 												<span>总买: <span style="color:#ff4444;font-weight:bold">${mainBuy + passiveBuy}万</span></span>
-												<span>总卖: <span style="color:#00aa00;font-weight:bold">${mainSell + passiveSell}万</span></span>	
+												<span>总卖: <span style="color:#00aa00;font-weight:bold">${mainSell + passiveSell}万</span></span>
 											</div>`;
 
 											// Rest of the bar chart code remains the same
@@ -889,15 +730,16 @@
 							}
 						}
 					},
-					/* axisPointer: { //上下区域连接 */
-					/*	link: [
-						{
-							xAxisIndex: 'all'
-						}
-						],
-						label: {
-							backgroundColor: '#777'
-						}*/
+					<!-- axisPointer: {   //上下区域连接 -->
+						<!-- link: [ -->
+							<!-- { -->
+								<!-- xAxisIndex: 'all' -->
+							<!-- } -->
+						<!-- ], -->
+							<!-- label: { -->
+							<!-- backgroundColor: '#777' -->
+						<!-- } -->
+					<!-- }, -->
 					grid: [
 						{
 							top: '3%',
@@ -950,9 +792,9 @@
 								interval: 0,
 								//padding: [0, 0, 0, 30],
 								formatter: function (value, index) {
-									var c = index % 15;
+									var c = index % 15;
 									if(yy == 0){
-										c = index % 60;
+										c = index % 60;
 									}
 									if(value != "null" && c == 0){
 										return value
@@ -1036,7 +878,7 @@
 								},
 							},
 							axisLabel: {  //y轴标签设置
-								show: true,
+								show: true,  //是否显示
 								color: function (val) {
 								val = Number(val).toFixed(2);
 									if (val == preClose) {
@@ -1084,21 +926,22 @@
 							}
 						}
 					],
-					/* dataZoom: [ //区间 */
-					/*	{
-						  type: 'inside',
-						  xAxisIndex: [0, 1],
-						  start: 0,
-						  end: 100
-						},
-						{
-						  show: true,
-						  xAxisIndex: [0, 1],
-						  type: 'slider',
-						  top: '85%',
-						  start: 0,
-						  end: 100
-						}*/
+					<!-- dataZoom: [   //区间 -->
+					<!-- { -->
+					  <!-- type: 'inside', -->
+					  <!-- xAxisIndex: [0, 1], -->
+					  <!-- start: 0, -->
+					  <!-- end: 100 -->
+					<!-- }, -->
+					<!-- { -->
+					  <!-- show: true, -->
+					  <!-- xAxisIndex: [0, 1], -->
+					  <!-- type: 'slider', -->
+					  <!-- top: '85%', -->
+					  <!-- start: 0, -->
+					  <!-- end: 100 -->
+					<!-- } -->
+				  <!-- ], -->
 					series: [
 						{
 							name: '分时',
@@ -1116,19 +959,19 @@
 									color: '#D3D3D3',//拐点颜色
 								}
 							},
-							/* areaStyle: {
-								normal: {
-									color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{
-										offset: 0,
-										color: 'rgba(0, 136, 212, 0.7)'
-									}, {
-										offset: 0.8,
-										color: 'rgba(0, 136, 212, 0.02)'
-									}], false),
-									shadowColor: 'rgba(0, 0, 0, 0.1)',
-									shadowBlur: 10
-								}
-							}, */
+							<!-- areaStyle: { -->
+								<!-- normal: { -->
+									<!-- color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ -->
+										<!-- offset: 0, -->
+										<!-- color: 'rgba(0, 136, 212, 0.7)' -->
+									<!-- }, { -->
+										<!-- offset: 0.8, -->
+										<!-- color: 'rgba(0, 136, 212, 0.02)' -->
+									<!-- }], false), -->
+									<!-- shadowColor: 'rgba(0, 0, 0, 0.1)', -->
+									<!-- shadowBlur: 10 -->
+								<!-- } -->
+							<!-- },						  -->
 							markLine:{   //增加标注线
 								name:'昨日收盘价',
 								symbol: ['none', 'none'],
@@ -1172,7 +1015,7 @@
 							data: getParamValues("close", arr),
 							smooth: true,
 							symbol: "none",
-							lineStyle: {
+							lineStyle: { //标线的样式
 								normal: {
 									width: 0
 								}
@@ -1257,3 +1100,5 @@
 		</script>
 	</body>
 </html>
+
+</copilot-edited-file>

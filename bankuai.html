@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>板块股票列表</title>
+    <link rel="stylesheet" href="css/font-awesome/all.min.css">
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
@@ -26,7 +27,7 @@
         .sortable::after {
             content: "↕";
             position: absolute;
-            right: 5px;
+            right:5px;
             opacity: 0.5;
             font-size: 14px;
         }
@@ -36,7 +37,7 @@
             opacity: 1;
         }
 
-        .sortable.desc::after {
+       .sortable.desc::after {
             content: "↓";
             opacity: 1;
         }
@@ -129,7 +130,7 @@
         input, button {
             background: #252538;
             border: 1px solid #333;
-            color: #e0e0e0;
+            color: #ee0ee0;
             padding: 6px 10px;
             border-radius: 4px;
             margin-right: 8px;
@@ -146,6 +147,86 @@
 
         button:hover {
             background: #3a8eff;
+        }
+
+        .stock-flag {
+            display: inline-flex;
+            align-items: center;
+            margin-left: 8px;
+            position: relative;
+        }
+
+        .stock-flag i {
+            font-size: 12px;
+            padding: 4px;
+            border-radius: 50%;
+            background: rgba(74, 158, 255, 0.1);
+            transition: all 0.3s ease;
+            color: #4a9eff;
+        }
+
+        .stock-flag:hover i {
+            transform: scale(1.1);
+            background: rgba(74, 158, 255, 0.2);
+        }
+
+        .stock-flag:hover .tooltip {
+            visibility: visible;
+        }
+
+        .tooltip {
+            visibility: hidden;
+            position: absolute;
+            left: 100%;
+            top: 50%;
+            transform: translateY(-50%);
+            background: linear-gradient(135deg, #1a1a2e, #252538);
+            color: #e0e0e0;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 13px;
+            width: max-content;
+            max-width: 400px;
+            z-index: 1000;
+            margin-left: 10px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(74, 158, 255, 0.3);
+            opacity: 0;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .tooltip::after {
+            content: '';
+            position: absolute;
+            right: 100%;
+            top: 50%;
+            transform: translateY(-50%);
+            border-width: 6px;
+            border-style: solid;
+            border-color: transparent rgba(26, 26, 46, 0.95) transparent transparent;
+        }
+
+        .stock-flag:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .flag-info {
+            margin: 8px 0;
+            line-height: 1.5;
+        }
+        
+        .flag-info:first-child {
+            margin-top: 0;
+        }
+        
+        .flag-info:last-child {
+            margin-bottom: 0;
+        }
+
+        .flag-info strong {
+            color: #4a9eff;
+            margin-right: 8px;
         }
 
         @media (max-width: 768px) {
@@ -178,7 +259,7 @@
         <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:90%;max-width:800px;background:#252538;padding:20px;border-radius:8px;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
                 <h3 id="modalTitle" style="margin:0;">分时图</h3>
-                <button onclick="document.getElementById('chartModal').style.display='none'" style="background:none;border:none;color:#aaa;font-size:20px;cursor:pointer;">×</button>
+                <button onclick="if (timeChartTimer) { clearInterval(timeChartTimer); timeChartTimer = null; } document.getElementById('chartModal').style.display='none'" style="background:none;border:none;color:#aaa;font-size:20px;cursor:pointer;">×</button>
             </div>
             <div id="modalChartContainer" style="width:100%;height:400px;"></div>
         </div>
@@ -188,41 +269,30 @@
     <script src="js/echarts.js"></script>
     <script>
         let currentSortField = null;
-        let sortDirection = 1; // 1 for asc, -1 for desc
+        let sortDirection = 1;
         let currentData = null;
+        let timeChart = null;
+        let lastStockCode = null;
+        let timeChartTimer = null;
 
         function getBlockCodeFromUrl() {
             const urlParams = new URLSearchParams(window.location.search);
             const blockCode = urlParams.get('blockCode');
-            console.log('Received blockCode from URL:', blockCode); // 调试日志
-            // 标准化板块代码格式（确保以BK开头）
             if (blockCode && !blockCode.startsWith('BK')) {
                 return 'BK' + blockCode;
             }
             return blockCode && blockCode.trim() !== '' ? blockCode : null;
         }
 
-        // 初始化加载板块数据
-        const blockCode = getBlockCodeFromUrl();
-        if (blockCode) {
-            console.log('Initializing with blockCode:', blockCode);
-            fetchStockList(blockCode);
-        } else {
-            console.warn('No blockCode found in URL');
-            $('#result').html('<p>请通过正确途径访问本页面</p>');
-        }
-
         function fetchBlockName(blockCode, callback) {
             console.log('Fetching block name for:', blockCode);
             
-            // 尝试从全局变量中获取板块数据
             if (window.industryBoards && window.conceptBoards) {
                 console.log('Using global boards data');
                 findBlockName(blockCode, window.industryBoards, window.conceptBoards, callback);
                 return;
             }
             
-            // 如果没有全局数据，尝试从localStorage加载
             try {
                 const industryBoards = JSON.parse(localStorage.getItem('industryBoards') || '[]');
                 const conceptBoards = JSON.parse(localStorage.getItem('conceptBoards') || '[]');
@@ -236,7 +306,6 @@
                 console.error('加载本地存储的板块数据失败', e);
             }
             
-            // 如果本地没有数据，尝试从API获取
             console.log('Fetching boards data from API');
             const industryUrl = 'https://push2.eastmoney.com/api/qt/clist/get?fid=f12&po=1&pz=1000&pn=1&np=1&fltt=2&invt=2&fs=m:90+t:2';
             const conceptUrl = 'https://push2.eastmoney.com/api/qt/clist/get?fid=f12&po=1&pz=1000&pn=1&np=1&fltt=2&invt=2&fs=m:90+t:3';
@@ -261,7 +330,6 @@
                 console.log('Processed industry boards:', industryBoards);
                 console.log('Processed concept boards:', conceptBoards);
                 
-                // 保存到全局变量和localStorage
                 window.industryBoards = industryBoards;
                 window.conceptBoards = conceptBoards;
                 try {
@@ -284,10 +352,8 @@
             console.log('Industry boards:', industryBoards);
             console.log('Concept boards:', conceptBoards);
             
-            // 提取纯数字代码 (去掉BK前缀)
             const numericCode = blockCode.startsWith('BK') ? blockCode.substring(2) : blockCode;
             
-            // 搜索行业板块 (匹配完整BK代码或纯数字代码)
             const industryMatch = industryBoards.find(board => {
                 const match = board.code === blockCode || 
                              board.code === numericCode ||
@@ -302,7 +368,6 @@
                 return;
             }
             
-            // 搜索概念板块 (匹配完整BK代码或纯数字代码)
             const conceptMatch = conceptBoards.find(board => {
                 const match = board.code === blockCode || 
                              board.code === numericCode ||
@@ -323,20 +388,17 @@
 
         function fetchStockList(blockCode) {
             if (!blockCode) {
-                blockCode = getBlockCodeFromUrl();
+                blockCode = getBlockCodeFromUrl();  // 修正拼写
                 if (!blockCode) {
                     $('#result').html('<p>请提供板块代码或名称</p>');
                     return;
                 }
             }
             
-            // 如果是纯数字，确保以BK开头
             if (/^\d+$/.test(blockCode)) {
                 blockCode = 'BK' + blockCode;
             }
-            // 对于非数字的板块名称，直接使用
             
-            // 获取并显示板块名称
             fetchBlockName(blockCode, function(blockName) {
                 console.log('Fetched block name:', blockName, 'for code:', blockCode);
                 if (blockName && blockName !== blockCode) {
@@ -360,63 +422,145 @@
             });
         }
 
-        function displayStockList(data) {
+        async function fetchLimitUpData() {
+            try {
+                const response = await fetch(`https://data.10jqka.com.cn/dataapi/limit_up/block_top`, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'Referer': 'https://data.10jqka.com.cn/',
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('涨停数据:', data);
+
+                if (data && data.data && Array.isArray(data.data)) {
+                    const stockMap = new Map();
+                    
+                    data.data.forEach(block => {
+                        if (block.stock_list && Array.isArray(block.stock_list)) {
+                            block.stock_list.forEach(stock => {
+                                if (stock.code && typeof stock.code === 'string') {
+                                    stockMap.set(stock.code, {
+                                        high: stock.high || '涨停',
+                                        reason_type: stock.reason_type || '未知原因',
+                                        reason_info: stock.reason_info || '-',
+                                        change_tag: stock.change_tag || '-'
+                                    });
+                                }
+                            });
+                        }
+                    });
+                    
+                    console.log('涨停股票Map:', stockMap);
+                    return stockMap;
+                } else {
+                    console.log('涨停数据为空');
+                    return new Map();
+                }
+            } catch (error) {
+                console.error('获取涨停数据失败:', error);
+            }
+            return new Map();
+        }
+
+        async function displayStockList(data) {
             if (!data.data || !data.data.diff) {
                 $('#result').html('<p>没有找到股票数据</p>');
                 return;
             }
             
-            // Save current data for sorting
-            currentData = data;
-
-            let html = '<table><tr>' +
-                '<th>代码</th>' +
-                '<th>名称</th>' +
-                '<th>最新价</th>' +
-                '<th class="sortable" onclick="sortTable(\'f3\')">涨跌幅</th>' +
-                '<th class="sortable" onclick="sortTable(\'f62\')">主力净流入(万)</th>' +
-                '<th class="sortable" onclick="sortTable(\'f66\')">净流速(万)</th>' +
-                '<th>分时图</th>' +
-                '</tr>';
-            
-            data.data.diff.forEach(stock => {
-                // 格式化主力净流入(转换为万元)
-                const inflow = stock.f62 ? (stock.f62 / 10000).toFixed(2) : '--';
-                const inflowColor = stock.f62 > 0 ? 'color:#f44336' : 'color:#4CAF50';
+            try {
+                const limitUpMap = await fetchLimitUpData();
+                console.log('获取到的涨停数据Map:', limitUpMap);
+                console.log('涨停数据条数:', limitUpMap.size);
+                console.log('股票列表数据:', data.data.diff);
                 
-                // 格式化净流速(转换为万元)
-                const flowRate = stock.f66 ? (stock.f66 / 10000).toFixed(2) : '--';
-                const flowRateColor = stock.f66 > 0 ? 'color:#f44336' : 'color:#4CAF50';
-                
-                html += `<tr>
-                    <td>${stock.f12}</td>
-                    <td>${stock.f14}</td>
-                    <td>${stock.f2}</td>
-                    <td style="${stock.f3 > 0 ? 'color:#f44336' : 'color:#4CAF50'}">${stock.f3}%</td>
-                    <td style="${inflowColor}">${inflow}</td>
-                    <td style="${flowRateColor}">${flowRate}</td>
-                    <td><span class="chart-btn" onclick="showTimeChart('${stock.f12}', '${stock.f14}')">查看</span></td>
-                </tr>`;
-            });
+                currentData = data;
 
-            html += '</table>';
-            $('#result').html(html);
+                let html = '<table><tr>' +
+                    '<th>代码</th>' +
+                    '<th>名称</th>' +
+                    '<th>最新价</th>' +
+                    '<th class="sortable" onclick="sortTable(\'f3\')">涨跌幅</th>' +
+                    '<th class="sortable" onclick="sortTable(\'f62\')">主力净流入(万)</th>' +
+                    '<th class="sortable" onclick="sortTable(\'f66\')">净流速(万)</th>' +
+                    '<th>分时图</th>' +
+                    '</tr>';
+                
+                data.data.diff.forEach(stock => {
+                    const marketPrefix = stock.f12.startsWith('6') ? 'SH' : 'SZ';
+                    const prefixedCode = marketPrefix + stock.f12;
+                    
+                    const limitUpInfo = 
+                        limitUpMap.get(prefixedCode) || 
+                        limitUpMap.get(stock.f12) || 
+                        limitUpMap.get(stock.f12.substring(2));
+                    
+                    console.log(`股票${stock.f12}的涨停信息:`, limitUpInfo);
+                    if (limitUpInfo) {
+                        console.log(`为股票${stock.f14}(${stock.f12})添加涨停标记`);
+                    }
+
+                    const stockNameCell = `<td>
+                        ${stock.f14}
+                        ${limitUpInfo ? `
+                            <span class="stock-flag">
+                                <i class="fas fa-info-circle" style="color: #ff5252;"></i>
+                                <div class="tooltip">
+                                    <div class="flag-info"><strong>涨停类型:</strong> ${limitUpInfo.high}</div>
+                                    <div class="flag-info"><strong>涨停原因:</strong> ${limitUpInfo.reason_type}</div>
+                                    <div class="flag-info"><strong>详细信息:</strong> ${limitUpInfo.reason_info.replace(/\n/g, '<br>')}</div>
+                                    ${limitUpInfo.change_tag ? `<div class="flag-info"><strong>标签:</strong> ${limitUpInfo.change_tag}</div>` : ''}
+                                </div>
+                            </span>
+                        ` : ''}
+                    </td>`;
+                    
+                    const inflow = stock.f62 ? (stock.f62 / 10000).toFixed(2) : '--';
+                    const inflowColor = stock.f62 > 0 ? 'color:#f44336' : 'color:#4CAF50';
+                    
+                    const flowRate = stock.f66 ? (stock.f66 / 10000).toFixed(2) : '--';
+                    const flowRateColor = stock.f66 > 0 ? 'color:#f44336' : 'color:#4CAF50';
+                    
+                    html += `<tr>
+                        <td>${stock.f12}</td>
+                        ${stockNameCell}
+                        <td>${stock.f2}</td>
+                        <td style="${stock.f3 > 0 ? 'color:#f44336' : 'color:#4CAF50'}">${stock.f3}%</td>
+                        <td style="${inflowColor}">${inflow}</td>
+                        <td style="${flowRateColor}">${flowRate}</td>
+                        <td><span class="chart-btn" onclick="showTimeChart('${stock.f12}', '${stock.f14}')">查看</span></td>
+                    </tr>`;
+                });
+
+                if (limitUpMap.size > 0) {
+                    html += '</table>';
+                    $('#result').html(html);
+                } else {
+                    html += '</table>';
+                    $('#result').html(html + '<p class="no-limit-up">今日无涨停股票数据（可能是非交易日）</p>');
+                }
+            } catch (error) {
+                console.error('显示股票列表时出错:', error);
+                $('#result').html('<p>显示数据时出错，请重试</p>');
+            }
         }
 
         function showTimeChart(stockCode, stockName) {
             const timestamp = Date.now();
-            // 根据股票代码确定市场（沪市:1，深市:0）
             const marketPrefix = (stockCode.startsWith('6') ? '1' : '0');
             const url = `https://push2his.eastmoney.com/api/qt/stock/trends2/get?fields1=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13&fields2=f51,f52,f53,f54,f55,f56,f57,f58&secid=${marketPrefix}.${stockCode}&_=${timestamp}`;
             
-            // 显示加载中
             const modal = document.getElementById('chartModal');
             const chartContainer = document.getElementById('modalChartContainer');
             
-            // 清除之前的图表实例
-            let chart = echarts.getInstanceByDom(chartContainer);
-            if (chart) {
-                chart.dispose();
+            if (timeChart) {
+                timeChart.dispose();
             }
             
             chartContainer.innerHTML = '<div style="text-align:center;padding:50px;color:#aaa;">加载中...</div>';
@@ -432,7 +576,6 @@
                         drawTimeChart(stockCode, data);
                     } else {
                         chartContainer.innerHTML = '<div style="text-align:center;padding:50px;color:#ff5252;">没有获取到有效的分时图数据</div>';
-                        console.log('分时图API返回:', data);
                     }
                 },
                 error: function(error) {
@@ -441,55 +584,85 @@
                 }
             });
         }
+        
+        function generateTradingTimeAxis() {
+            return [
+                '09:30', '09:35', '09:40', '09:45', '09:50', '09:55',
+                '10:00', '10:05', '10:10', '10:15', '10:20', '10:25', '10:30',
+                '10:35', '10:40', '10:45', '10:50', '10:55',
+                '11:00', '11:05', '11:10', '11:15', '11:20', '11:25', '11:30',
+                '13:00', '13:05', '13:10', '13:15', '13:20', '13:25', '13:30', 
+                '13:35', '13:40', '13:45', // 修正时间格式
+                '13:50', '13:55',
+                '14:00', '14:05', '14:10', '14:15', '14:20', '14:25', '14:30', '14:35', '14:40', '14:45', '14:50', '14:55',
+                '15:00'
+            ];
+        }
 
-        function sortTable(field) {
-            if (!currentData || !currentData.data || !currentData.data.diff) return;
-            
-            // Toggle direction if same field clicked
-            if (currentSortField === field) {
-                sortDirection *= -1;
-            } else {
-                currentSortField = field;
-                sortDirection = 1;
-            }
-            
-            // Remove all sort classes
-            document.querySelectorAll('.sortable').forEach(el => {
-                el.classList.remove('asc', 'desc');
+        function processTimeChartData(trends) {
+            const timeAxis = generateTradingTimeAxis();
+            const timeValueMap = {};
+            let firstPrice = null;
+            let lastMorningPrice = null;  // 记录上午最后一个价格
+
+            trends.forEach(item => {
+                const parts = item.split(',');
+                const time = parts[0].substring(11, 16);
+                const price = parseFloat(parts[1]);
+                const volume = parseInt(parts[5]);
+                
+                if (firstPrice === null) firstPrice = price;
+                
+                // 记录11:30的最后价格
+                if (time <= '11:30') {
+                    lastMorningPrice = price;
+                }
+                
+                timeValueMap[time] = {
+                    price: price,
+                    volume: volume,
+                    pricePercent: firstPrice !== 0 ? ((price - firstPrice) / firstPrice * 100) : 0
+                };
             });
+
+            const priceData = [];
+            const volumeData = [];
+            let lastValidPrice = null;
             
-            // Add class to current sorted header
-            const header = document.querySelector(`th[onclick="sortTable('${field}')"]`);
-            header.classList.add(sortDirection === 1 ? 'asc' : 'desc');
-            
-            // Sort data
-            currentData.data.diff.sort((a, b) => {
-                const valA = a[field] || 0;
-                const valB = b[field] || 0;
-                return (valA - valB) * sortDirection;
+            timeAxis.forEach((time, index) => {
+                if (timeValueMap[time]) {
+                    // 有实际数据时使用实际数据
+                    priceData.push(timeValueMap[time].price);
+                    volumeData.push(timeValueMap[time].volume);
+                    lastValidPrice = timeValueMap[time].price;
+                } else if (time >= '11:30' && time < '13:00') {
+                    // 在休市期间使用上午收盘价
+                    priceData.push(lastMorningPrice || lastValidPrice);
+                    volumeData.push(0);  // 休市期间成交量为0
+                } else {
+                    // 其他时间点使用最后一个有效价格
+                    priceData.push(lastValidPrice);
+                    volumeData.push(0);
+                }
             });
-            
-            // Re-render table
-            displayStockList(currentData);
+
+            return { priceData, volumeData, timeAxis };
         }
 
         function drawTimeChart(stockCode, data) {
             if (!data.data || !data.data.trends) {
-                alert('没有分时图数据');
                 return;
             }
 
-            const chart = echarts.init(document.getElementById('modalChartContainer'));
-            const timeData = [];
-            const priceData = [];
-            const volumeData = [];
+            const container = document.getElementById('modalChartContainer');
+            
+            if (!timeChart || stockCode !== lastStockCode) {
+                if (timeChart) timeChart.dispose();
+                timeChart = echarts.init(container);
+                lastStockCode = stockCode;
+            }
 
-            data.data.trends.forEach(item => {
-                const parts = item.split(',');
-                timeData.push(parts[0].substring(11));
-                priceData.push(parseFloat(parts[1]));
-                volumeData.push(parseInt(parts[5]));
-            });
+            const { priceData, volumeData, timeAxis } = processTimeChartData(data.data.trends);
 
             const option = {
                 title: {
@@ -516,7 +689,30 @@
                         color: '#fff',
                         fontSize: 14
                     },
-                    padding: 10
+                    padding: 10,
+                    formatter: function(params) {
+                        let result = params[0].name + '<br/>';
+                        params.forEach(item => {
+                            let value = item.value;
+                            let unit = item.seriesName === '价格' ? '元' : '手';
+                            let color = item.color;
+                            
+                            const isValidValue = value != null && !isNaN(value);
+                            
+                            if (item.seriesName === '价格') {
+                                result += `<span style="display:inline-block;margin-right:5px;border-radius:50%;width:10px;height:10px;background-color:${color};"></span>`;
+                                result += `${item.seriesName}: <span style="color:${color};font-weight:bold">${
+                                    isValidValue ? value.toFixed(2) + unit : '--'
+                                }</span><br>`;
+                            } else if (item.seriesName === '成交量') {
+                                result += `<span style="display:inline-block;margin-right:5px;border-radius:50%;width:10px;height:10px;background-color:${color};"></span>`;
+                                result += `${item.seriesName}: <span style="color:${color};font-weight:bold">${
+                                    isValidValue ? (value/100).toFixed(2) + '万手' : '--'
+                                }</span>`;
+                            }
+                        });
+                        return result;
+                    }
                 },
                 legend: {
                     data: ['价格', '成交量'],
@@ -542,48 +738,55 @@
                         height: '15%'
                     }
                 ],
-                xAxis: [
-                    {
-                        type: 'category',
-                        data: timeData,
-                        boundaryGap: false,
-                        axisLine: { 
-                            onZero: false,
-                            lineStyle: {
-                                color: '#aaa'
-                            }
-                        },
-                        axisLabel: {
-                            color: '#aaa',
-                            fontSize: 12
-                        },
-                        splitLine: {
-                            show: true,
-                            lineStyle: {
-                                color: 'rgba(100,100,100,0.3)'
-                            }
+                xAxis: [{
+                    type: 'category',
+                    data: timeAxis,
+                    boundaryGap: false,
+                    axisLine: { 
+                        onZero: false,
+                        lineStyle: {
+                            color: '#aaa'
                         }
                     },
-                    {
-                        gridIndex: 1,
-                        type: 'category',
-                        data: timeData,
-                        boundaryGap: false,
-                        axisLine: { 
-                            onZero: false,
-                            lineStyle: {
-                                color: '#aaa'
+                    axisLabel: {
+                        color: '#aaa',
+                        fontSize: 12,
+                        formatter: function(value) {
+                            // 显示重要时间节点
+                            if (value === '09:30' || value === '11:30' || 
+                                value === '13:00' || value === '15:00' ||
+                                value.split(':')[1] === '00') {
+                                return value;
                             }
-                        },
-                        axisLabel: {
-                            color: '#aaa',
-                            fontSize: 12
+                            return '';
+                        }
+                    },
+                    splitLine: {
+                        show: true,
+                        lineStyle: {
+                            color: 'rgba(100,100,100,0.3)'
                         }
                     }
+                },
+                {
+                    gridIndex: 1,
+                    type: 'category',
+                    data: timeAxis,
+                    boundaryGap: false,
+                    axisLine: { 
+                        onZero: false,
+                        lineStyle: {
+                            color: '#aaa'
+                        }
+                    },
+                    axisLabel: {
+                        show: false
+                    }
+                }
                 ],
                 yAxis: [
                     {
-                        name: '价格',
+                        name: '价格(元)',
                         type: 'value',
                         scale: true,
                         nameTextStyle: {
@@ -597,7 +800,8 @@
                         },
                         axisLabel: {
                             color: '#aaa',
-                            fontSize: 12
+                            fontSize: 12,
+                            formatter: '{value}'
                         },
                         splitLine: {
                             lineStyle: {
@@ -607,7 +811,7 @@
                     },
                     {
                         gridIndex: 1,
-                        name: '成交量',
+                        name: '成交量(万手)',
                         type: 'value',
                         scale: true,
                         nameTextStyle: {
@@ -621,7 +825,10 @@
                         },
                         axisLabel: {
                             color: '#aaa',
-                            fontSize: 12
+                            fontSize: 12,
+                            formatter: function(value) {
+                                return (value / 10000).toFixed(0);
+                            }
                         },
                         splitLine: {
                             show: true,
@@ -632,49 +839,128 @@
                         }
                     }
                 ],
-                series: [
-                    {
-                        name: '价格',
-                        type: 'line',
-                        data: priceData,
-                        smooth: true,
-                        lineStyle: {
-                            width: 3,
-                            color: '#ffcc00'
-                        },
-                        itemStyle: {
-                            color: '#ffcc00'
-                        },
-                        showSymbol: false,
-                        areaStyle: {
-                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                                { offset: 0, color: 'rgba(255,204,0,0.3)' },
-                                { offset: 1, color: 'rgba(255,204,0,0.01)' }
-                            ])
-                        }
+                series: [{
+                    name: '价格',
+                    type: 'line',
+                    data: priceData,
+                    smooth: true,
+                    connectNulls: true,  // 设置为true以连接断点
+                    lineStyle: {
+                        width: 3,
+                        color: '#ffcc00'
                     },
+                    itemStyle: {
+                        color: '#ffcc00'
+                    },
+                    showSymbol: false,
+                    areaStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: 'rgba(255,204,0,0.3)' },
+                            { offset: 1, color: 'rgba(255,204,0,0.01)' }
+                        ])
+                    }
+                },
+                {
+                    name: '成交量',
+                    type: 'bar',
+                    xAxisIndex: 1,
+                    yAxisIndex: 1,
+                    data: volumeData,
+                    itemStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: '#4a9eff' },
+                            { offset: 1, color: '#1a5fb4' }
+                        ])
+                    },
+                    barMaxWidth: '60%'
+                }
+                ],
+                dataZoom: [
                     {
-                        name: '成交量',
-                        type: 'bar',
-                        xAxisIndex: 1,
-                        yAxisIndex: 1,
-                        data: volumeData,
-                        itemStyle: {
-                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                                { offset: 0, color: '#4a9eff' },
-                                { offset: 1, color: '#1a5fb4' }
-                            ])
-                        },
-                        barMaxWidth: '60%'
+                        type: 'inside',
+                        xAxisIndex: [0, 1],
+                        start: 0,
+                        end: 100
                     }
                 ]
             };
 
-            chart.setOption(option);
+            if (timeChart.getOption()) {
+                timeChart.setOption({
+                    series: [
+                        { data: priceData },
+                        { data: volumeData }
+                    ]
+                });
+            } else {
+                timeChart.setOption(option);
+            }
+            
+            if (timeChartTimer) {
+                clearInterval(timeChartTimer);
+            }
+            
+            timeChartTimer = setInterval(() => {
+                fetchTimeChartData(stockCode);
+            }, 10000);
+        }
+
+        function fetchTimeChartData(stockCode) {
+            const timestamp = Date.now();
+            const marketPrefix = (stockCode.startsWith('6') ? '1' : '0');
+            const url = `https://push2his.eastmoney.com/api/qt/stock/trends2/get?fields1=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13&fields2=f51,f52,f53,f54,f55,f56,f57,f58&secid=${marketPrefix}.${stockCode}&_=${timestamp}`;
+            
+            $.ajax({
+                url: url,
+                type: 'GET',
+                dataType: 'json',
+                success: function(data) {
+                    if (data.data && data.data.trends) {
+                        const { priceData, volumeData } = processTimeChartData(data.data.trends);
+                        
+                        if (timeChart && timeChart.getOption()) {
+                            timeChart.setOption({
+                                series: [
+                                    { data: priceData },
+                                    { data: volumeData }
+                                ]
+                            });
+                        }
+                    }
+                },
+                error: function(error) {
+                    console.error('更新分时图数据失败:', error);
+                }
+            });
+        }
+
+        function sortTable(field) {
+            if (!currentData || !currentData.data || !currentData.data.diff) return;
+            
+            if (currentSortField === field) {
+                sortDirection *= -1;
+            } else {
+                currentSortField = field;
+                sortDirection = 1;
+            }
+            
+            document.querySelectorAll('.sortable').forEach(el => {
+                el.classList.remove('asc', 'desc');
+            });
+            
+            const header = document.querySelector(`th[onclick="sortTable('${field}')"]`);
+            header.classList.add(sortDirection === 1 ? 'asc' : 'desc');
+            
+            currentData.data.diff.sort((a, b) => {
+                const valA = a[field] || 0;
+                const valB = b[field] || 0;
+                return (valA - valB) * sortDirection;
+            });
+            
+            displayStockList(currentData);
         }
 
         $(document).ready(function() {
-            // 检查URL参数并自动查询
             const blockCode = getBlockCodeFromUrl();
             if (blockCode) {
                 fetchStockList(blockCode);

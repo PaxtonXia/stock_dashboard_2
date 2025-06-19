@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <link rel="icon" href="favicon.ico" type="image/x-icon">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>A股实时资金追踪系统</title>
+    <title>主力资金实时追踪系统</title>
     <link rel="stylesheet" href="css/font-awesome/all.min.css">
     <link rel="stylesheet" href="css/main.css">
     <!-- Modal styles -->
@@ -40,7 +40,7 @@
     <div class="brand-bar">
         <div class="brand-logo"><i class="fas fa-chart-line"></i></div>
         <div>
-            <div class="brand-title">A股实时资金追踪系统</div>
+            <div class="brand-title">主力资金实时追踪系统</div>
             <div class="brand-sub">主力资金动向实时监控，短线交易投资决策参考</div>
         </div>
         <div id="current-time" style="margin-left: auto; padding-right: 20px; font-size: 14px; color: #d0d0d0;"></div>
@@ -74,9 +74,10 @@
                 </div>
             </div>
             <div class="card">
-                <div class="card-title-row">
-                    <span class="card-title"><i class="fas fa-chart-bar"></i> 涨跌分布</span>
-                </div>
+        <div class="card-title-row">
+            <div><span class="card-title"><i class="fas fa-line-chart"></i> 大盘走势</span></div>
+            <!-- 移除原位置的图标 -->
+        </div>
                 <div id="bar" class="echart"></div>
             </div>
             <!-- Reverted: Container for side-by-side cards -->
@@ -300,6 +301,177 @@
 </div>
         </div>
     </div>
+
+    <!-- 自选股浮动层 -->
+    <div class="floating-favorite-icon" style="position: fixed; top: 20px; right: 20px; z-index: 1000;">
+        <div class="favorite-stock-icon" style="font-size: 24px; color: #ff3366; cursor: pointer;">
+            <i class="fas fa-heart" title="自选股"></i>
+        </div>
+        <div class="favorite-stocks-dropdown" style="display: none; position: absolute; right: 0; top: 100%; width: 220px; background: #2a2a40; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.4); padding: 12px; margin-top: 8px;">
+            <div class="favorite-stocks-header" style="display: flex; justify-content: space-between; align-items: center; font-weight: bold; margin-bottom: 10px; color: #fff; font-size: 14px; border-bottom: 1px solid #3a3a5a; padding-bottom: 6px;">
+                <span>自选股票池</span>
+                <i class="fas fa-external-link-alt" style="cursor: pointer; font-size: 12px; color: #aaa;" 
+                   onclick="openStockModal('stock-trend.html')" 
+                   title="查看股票趋势"></i>
+            </div>
+            <div id="favoriteStocksList" style="max-height: 300px; overflow-y: auto; font-size: 12px;"></div>
+        </div>
+    </div>
+
+    <script>
+        // 自选股功能
+        document.addEventListener('DOMContentLoaded', function() {
+            const favoriteIcon = document.querySelector('.favorite-stock-icon');
+            const dropdown = document.querySelector('.favorite-stocks-dropdown');
+            const stocksList = document.getElementById('favoriteStocksList');
+            
+            // 从localStorage读取自选股
+            const STOCK_POOL_KEY = 'stock_pool';
+            
+            function getFavoriteStocks() {
+                const poolStr = localStorage.getItem(STOCK_POOL_KEY);
+                if (poolStr) {
+                    try {
+                        return JSON.parse(poolStr);
+                    } catch (e) {
+                        console.error('Error parsing stock pool', e);
+                    }
+                }
+                return [];
+            }
+            
+            // 保存自选股到localStorage
+            function saveFavoriteStocks(stocks) {
+                localStorage.setItem(STOCK_POOL_KEY, JSON.stringify(stocks));
+            }
+            
+            // 渲染自选股列表
+            function renderFavoriteStocks() {
+                const stocks = getFavoriteStocks();
+                stocksList.innerHTML = stocks.length 
+                    ? stocks.map(stock => `
+                        <div style="padding: 8px 0; border-bottom: 1px solid #3a3a5a; position: relative;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                <span style="font-weight: bold; font-size: 12px;">${stock.name}</span>
+                            <span style="color: ${stock.change >= 0 ? '#ff5252' : '#22e090'}; font-size: 11px;">${stock.change !== undefined && stock.change !== 0 ? (stock.change >= 0 ? '+' : '') + stock.change + '%' : ''}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #888;">
+                                <span>${stock.code}</span>
+                                <span>${stock.date || '日期未知'}</span>
+                            </div>
+                            <div style="position: absolute; right: 0; top: 8px; cursor: pointer; color: #888; font-size: 14px;" 
+                                 onclick="removeFromFavorites('${stock.code}')" title="移除自选">
+                                ×
+                            </div>
+                        </div>
+                    `).join('')
+                    : '<div style="padding: 10px; color: #aaa; text-align: center;">暂无自选股票</div>';
+            }
+            
+        // 鼠标悬停显示下拉列表
+        favoriteIcon.addEventListener('mouseenter', function() {
+            dropdown.style.display = 'block';
+            renderFavoriteStocks();
+        });
+        
+        // 鼠标离开隐藏下拉列表
+        dropdown.addEventListener('mouseleave', function() {
+            dropdown.style.display = 'none';
+        });
+        
+        // 优化滚动条设置，避免双重滚动条
+        dropdown.style.maxHeight = '350px';
+        dropdown.style.overflow = 'auto';  // 只在外层容器设置滚动
+        dropdown.style.paddingRight = '8px';
+        dropdown.style.width = '220px';
+        dropdown.style.boxSizing = 'border-box';
+        
+        // 移除内层列表的滚动条设置
+        const stocksListElement = document.getElementById('favoriteStocksList');
+        stocksListElement.style.overflowY = 'visible';
+        stocksListElement.style.maxHeight = 'none';
+
+        // 初始化渲染
+        renderFavoriteStocks();
+    });
+
+        // 从localStorage读取自选股
+        function getFavoriteStocks() {
+            const poolStr = localStorage.getItem('stock_pool');
+            if (poolStr) {
+                try {
+                    return JSON.parse(poolStr);
+                } catch (e) {
+                    console.error('解析自选股数据失败:', e);
+                    return [];
+                }
+            }
+            return [];
+        }
+
+        // 保存自选股到localStorage
+        function saveFavoriteStocks(stocks) {
+            localStorage.setItem('stock_pool', JSON.stringify(stocks));
+        }
+
+        // 渲染自选股列表
+        function renderFavoriteStocks() {
+            const stocks = getFavoriteStocks();
+            const stocksList = document.getElementById('favoriteStocksList');
+            if (!stocksList) return;
+            
+            stocksList.innerHTML = stocks.length 
+                ? stocks.map(stock => `
+                    <div style="padding: 8px 0; border-bottom: 1px solid #3a3a5a; position: relative;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                            <span style="font-weight: bold; font-size: 12px;">${stock.name}</span>
+                            <span style="color: ${stock.change >= 0 ? '#ff5252' : '#22e090'}; font-size: 11px;">${stock.change !== undefined && stock.change !== 0 ? (stock.change >= 0 ? '+' : '') + stock.change + '%' : ''}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 11px; color: #888;">
+                            <span>${stock.code}</span>
+                            <span>${stock.date || '日期未知'}</span>
+                        </div>
+                        <div style="position: absolute; right: 0; top: 8px; cursor: pointer; color: #888; font-size: 14px;" 
+                             onclick="removeFromFavorites('${stock.code}')" title="移除自选">
+                            ×
+                        </div>
+                    </div>
+                `).join('')
+                : '<div style="padding: 10px; color: #aaa; text-align: center;">暂无自选股票</div>';
+        }
+
+        // 从自选股移除
+        function removeFromFavorites(stockCode, event) {
+            try {
+                const stocks = getFavoriteStocks();
+                const updatedStocks = stocks.filter(stock => stock.code !== stockCode);
+                saveFavoriteStocks(updatedStocks);
+                renderFavoriteStocks();
+                
+                // 防止事件冒泡
+                if (event) {
+                    event.stopPropagation();
+                    event.preventDefault();
+                }
+            } catch (e) {
+                console.error('移除自选股失败:', e);
+            }
+        }
+
+        // 初始化自选股功能
+        document.addEventListener('DOMContentLoaded', function() {
+            // 渲染初始列表
+            renderFavoriteStocks();
+
+            // 添加全局点击事件监听
+            document.getElementById('favoriteStocksList')?.addEventListener('click', function(e) {
+                if (e.target.closest('[onclick^="removeFromFavorites"]')) {
+                    const stockCode = e.target.closest('[onclick]').getAttribute('onclick').match(/'([^']+)'/)[1];
+                    removeFromFavorites(stockCode, e);
+                }
+            });
+        });
+    </script>
 
     <!-- Floating fund flow layer moved inside fund-flow-card -->
 

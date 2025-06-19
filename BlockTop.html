@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>最强口数据展示</title>
+    <title>最强风口数据展示</title>
     <script src="js/jquery-1.12.4.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <style>
@@ -177,13 +177,13 @@
         }
 
         .positive {
-            color: #22e090;
-            background: rgba(34, 224, 144, 0.1);
+            color: #ff5252;
+            background: rgba(255, 82, 82, 0.1);
         }
 
         .negative {
-            color: #ff5252;
-            background: rgba(255, 82, 82, 0.1);
+            color: #22e090;
+            background: rgba(34, 224, 144, 0.1);
         }
 
         /* 响应式布局 */
@@ -204,7 +204,7 @@
         <div class="card">
             <div class="card-title">
                 <i class="fas fa-fire"></i>
-                最强口数据
+                最强风口数据
             </div>
             <div id="data-container">
                 <div class="loading">
@@ -222,7 +222,7 @@
                 {
                     code: "000001",
                     name: "示例股票1",
-                    change: "+9.98%",
+                    change: 0.0998,
                     limit_up_num: 3,
                     continuous_plate_num: 2,
                     high: "3连板",
@@ -233,7 +233,7 @@
                 {
                     code: "000002",
                     name: "示例股票2", 
-                    change: "+10.02%",
+                    change: 0.1002,
                     limit_up_num: 2,
                     continuous_plate_num: 1,
                     high: "2连板",
@@ -250,8 +250,7 @@
                 $.ajax({
                     url: 'https://data.10jqka.com.cn/dataapi/limit_up/block_top',
                     data: {
-                        filter: 'HS,GEM2STAR',
-                        date: '20250606'
+                        filter: 'HS,GEM2STAR'
                     },
                     dataType: 'json',
                     success: function(response) {
@@ -294,10 +293,19 @@
                 html += '</tr></thead><tbody>';
 
                 data.forEach(item => {
+                    // 格式化涨跌幅：转换为百分比并保留2位小数
+                    let changeValue = parseFloat(item.change);
+                    let changeText = '';
+                    if (!isNaN(changeValue)) {
+                        changeText = (changeValue >= 0 ? '+' : '') + (changeValue * 100).toFixed(2) + '%';
+                    } else {
+                        changeText = item.change || '';
+                    }
+                    
                     html += '<tr>';
                     html += `<td>${item.code || ''}</td>`;
                     html += `<td>${item.name || ''}</td>`;
-                    html += `<td class="${parseFloat(item.change) >= 0 ? 'positive' : 'negative'}">${item.change || ''}</td>`;
+                    html += `<td class="${changeValue >= 0 ? 'positive' : 'negative'}">${changeText}</td>`;
                     html += `<td>${item.limit_up_num || ''}</td>`;
                     html += `<td>${item.continuous_plate_num || ''}</td>`;
                     html += `<td>${item.high || ''}</td>`;

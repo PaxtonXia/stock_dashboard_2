@@ -98,13 +98,13 @@ function renderInflowStocks(data, sortKey = null, sortDirection = 'desc') {
     limitedData.forEach(function(stock) {
         // 格式化数据
         const changePercent = parseFloat(stock['涨跌幅(%)']);
-        const changeColor = changePercent >= 0 ? '#ff5252' : '#22e090';
+        const changeColor = changePercent >= 0 ? '#ff3333' : '#00ff00';
         const changeSign = changePercent >= 0 ? '+' : '';
         
         // 将元转换为万元
         const inflow = (parseFloat(stock['主力净流入(元)']) / 10000).toFixed(2);
         const inflowSpeed = (parseFloat(stock['净流速(元)']) / 10000).toFixed(2);
-        const inflowSpeedColor = parseFloat(stock['净流速(元)']) >= 0 ? '#ff5252' : '#22e090';
+        const inflowSpeedColor = parseFloat(stock['净流速(元)']) >= 0 ? '#ff3333' : '#00ff00';
         
         // 获取股票代码
         const stockCode = stock['股票代码'].toString();
@@ -112,7 +112,7 @@ function renderInflowStocks(data, sortKey = null, sortDirection = 'desc') {
         html += `
             <tr style="border-bottom: 1px solid #333;">
                 <td style="padding: 8px; text-align: left; font-size: 12px;">
-                    <a href="javascript:openStockModal('redball.html##${stockCode}##')" style="color: #fff; text-decoration: none;">
+                    <a href="javascript:openStockModal('redball.html##${stockCode}##')" style="color: ${changeColor}; text-decoration: none;">
                         ${stock['股票名称']}
                     </a>
                     <span style="color: #888; font-size: 10px;">${stockCode}</span>

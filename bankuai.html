@@ -263,17 +263,536 @@
             </div>
             <div id="modalChartContainer" style="width:100%;height:400px;"></div>
         </div>
-    </div>
+    </div>    <script src="js/jquery.min.js"></script>
+    <script src="js/echarts.js"></script>    <script>
+        const TRADING_TIMES = {
+            morning: {
+                start: '09:30',
+                end: '11:30'
+            },
+            afternoon: {
+                start: '13:00',
+                end: '15:00'
+            }
+        };
 
-    <script src="js/jquery.min.js"></script>
-    <script src="js/echarts.js"></script>
-    <script>
+        function isTradeTime() {
+            const now = new Date();
+            const time = now.getHours().toString().padStart(2, '0') + ':' + 
+                        now.getMinutes().toString().padStart(2, '0');
+            const day = now.getDay();
+
+            // 排除周末
+            if (day === 0 || day === 6) return false;
+
+            // 判断是否在交易时间内
+            return (time >= TRADING_TIMES.morning.start && time <= TRADING_TIMES.morning.end) ||
+                   (time >= TRADING_TIMES.afternoon.start && time <= TRADING_TIMES.afternoon.end);
+        }
+
+        function processTimeChartData(trends) {const TRADING_TIMES = {
+                morning: {
+                    start: '09:30',
+                    end: '11:30'
+                },
+                afternoon: {
+                    start: '13:00',
+                    end: '15:00'
+                }
+            };
+
+            function isTradeTime() {
+                const now = new Date();
+                const time = now.getHours().toString().padStart(2, '0') + ':' + 
+                            now.getMinutes().toString().padStart(2, '0');
+                const day = now.getDay();
+
+                // 排除周末
+                if (day === 0 || day === 6) return false;
+
+                // 判断是否在交易时间内
+                return (time >= TRADING_TIMES.morning.start && time <= TRADING_TIMES.morning.end) ||
+                       (time >= TRADING_TIMES.afternoon.start && time <= TRADING_TIMES.afternoon.end);
+            }
+
+            function generateMinuteTimeAxis() {
+                const times = [];
+                const addMinutes = (time, mins) => {
+                    const [hours, minutes] = time.split(':').map(Number);
+                    let totalMinutes = hours * 60 + minutes + mins;
+                    let newHours = Math.floor(totalMinutes / 60);
+                    let newMinutes = totalMinutes % 60;
+                    return `${String(newHours).padStart(2, '0')}:${String(newMinutes).padStart(2, '0')}`;
+                };
+
+                let currentTime = TRADING_TIMES.morning.start;
+                while (currentTime <= TRADING_TIMES.morning.end) {
+                    times.push(currentTime);
+                    currentTime = addMinutes(currentTime, 1);
+                }
+                currentTime = TRADING_TIMES.afternoon.start;
+                while (currentTime <= TRADING_TIMES.afternoon.end) {
+                    times.push(currentTime);
+                    currentTime = addMinutes(currentTime, 1);
+                }
+                return times;
+            }
+            
+            const timeAxis = generateMinuteTimeAxis();
+            
+            const timeValueMap = {};
+            let lastMorningPrice = null;
+
+            trends.forEach(item => {
+                const parts = item.split(',');
+                const time = parts[0].substring(11, 16);
+                const price = parseFloat(parts[2]);
+                const volume = parseInt(parts[5]);
+                
+                if (time <= '11:30') {
+                    lastMorningPrice = price;
+                }
+                
+                timeValueMap[time] = {
+                    price: price,
+                    volume: volume
+                };
+            });
+
+            const priceData = [];
+            const volumeData = [];
+            let lastValidPrice = null;
+            
+            timeAxis.forEach(time => {
+                if (timeValueMap[time]) {
+                    priceData.push(timeValueMap[time].price);
+                    volumeData.push(timeValueMap[time].volume);
+                    lastValidPrice = timeValueMap[time].price;
+                } else if (time >= '11:30' && time < '13:00') {
+                    priceData.push(lastMorningPrice || lastValidPrice);
+                    volumeData.push(0);
+                } else {
+                    priceData.push(lastValidPrice);
+                    volumeData.push(0);
+                }
+            });
+
+            return { priceData, volumeData, timeAxis };
+        }
+
+        // 计算涨跌幅
+        function ratioCalculate(price, yclose) {
+            return ((price - yclose) / yclose * 100).toFixed(2);
+        }
+
+        // 计算价格和涨跌幅的区间
+        function getMinMax(priceData, preClose) {
+            const values = priceData.filter(val => val !== null);
+            const maxa = Math.max(...values);
+            const mina = Math.min(...values);
+            const zfa = Math.abs((maxa / preClose - 1));
+            const zfb = Math.abs((mina / preClose - 1));
+            
+            function minValue() {
+                if(zfa >= zfb){
+                    return Number(preClose * (1 - zfa)).toFixed(2);
+                }else{
+                    return mina;
+                }
+            }
+            function maxValue() {
+                if(zfb >= zfa){
+                    return Number(preClose * (1 + zfb)).toFixed(2);
+                }else{
+                    return maxa;
+                }
+            }
+            
+            const _interval = (maxValue() - minValue()) / 4;
+            return { min: minValue(), max: maxValue(), interval: _interval };
+        }
+
         let currentSortField = null;
         let sortDirection = 1;
         let currentData = null;
         let timeChart = null;
         let lastStockCode = null;
         let timeChartTimer = null;
+
+        function showTimeChart(stockCode, stockName) {
+            const timestamp = Date.now();
+            const marketPrefix = (stockCode.startsWith('6') ? '1' : '0');
+            const url = `https://push2his.eastmoney.com/api/qt/stock/trends2/get?fields1=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13&fields2=f51,f52,f53,f54,f55,f56,f57,f58&secid=${marketPrefix}.${stockCode}&_=${timestamp}`;
+            
+            const modal = document.getElementById('chartModal');
+            const chartContainer = document.getElementById('modalChartContainer');
+            
+            // 清除旧的定时器
+            if (timeChartTimer) {
+                clearInterval(timeChartTimer);
+                timeChartTimer = null;
+            }
+            
+            modal.style.display = 'block';
+            document.getElementById('modalTitle').textContent = `${stockName}（${stockCode}）分时图`;
+            
+            // 如果图表实例不存在或已被销毁，则创建新的
+            if (!timeChart || timeChart.isDisposed()) {
+                chartContainer.innerHTML = ''; // 清空容器
+                timeChart = echarts.init(chartContainer);
+            }
+            
+            timeChart.showLoading({
+                text: '加载中...',
+                color: '#4a9eff',
+                textColor: '#aaa',
+                maskColor: 'rgba(0, 0, 0, 0)'
+            });
+            
+            $.ajax({
+                url: url,
+                type: 'GET',
+                dataType: 'json',
+                success: function(data) {
+                    timeChart.hideLoading();
+                    if (data.data && data.data.trends) {
+                        drawTimeChart(stockCode, data);
+                    } else {
+                        timeChart.showLoading({
+                            text: '没有获取到有效的分时图数据',
+                            color: '#ff5252',
+                            textColor: '#ff5252',
+                            maskColor: 'rgba(0, 0, 0, 0)'
+                        });
+                    }
+                },
+                error: function(error) {
+                    console.error('获取分时图数据失败:', error);
+                    timeChart.showLoading({
+                        text: '获取分时图数据失败',
+                        color: '#ff5252',
+                        textColor: '#ff5252',
+                        maskColor: 'rgba(0, 0, 0, 0)'
+                    });
+                }
+            });
+        }
+
+        function drawTimeChart(stockCode, data) {
+            if (!data.data || !data.data.trends) {
+                return;
+            }
+
+            lastStockCode = stockCode;
+            const { priceData, volumeData, timeAxis } = processTimeChartData(data.data.trends);
+            const preClose = data.data.preClose;
+            const { min, max, interval } = getMinMax(priceData, preClose);            const option = {
+                title: { show: false },
+                animation: false,
+                grid: [
+                    {
+                        left: '10%',
+                        right: '10%',
+                        top: '8%',
+                        height: '60%'
+                    },
+                    {
+                        left: '10%',
+                        right: '10%',
+                        top: '75%',
+                        height: '20%'
+                    }
+                ],
+                xAxis: [
+                    {
+                        type: 'category',
+                        data: timeAxis,
+                        boundaryGap: false,
+                        axisLine: { 
+                            show: true,
+                            lineStyle: {
+                                color: '#555'
+                            }
+                        },
+                        axisLabel: {
+                            color: '#aaa',
+                            fontSize: 12,                            formatter: function(value) {
+                                if (value === '09:30' || value === '10:30' || value === '11:30' || 
+                                    value === '13:00' || value === '14:00' || value === '15:00' ||
+                                    (value.split(':')[1] === '00' && value !== '13:00')) {
+                                    return value;
+                                }
+                                return '';
+                            }
+                        },
+                        axisTick: { show: false }
+                    },
+                    {
+                        gridIndex: 1,
+                        type: 'category',
+                        data: timeAxis,
+                        boundaryGap: false,
+                        axisLine: { show: true },
+                        axisLabel: { show: false },
+                        axisTick: { show: false }
+                    }
+                ],
+                yAxis: [
+                    {
+                        type: 'value',
+                        position: 'left',
+                        scale: true,
+                        min: min,
+                        max: max,
+                        interval: interval,
+                        splitLine: {
+                            show: true,
+                            lineStyle: {
+                                color: '#333',
+                                type: 'dashed'
+                            }
+                        },
+                        axisLine: {
+                            show: true,
+                            lineStyle: {
+                                color: '#555'
+                            }
+                        },
+                        axisLabel: {
+                            color: function(value) {
+                                if (value == preClose) return '#fff';
+                                return value > preClose ? '#ff3333' : '#00ff00';
+                            },
+                            formatter: function(value) {
+                                return Number(value).toFixed(2);
+                            }
+                        }
+                    },
+                    {
+                        type: 'value',
+                        position: 'right',
+                        min: min,
+                        max: max,
+                        interval: interval,
+                        splitLine: { show: false },
+                        axisLine: {
+                            show: true,
+                            lineStyle: {
+                                color: '#555'
+                            }
+                        },
+                        axisLabel: {
+                            color: function(value) {
+                                const ratio = ratioCalculate(value, preClose);
+                                if (ratio == 0) return '#fff';
+                                return ratio > 0 ? '#ff3333' : '#00ff00';
+                            },
+                            formatter: function(value) {
+                                return ratioCalculate(value, preClose) + '%';
+                            }
+                        }
+                    },
+                    {
+                        gridIndex: 1,
+                        type: 'value',
+                        position: 'right',
+                        splitLine: {
+                            show: true,
+                            lineStyle: {
+                                color: '#333',
+                                type: 'dashed'
+                            }
+                        },
+                        axisLine: {
+                            show: true,
+                            lineStyle: {
+                                color: '#555'
+                            }
+                        },
+                        axisLabel: {
+                            color: '#aaa',
+                            formatter: function(value) {
+                                return (value/10000).toFixed(0) + '万';
+                            }
+                        }
+                    }
+                ],
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: 'rgba(30,30,45,0.95)',
+                    borderColor: '#444',
+                    textStyle: { color: '#fff' },
+                    formatter: function(params) {
+                        let result = params[0].name + '<br/>';
+                        let price, volume;
+                        params.forEach(param => {
+                            if (param.seriesName === '价格') {
+                                price = param.value;
+                                const color = price > preClose ? '#ff3333' : '#00ff00';
+                                result += `价格: <span style="color:${color}">${price.toFixed(2)}</span><br/>`;
+                                result += `涨跌幅: <span style="color:${color}">${ratioCalculate(price, preClose)}%</span><br/>`;
+                            } else if (param.seriesName === '成交量') {
+                                volume = param.value;
+                                result += `成交量: ${(volume/10000).toFixed(0)}万手`;
+                            }
+                        });
+                        return result;
+                    }
+                },
+                series: [
+                    {
+                        name: '价格',
+                        type: 'line',
+                        data: priceData,
+                        smooth: true,
+                        showSymbol: false,
+                        lineStyle: {
+                            width: 1,
+                            color: '#4a9eff'
+                        },
+                        markLine: {
+                            symbol: 'none',
+                            label: { show: false },
+                            lineStyle: {
+                                color: '#888',
+                                type: 'dashed'
+                            },
+                            data: [
+                                { yAxis: preClose }
+                            ]
+                        }
+                    },
+                    {
+                        name: '成交量',
+                        type: 'bar',
+                        xAxisIndex: 1,
+                        yAxisIndex: 2,
+                        data: volumeData,
+                        barMaxWidth: 20,
+                        itemStyle: {
+                            color: function(params) {
+                                const value = params.value;
+                                if (value === 0) return '#555';
+                                if (priceData[params.dataIndex] >= (priceData[params.dataIndex-1] || preClose)) {
+                                    return '#ff3333';
+                                }
+                                return '#00ff00';
+                            }
+                        }
+                    }
+                ],
+                dataZoom: [
+                    {
+                        type: 'inside',
+                        xAxisIndex: [0, 1],
+                        start: 0,
+                        end: 100
+                    }
+                ]
+            };
+
+            timeChart.setOption(option, true);
+            
+            if (timeChartTimer) {
+                clearInterval(timeChartTimer);
+            }
+              let lastDataTime = '';
+            
+            const updateData = () => {
+                if (!isTradeTime()) {
+                    return;
+                }
+
+                const timestamp = Date.now();
+                const marketPrefix = (stockCode.startsWith('6') ? '1' : '0');
+                const url = `https://push2his.eastmoney.com/api/qt/stock/trends2/get?fields1=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13&fields2=f51,f52,f53,f54,f55,f56,f57,f58&secid=${marketPrefix}.${stockCode}&_=${timestamp}`;
+                
+                $.ajax({
+                    url: url,
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function(newData) {
+                        if (!newData.data || !newData.data.trends || !newData.data.trends.length) {
+                            return;
+                        }
+
+                        const latestData = newData.data.trends[newData.data.trends.length - 1];
+                        const latestTime = latestData.split(',')[0].substring(11, 16);
+
+                        // 如果数据时间没有更新，不做处理
+                        if (latestTime === lastDataTime) {
+                            return;
+                        }
+
+                        lastDataTime = latestTime;
+                        const { priceData: newPriceData, volumeData: newVolumeData } = processTimeChartData(newData.data.trends);
+
+                        // 增量更新数据，保持其他配置不变
+                        timeChart.setOption({
+                            series: [
+                                { data: newPriceData },
+                                { data: newVolumeData }
+                            ]
+                        }, {
+                            notMerge: false,
+                            lazyUpdate: true,
+                            silent: true
+                        });
+                    }
+                });
+            };
+
+            // 设置更新间隔为3秒
+            timeChartTimer = setInterval(updateData, 3000);
+        }
+
+        // Stock pool functions using localStorage
+        const STOCK_POOL_KEY = 'stock_pool';
+
+        function getStockPool() {
+            const poolStr = localStorage.getItem(STOCK_POOL_KEY);
+            if (poolStr) {
+                try {
+                    return JSON.parse(poolStr);
+                } catch (e) {
+                    console.error('Error parsing stock pool', e);
+                }
+            }
+            return [];
+        }
+
+        function saveStockPool(pool) {
+            localStorage.setItem(STOCK_POOL_KEY, JSON.stringify(pool));
+        }
+
+        function toggleStockInPool(stockCode, stockName, element) {
+            const pool = getStockPool();
+            const existingIndex = pool.findIndex(item => item.code === stockCode);
+            
+            if (existingIndex !== -1) {
+                // Remove from pool
+                pool.splice(existingIndex, 1);
+                element.textContent = '+';
+                element.classList.remove('in-pool');
+            } else {
+                // Add to pool with current date
+                const date = new Date();
+                const dateString = `${date.getFullYear()}-${(date.getMonth()+1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+                pool.push({ 
+                    code: stockCode, 
+                    name: stockName,
+                    date: dateString,
+                    change: 0 // 添加默认涨跌幅
+                });
+                element.textContent = '-';
+                element.classList.add('in-pool');
+            }
+            saveStockPool(pool);
+        }
+
+        function isInStockPool(stockCode) {
+            return getStockPool().some(item => item.code === stockCode);
+        }
 
         function getBlockCodeFromUrl() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -482,15 +1001,16 @@
                 
                 currentData = data;
 
-                let html = '<table><tr>' +
-                    '<th>代码</th>' +
-                    '<th>名称</th>' +
-                    '<th>最新价</th>' +
-                    '<th class="sortable" onclick="sortTable(\'f3\')">涨跌幅</th>' +
-                    '<th class="sortable" onclick="sortTable(\'f62\')">主力净流入(万)</th>' +
-                    '<th class="sortable" onclick="sortTable(\'f66\')">净流速(万)</th>' +
-                    '<th>分时图</th>' +
-                    '</tr>';
+let html = '<table><tr>' +
+    '<th>代码</th>' +
+    '<th>名称</th>' +
+    '<th>最新价</th>' +
+    '<th class="sortable" onclick="sortTable(\'f3\')">涨跌幅</th>' +
+    '<th class="sortable" onclick="sortTable(\'f62\')">主力净流入(万)</th>' +
+    '<th class="sortable" onclick="sortTable(\'f66\')">净流速(万)</th>' +
+    '<th>分时图</th>' +
+    '<th>收藏</th>' +  // New column for favorites
+    '</tr>';
                 
                 data.data.diff.forEach(stock => {
                     const marketPrefix = stock.f12.startsWith('6') ? 'SH' : 'SZ';
@@ -527,15 +1047,18 @@
                     const flowRate = stock.f66 ? (stock.f66 / 10000).toFixed(2) : '--';
                     const flowRateColor = stock.f66 > 0 ? 'color:#f44336' : 'color:#4CAF50';
                     
-                    html += `<tr>
-                        <td>${stock.f12}</td>
-                        ${stockNameCell}
-                        <td>${stock.f2}</td>
-                        <td style="${stock.f3 > 0 ? 'color:#f44336' : 'color:#4CAF50'}">${stock.f3}%</td>
-                        <td style="${inflowColor}">${inflow}</td>
-                        <td style="${flowRateColor}">${flowRate}</td>
-                        <td><span class="chart-btn" onclick="showTimeChart('${stock.f12}', '${stock.f14}')">查看</span></td>
-                    </tr>`;
+const isInPool = isInStockPool(stock.f12);
+html += `<tr>
+    <td>${stock.f12}</td>
+    ${stockNameCell}
+    <td>${stock.f2}</td>
+    <td style="${stock.f3 > 0 ? 'color:#ff3333' : 'color:#00ff00'}">${stock.f3}%</td>
+    <td style="${stock.f62 > 0 ? 'color:#ff3333' : 'color:#00ff00'}">${inflow}</td>
+    <td style="${stock.f66 > 0 ? 'color:#ff3333' : 'color:#00ff00'}">${flowRate}</td>
+    <td><span class="chart-btn" onclick="showTimeChart('${stock.f12}', '${stock.f14}')">查看</span></td>
+<td><span class="chart-btn ${isInPool ? 'in-pool' : ''}" 
+          onclick="toggleStockInPool('${stock.f12}', '${stock.f14.replace(/'/g, "\\'")}', this)">${isInPool ? '-' : '+'}</span></td>
+</tr>`;
                 });
 
                 if (limitUpMap.size > 0) {
@@ -549,360 +1072,6 @@
                 console.error('显示股票列表时出错:', error);
                 $('#result').html('<p>显示数据时出错，请重试</p>');
             }
-        }
-
-        function showTimeChart(stockCode, stockName) {
-            const timestamp = Date.now();
-            const marketPrefix = (stockCode.startsWith('6') ? '1' : '0');
-            const url = `https://push2his.eastmoney.com/api/qt/stock/trends2/get?fields1=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13&fields2=f51,f52,f53,f54,f55,f56,f57,f58&secid=${marketPrefix}.${stockCode}&_=${timestamp}`;
-            
-            const modal = document.getElementById('chartModal');
-            const chartContainer = document.getElementById('modalChartContainer');
-            
-            if (timeChart) {
-                timeChart.dispose();
-            }
-            
-            chartContainer.innerHTML = '<div style="text-align:center;padding:50px;color:#aaa;">加载中...</div>';
-            modal.style.display = 'block';
-            document.getElementById('modalTitle').textContent = `${stockName}（${stockCode}）分时图`;
-            
-            $.ajax({
-                url: url,
-                type: 'GET',
-                dataType: 'json',
-                success: function(data) {
-                    if (data.data && data.data.trends) {
-                        drawTimeChart(stockCode, data);
-                    } else {
-                        chartContainer.innerHTML = '<div style="text-align:center;padding:50px;color:#ff5252;">没有获取到有效的分时图数据</div>';
-                    }
-                },
-                error: function(error) {
-                    console.error('获取分时图数据失败:', error);
-                    chartContainer.innerHTML = '<div style="text-align:center;padding:50px;color:#ff5252;">获取分时图数据失败</div>';
-                }
-            });
-        }
-        
-        function generateTradingTimeAxis() {
-            return [
-                '09:30', '09:35', '09:40', '09:45', '09:50', '09:55',
-                '10:00', '10:05', '10:10', '10:15', '10:20', '10:25', '10:30',
-                '10:35', '10:40', '10:45', '10:50', '10:55',
-                '11:00', '11:05', '11:10', '11:15', '11:20', '11:25', '11:30',
-                '13:00', '13:05', '13:10', '13:15', '13:20', '13:25', '13:30', 
-                '13:35', '13:40', '13:45', // 修正时间格式
-                '13:50', '13:55',
-                '14:00', '14:05', '14:10', '14:15', '14:20', '14:25', '14:30', '14:35', '14:40', '14:45', '14:50', '14:55',
-                '15:00'
-            ];
-        }
-
-        function processTimeChartData(trends) {
-            const timeAxis = generateTradingTimeAxis();
-            const timeValueMap = {};
-            let firstPrice = null;
-            let lastMorningPrice = null;  // 记录上午最后一个价格
-
-            trends.forEach(item => {
-                const parts = item.split(',');
-                const time = parts[0].substring(11, 16);
-                const price = parseFloat(parts[1]);
-                const volume = parseInt(parts[5]);
-                
-                if (firstPrice === null) firstPrice = price;
-                
-                // 记录11:30的最后价格
-                if (time <= '11:30') {
-                    lastMorningPrice = price;
-                }
-                
-                timeValueMap[time] = {
-                    price: price,
-                    volume: volume,
-                    pricePercent: firstPrice !== 0 ? ((price - firstPrice) / firstPrice * 100) : 0
-                };
-            });
-
-            const priceData = [];
-            const volumeData = [];
-            let lastValidPrice = null;
-            
-            timeAxis.forEach((time, index) => {
-                if (timeValueMap[time]) {
-                    // 有实际数据时使用实际数据
-                    priceData.push(timeValueMap[time].price);
-                    volumeData.push(timeValueMap[time].volume);
-                    lastValidPrice = timeValueMap[time].price;
-                } else if (time >= '11:30' && time < '13:00') {
-                    // 在休市期间使用上午收盘价
-                    priceData.push(lastMorningPrice || lastValidPrice);
-                    volumeData.push(0);  // 休市期间成交量为0
-                } else {
-                    // 其他时间点使用最后一个有效价格
-                    priceData.push(lastValidPrice);
-                    volumeData.push(0);
-                }
-            });
-
-            return { priceData, volumeData, timeAxis };
-        }
-
-        function drawTimeChart(stockCode, data) {
-            if (!data.data || !data.data.trends) {
-                return;
-            }
-
-            const container = document.getElementById('modalChartContainer');
-            
-            if (!timeChart || stockCode !== lastStockCode) {
-                if (timeChart) timeChart.dispose();
-                timeChart = echarts.init(container);
-                lastStockCode = stockCode;
-            }
-
-            const { priceData, volumeData, timeAxis } = processTimeChartData(data.data.trends);
-
-            const option = {
-                title: {
-                    text: `${stockCode} 分时图`,
-                    left: 'center',
-                    textStyle: {
-                        color: '#fff',
-                        fontSize: 18,
-                        fontWeight: 'bold'
-                    }
-                },
-                tooltip: {
-                    trigger: 'axis',
-                    axisPointer: {
-                        type: 'line',
-                        lineStyle: {
-                            color: 'rgba(255,255,255,0.3)'
-                        }
-                    },
-                    backgroundColor: 'rgba(30,30,48,0.9)',
-                    borderColor: '#4a9eff',
-                    borderWidth: 1,
-                    textStyle: {
-                        color: '#fff',
-                        fontSize: 14
-                    },
-                    padding: 10,
-                    formatter: function(params) {
-                        let result = params[0].name + '<br/>';
-                        params.forEach(item => {
-                            let value = item.value;
-                            let unit = item.seriesName === '价格' ? '元' : '手';
-                            let color = item.color;
-                            
-                            const isValidValue = value != null && !isNaN(value);
-                            
-                            if (item.seriesName === '价格') {
-                                result += `<span style="display:inline-block;margin-right:5px;border-radius:50%;width:10px;height:10px;background-color:${color};"></span>`;
-                                result += `${item.seriesName}: <span style="color:${color};font-weight:bold">${
-                                    isValidValue ? value.toFixed(2) + unit : '--'
-                                }</span><br>`;
-                            } else if (item.seriesName === '成交量') {
-                                result += `<span style="display:inline-block;margin-right:5px;border-radius:50%;width:10px;height:10px;background-color:${color};"></span>`;
-                                result += `${item.seriesName}: <span style="color:${color};font-weight:bold">${
-                                    isValidValue ? (value/100).toFixed(2) + '万手' : '--'
-                                }</span>`;
-                            }
-                        });
-                        return result;
-                    }
-                },
-                legend: {
-                    data: ['价格', '成交量'],
-                    top: 35,
-                    textStyle: {
-                        color: '#e0e0e0',
-                        fontSize: 14
-                    }
-                },
-                grid: [
-                    {
-                        left: '10%',
-                        right: '10%',
-                        top: '25%',
-                        height: '50%',
-                        backgroundColor: 'rgba(255,255,255,0.05)',
-                        borderColor: 'rgba(255,255,255,0.1)'
-                    },
-                    {
-                        left: '10%',
-                        right: '10%',
-                        top: '80%',
-                        height: '15%'
-                    }
-                ],
-                xAxis: [{
-                    type: 'category',
-                    data: timeAxis,
-                    boundaryGap: false,
-                    axisLine: { 
-                        onZero: false,
-                        lineStyle: {
-                            color: '#aaa'
-                        }
-                    },
-                    axisLabel: {
-                        color: '#aaa',
-                        fontSize: 12,
-                        formatter: function(value) {
-                            // 显示重要时间节点
-                            if (value === '09:30' || value === '11:30' || 
-                                value === '13:00' || value === '15:00' ||
-                                value.split(':')[1] === '00') {
-                                return value;
-                            }
-                            return '';
-                        }
-                    },
-                    splitLine: {
-                        show: true,
-                        lineStyle: {
-                            color: 'rgba(100,100,100,0.3)'
-                        }
-                    }
-                },
-                {
-                    gridIndex: 1,
-                    type: 'category',
-                    data: timeAxis,
-                    boundaryGap: false,
-                    axisLine: { 
-                        onZero: false,
-                        lineStyle: {
-                            color: '#aaa'
-                        }
-                    },
-                    axisLabel: {
-                        show: false
-                    }
-                }
-                ],
-                yAxis: [
-                    {
-                        name: '价格(元)',
-                        type: 'value',
-                        scale: true,
-                        nameTextStyle: {
-                            color: '#aaa',
-                            fontSize: 12
-                        },
-                        axisLine: {
-                            lineStyle: {
-                                color: '#aaa'
-                            }
-                        },
-                        axisLabel: {
-                            color: '#aaa',
-                            fontSize: 12,
-                            formatter: '{value}'
-                        },
-                        splitLine: {
-                            lineStyle: {
-                                color: 'rgba(100,100,100,0.3)'
-                            }
-                        }
-                    },
-                    {
-                        gridIndex: 1,
-                        name: '成交量(万手)',
-                        type: 'value',
-                        scale: true,
-                        nameTextStyle: {
-                            color: '#aaa',
-                            fontSize: 12
-                        },
-                        axisLine: {
-                            lineStyle: {
-                                color: '#aaa'
-                            }
-                        },
-                        axisLabel: {
-                            color: '#aaa',
-                            fontSize: 12,
-                            formatter: function(value) {
-                                return (value / 10000).toFixed(0);
-                            }
-                        },
-                        splitLine: {
-                            show: true,
-                            lineStyle: {
-                                type: 'dashed',
-                                color: 'rgba(100,100,100,0.3)'
-                            }
-                        }
-                    }
-                ],
-                series: [{
-                    name: '价格',
-                    type: 'line',
-                    data: priceData,
-                    smooth: true,
-                    connectNulls: true,  // 设置为true以连接断点
-                    lineStyle: {
-                        width: 3,
-                        color: '#ffcc00'
-                    },
-                    itemStyle: {
-                        color: '#ffcc00'
-                    },
-                    showSymbol: false,
-                    areaStyle: {
-                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                            { offset: 0, color: 'rgba(255,204,0,0.3)' },
-                            { offset: 1, color: 'rgba(255,204,0,0.01)' }
-                        ])
-                    }
-                },
-                {
-                    name: '成交量',
-                    type: 'bar',
-                    xAxisIndex: 1,
-                    yAxisIndex: 1,
-                    data: volumeData,
-                    itemStyle: {
-                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                            { offset: 0, color: '#4a9eff' },
-                            { offset: 1, color: '#1a5fb4' }
-                        ])
-                    },
-                    barMaxWidth: '60%'
-                }
-                ],
-                dataZoom: [
-                    {
-                        type: 'inside',
-                        xAxisIndex: [0, 1],
-                        start: 0,
-                        end: 100
-                    }
-                ]
-            };
-
-            if (timeChart.getOption()) {
-                timeChart.setOption({
-                    series: [
-                        { data: priceData },
-                        { data: volumeData }
-                    ]
-                });
-            } else {
-                timeChart.setOption(option);
-            }
-            
-            if (timeChartTimer) {
-                clearInterval(timeChartTimer);
-            }
-            
-            timeChartTimer = setInterval(() => {
-                fetchTimeChartData(stockCode);
-            }, 10000);
         }
 
         function fetchTimeChartData(stockCode) {

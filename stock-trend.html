@@ -10,60 +10,6 @@
     <script src="js/echarts.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/market-sentiment.js"></script>
-                    
-                    if (wasInactive) {
-                        // 如果之前是未激活状态，现在激活它
-                        legendItem.classList.remove('inactive');
-                    } else {
-                        // 如果之前是激活状态，现在显示所有
-                        document.querySelectorAll('.legend-item').forEach(item => {
-                            item.classList.remove('inactive');
-                        });
-                    }
-                    
-                    if (window.myChart) {
-                        const option = window.myChart.getOption();
-                        const allSeriesNames = option.series.map(s => s.name);
-                        
-                        if (wasInactive) {
-                            // 高亮选中的，其他变暗
-                            allSeriesNames.forEach(name => {
-                                if (name === stock.name) {
-                                    // 高亮选中的系列
-                                    window.myChart.dispatchAction({
-                                        type: 'highlight',
-                                        seriesName: name
-                                    });
-                                    window.myChart.dispatchAction({
-                                        type: 'legendSelect',
-                                        name: name
-                                    });
-                                } else {
-                                    // 其他系列变暗
-                                    window.myChart.dispatchAction({
-                                        type: 'downplay',
-                                        seriesName: name
-                                    });
-                                    window.myChart.dispatchAction({
-                                        type: 'legendUnSelect',
-                                        name: name
-                                    });
-                                }
-                            });
-                        } else {
-                            // 恢复所有系列的正常显示
-                            allSeriesNames.forEach(name => {
-                                window.myChart.dispatchAction({
-                                    type: 'highlight',
-                                    seriesName: name
-                                });
-                                window.myChart.dispatchAction({
-                                    type: 'legendSelect',
-                                    name: name
-                                });                            });
-                        }
-                    }
-                });
     <style>
         /* 重置和基础样式 */
         * { box-sizing: border-box; margin: 0; padding: 0; }

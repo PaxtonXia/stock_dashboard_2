@@ -478,15 +478,15 @@
                 
                 priceChange.textContent = `${changePercent >= 0 ? '+' : ''}${Number(changePercent).toFixed(2)}%`;
                 priceChange.style.backgroundColor = changePercent > 0 
-                    ? 'rgba(82, 196, 26, 0.15)' 
+                    ? 'rgba(255, 77, 79, 0.15)' 
                     : changePercent < 0 
-                        ? 'rgba(255, 77, 79, 0.15)' 
-                        : 'rgba(82, 196, 26, 0.15)';
+                        ? 'rgba(82, 196, 26, 0.15)' 
+                        : 'rgba(255, 77, 79, 0.15)';
                 priceChange.style.color = changePercent > 0 
-                    ? '#52c41a' 
+                    ? '#ff3333' 
                     : changePercent < 0 
-                        ? '#ff4d4f' 
-                        : '#52c41a';
+                        ? '#00ff00' 
+                        : '#ff3333';
                 
                 legendItem.appendChild(colorDot);
                 legendItem.appendChild(stockName);

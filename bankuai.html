@@ -650,17 +650,25 @@
                             width: 1,
                             color: '#4a9eff'
                         },
-                        markLine: {
-                            symbol: 'none',
-                            label: { show: false },
-                            lineStyle: {
-                                color: '#888',
-                                type: 'dashed'
-                            },
-                            data: [
-                                { yAxis: preClose }
-                            ]
-                        }
+                    markLine: {
+                        symbol: 'none',
+                        label: { show: false },
+                        lineStyle: {
+                            color: '#888',
+                            type: 'dashed'
+                        },
+                        data: [
+                            { yAxis: preClose },
+                            {
+                                yAxis: priceData[timeAxis.indexOf(new Date().getHours() + ':' + (new Date().getMinutes() < 10 ? '0' + new Date().getMinutes() : new Date().getMinutes()))] || preClose,
+                                y2: preClose,
+                                lineStyle: {
+                                    type: 'dashed',
+                                    color: '#FFA500'
+                                }
+                            }
+                        ]
+                    }
                     },
                     {
                         name: '成交量',
@@ -730,7 +738,22 @@
                         // 增量更新数据，保持其他配置不变
                         timeChart.setOption({
                             series: [
-                                { data: newPriceData },
+                                { 
+                                    data: newPriceData,
+                                    markLine: {
+                                        data: [
+                                            { yAxis: preClose },
+                                            {
+                                                yAxis: newPriceData[timeAxis.indexOf(lastDataTime)] || preClose,
+                                                y2: preClose,
+                                                lineStyle: {
+                                                    type: 'dashed',
+                                                    color: '#FFA500'
+                                                }
+                                            }
+                                        ]
+                                    }
+                                },
                                 { data: newVolumeData }
                             ]
                         }, {

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Navigation Interface</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: black;
+            color: white;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            padding: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+        }
+        .section {
+            background-color: #1a1a1a;
+            border: 1px solid #444;
+            padding: 10px;
+            margin: 10px;
+            border-radius: 5px;
+        }
+        .radar {
+            width: 100%;
+            max-width: 600px;
+            height: 600px;
+            background-color: #000;
+            border: 1px solid #444;
+            border-radius: 50%;
+            position: relative;
+        }
+        .radar-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+        .radar-content img {
+            max-width: 100%;
+            max-height: 100%;
+        }
+        .info {
+            width: 300px;
+            display: flex;
+            flex-direction: column;
+        }
+        .info-item {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="section">
+            <h2>Navigation Data</h2>
+            <div class="info">
+                <div class="info-item">Speed: 28.3 km/h</div>
+                <div class="info-item">Heading: 308°</div>
+                <div class="info-item">Depth: 6500 ft</div>
+                <div class="info-item">Roll: -12.5°</div>
+            </div>
+        </div>
+        <div class="section">
+            <h2>Chart and Radar</h2>
+            <div class="radar">
+                <div class="radar-content">
+                    <img src="radar_image.png" alt="Radar Image">
+                </div>
+            </div>
+        </div>
+        <div class="section">
+            <h2>Target Information</h2>
+            <div class="info">
+                <div class="info-item">Target ID: 1</div>
+                <div class="info-item">Distance: 74 mi</div>
+                <div class="info-item">Speed: 0.0 m/s</div>
+                <div class="info-item">Bearing: 332.0°</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

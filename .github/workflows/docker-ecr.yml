@@ -1,0 +1,29 @@
+name: Build and Publish Docker Image
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Log in to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build Docker image
+        run: |
+          docker build -t stock-dashboard .
+
+      - name: Tag Docker image
+        run: |
+          docker tag stock-dashboard:latest 381492201343.dkr.ecr.ap-southeast-1.amazonaws.com/stock-dashboard:latest
+
+      - name: Push Docker image to ECR
+        run: |
+          docker push 381492201343.dkr.ecr.ap-southeast-1.amazonaws.com/stock-dashboard:latest

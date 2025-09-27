@@ -114,20 +114,26 @@
         .action-button {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.05);
+            color: var(--text);
             border: none;
             border-radius: 8px;
-            padding: 0.5rem 1rem;
-            text-decoration: none;
-            font-size: 0.875rem;
-            font-weight: 500;
+            padding: 0.5rem;
             cursor: pointer;
             transition: var(--transition);
         }
 
         .action-button:hover {
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        [data-theme="dark"] .action-button {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        [data-theme="dark"] .action-button:hover {
             background: rgba(255, 255, 255, 0.2);
         }
 
@@ -382,7 +388,7 @@
         <div class="header">
             <div class="logo">
                 <i class="fas fa-chart-line"></i>
-                <span>股票智能助手</span>
+                <span>股票AI小助手</span>
             </div>
             <div style="display: flex; align-items: center; gap: 1rem;">
                 <!-- 扫码入群小图标（icon） -->
@@ -395,15 +401,6 @@
             </div>
         </div>
         
-        <div class="button-container">
-
-            <button class="action-button">
-                <i class="fas fa-qrcode"></i> 扫码进群
-            </button>
-            <button class="action-button" id="clearChat">
-                <i class="fas fa-trash-alt"></i> 清空对话
-            </button>
-        </div>
         
         <div id="messages" class="messages-container">
             <div class="msg-group">
@@ -430,9 +427,17 @@
                     rows="1"
                     placeholder="输入股票代码、名称或咨询问题，例如：分析贵州茅台(600519)"
                 ></textarea>
-                <button id="sendBtn">
-                    <i class="fas fa-paper-plane"></i> 发送
-                </button>
+                <div class="button-container" style="display: flex; gap: 0.5rem; align-items: center;">
+                    <button id="sendBtn" style="padding: 0.5rem 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fas fa-paper-plane"></i> 发送
+                    </button>
+                    <button class="action-button" title="扫码进群" style="padding: 0.5rem;">
+                        <i class="fas fa-qrcode"></i>
+                    </button>
+                    <button class="action-button" id="clearChat" title="清空对话" style="padding: 0.5rem;">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
             </div>
             <div class="input-hint">按 Enter 发送，Shift+Enter 换行</div>
         </div>
@@ -625,8 +630,8 @@
 
         // 扫码入群小图标点击事件
         document.getElementById('scanJoinBtn').addEventListener('click', showQRCode);
-        // 兼容原扫码进群按钮
-        document.querySelector('.action-button:nth-child(2)').addEventListener('click', showQRCode);
+        // 兼容扫码进群按钮
+        document.querySelector('.input-container .action-button[title="扫码进群"]').addEventListener('click', showQRCode);
 
         function showQRCode() {
             // 创建二维码图片（注意图片名为join-together.png）

@@ -10,7 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       AWS_REGION: ap-southeast-1
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v2

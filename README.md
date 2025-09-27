@@ -25,7 +25,7 @@ Open http://localhost:3000/main.html
 ```bash
 docker run -d -p 3030:3030 stock-dashboard
 ```
-Access http://localhost:3030
+Access http://localhost:80
 
 ## 🐳 Docker Deployment
 
@@ -60,7 +60,7 @@ docker logs -f stock-dashboard
 ### Troubleshooting
 ✅ Port conflict solution:
 ```bash
-docker run -d -p 8080:3030 --name stock-dashboard stock-dashboard
+docker run -d -p 8080:80 --name stock-dashboard stock-dashboard
 ```
 
 ## 📜 License

@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ap-southeast-1
 
     steps:
       - name: Checkout code
@@ -15,8 +17,6 @@ jobs:
 
       - name: Log in to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v1
-        with:
-          region: ap-southeast-1
 
       - name: Build Docker image
         run: |

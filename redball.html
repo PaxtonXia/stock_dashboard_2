@@ -5,6 +5,7 @@
 		<title>大单分时</title>
 		<link href="css/redball.css" rel="stylesheet" type="text/css" />
 		<style type="text/css">
+			html, body { height: 100%; overflow: hidden; margin: 0; padding: 0; box-sizing: border-box; }
 			p {margin:0px;}
 			#box{
 				display:inline-block;
@@ -22,10 +23,14 @@
 				height: 10px;
 			}
       .tabs {
-        padding-top: 6px;
+        padding-top: 0;
         display: flex;
         align-items: center;
-        margin-bottom: 10px;
+        margin-bottom: 5px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        border-radius: 4px;
+        padding: 8px 10px;
+        background: rgba(37, 37, 56, 0.8);
       }
       
       .tabs span {
@@ -51,10 +56,20 @@
 		display: inline-flex; /* 设置为内联弹性盒模型 */
 		justify-content: center; /* 水平居中 */
 		align-items: center; /* 垂直居中 */
-		padding: 3px; /* 根据需要调整内边距 */
-		margin-right: 30px;
-		margin-top: 20px;
+		padding: 5px 7px; /* 匹配 tabs 样式 */
+		background-color: #222222;
+		color: #e0e0e0;
+		border-radius: 4px;
+		border: none;
+		cursor: pointer;
+		transition: background-color 0.3s;
+		/* margin-right: 30px; */
+		/* margin-top: 20px; */
 		/* 其他样式，如背景色、边框等 */
+	}
+
+	.custom-button:hover {
+		background-color: #800000;
 	}
 	
 	.custom-button img {
@@ -63,6 +78,118 @@
 		width: auto; /* 保持图片原始宽高比 */
 		vertical-align: middle; /* 对于非flexbox布局，可能需要此属性 */
 	}
+
+	.ai-modal {
+	position: fixed;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	z-index: 9999;
+	background: #2a2a40; /* 深色背景，参考floating-fund-flow */
+	color: #fff;
+	border-radius: 12px;
+	box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+	width: 560px;
+	height: 380px;
+	border: 1px solid #3a3a5a;
+	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	font-size: 14px;
+	transition: all 0.3s ease;
+	overflow: hidden;
+	}
+	.ai-modal-header {
+        cursor: move;
+        padding: 8px 16px; /* 高度改小 */
+        background: rgba(60,60,60,0.7); /* 灰色半透明背景 */
+        border-radius: 12px 12px 0 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-weight: 600;
+        font-size: 15px;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid #444;
+        color: #e0e0e0;
+    }
+	.ai-modal-header::before {
+		content: '🤖'; /* AI icon emoji */
+		margin-right: 8px;
+		font-size: 18px;
+	}
+	.ai-modal-close {
+	background: none;
+	border: none;
+	color: #e0e0e0;
+	font-size: 20px;
+	cursor: pointer;
+	padding: 4px;
+	border-radius: 50%;
+	transition: all 0.2s;
+	opacity: 0.8;
+	}
+	.ai-modal-close:hover {
+	opacity: 1;
+	background: rgba(255,255,255,0.1);
+	}
+	.ai-modal-content {
+  padding: 20px;
+  font-size: 14px;
+  color: #e0e0e0;
+  line-height: 1.6;
+  height: 280px;
+  overflow-y: auto;
+  box-sizing: border-box;
+  background: rgba(255,255,255,0.02);
+  }
+	.ai-modal-content::-webkit-scrollbar {
+		width: 6px;
+	}
+	.ai-modal-content::-webkit-scrollbar-track {
+		background: rgba(255,255,255,0.05);
+		border-radius: 3px;
+	}
+	.ai-modal-content::-webkit-scrollbar-thumb {
+		background: rgba(255,255,255,0.2);
+		border-radius: 3px;
+	}
+		.ai-bubble {
+    background: rgba(128,0,0,0.15);
+    color: #fff;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 8px 0;
+    font-size: 14px;
+    line-height: 1.6;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+    word-break: break-word;
+    border: 1px solid rgba(128,0,0,0.3);
+    max-width: 100%;
+}
+
+        .chart-btn {
+            cursor: pointer;
+            color: #4a9eff;
+            text-decoration: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: rgba(74, 158, 255, 0.1);
+            transition: all 0.2s;
+            border: none;
+            outline: none;
+        }
+
+        .chart-btn:hover {
+            background: rgba(74, 158, 255, 0.2);
+        }
+
+        .chart-btn.in-pool {
+            background: rgba(255, 193, 7, 0.2);
+            color: #ffc107;
+        }
+
+        .chart-btn.in-pool:hover {
+            background: rgba(255, 193, 7, 0.3);
+        }
 		</style>
 		<script type="text/javascript" src="js/json2html.js"></script>
 		<script type="text/javascript" src="js/jquery.min.js"></script>
@@ -72,17 +199,16 @@
 	<body>
 		<div id="towrite" class="fixedBox" style="display:none;">
 		<div>
-        	<button class="custom-button" onclick="togglePlaySound()"><span id="spanPlaySound" >开</span><img src="res/laba.jpg" class="button-image"></button>
-			<audio id="buyAudio" src="res/alert1.mp3" preload="auto"></audio>
-			<audio id="sellAudio" src="res/alert2.mp3" preload="auto"></audio>
+        	<!-- 移除开关按钮和喇叭图片 -->
+        	<!-- <button class="custom-button" onclick="togglePlaySound()"><span id="spanPlaySound" >开</span><img src="res/laba.jpg" class="button-image"></button> -->
+        	<!-- <audio id="buyAudio" src="res/alert1.mp3" preload="auto"></audio>
+        	<audio id="sellAudio" src="res/alert2.mp3" preload="auto"></audio> -->
 		</div>
       <div class="tabs">
         <span class="tab-main active" onclick="handleClick(0)">全部</span>
         <span class="tab-buy" onclick="handleClick(1)">买单</span>
         <span class="tab-out" onclick="handleClick(2)">卖单</span>
-		<span>
-            <input type="text" id="inputDm" placeholder="输入代码">
-			</span>
+        <!-- 已去掉文本输入框 -->
         <select onchange="handleChange()" class="filter-dropdown" id="valueFilter">
           <option value="0">全部</option>
           <option value="1000000">100万</option>
@@ -90,12 +216,15 @@
           <option value="5000000">500万</option>
           <option value="10000000">1000万</option>
         </select>
-		
         <div id="tempTitle"></div>
+        <div style="display: flex; align-items: center; gap: 3px; margin-left: auto;">
+          <button class="custom-button" id="aiAnalysisBtn" onclick="aiAnalysis()">AI分析</button>
+          <span class="chart-btn" id="favoriteBtn" onclick="toggleFavorite()">+</span>
+        </div>
       </div>
 	  
 			<div id="title" style="height:20px;"></div>
-			<div id="chart" style="position:relative; float:left;"></div>
+			<div id="chart" style="position:relative; width: 100%; height: 100%;"></div>
 			<!-- <div id="towrite1" class="fixedBox" style="position:relative; float:left;margin-top:-18px;"></div> -->
 		</div>
 		
@@ -314,30 +443,95 @@
 				    return false;
 				}
 			}　　　
+
+        // 自选股票池相关函数
+        const STOCK_POOL_KEY = 'stock_pool';
+
+        function getStockPool() {
+            const poolStr = localStorage.getItem(STOCK_POOL_KEY);
+            if (poolStr) {
+                try {
+                    return JSON.parse(poolStr);
+                } catch (e) {
+                    console.error('Error parsing stock pool', e);
+                }
+            }
+            return [];
+        }
+
+        function saveStockPool(pool) {
+            localStorage.setItem(STOCK_POOL_KEY, JSON.stringify(pool));
+        }
+
+        function toggleFavorite() {
+            // 如果股票代码或名称为空，尝试从页面获取
+            if (!gpdm || !gpmc) {
+                // 从页面标题获取股票名称
+                const titleDiv = document.getElementById('title');
+                if (titleDiv && titleDiv.innerText) {
+                    // 例如 "000001   平安银行   2025-10-02"
+                    const arr = titleDiv.innerText.split(/\s+/);
+                    if (arr.length >= 2) {
+                        gpdm = arr[0];
+                        gpmc = arr[1];
+                    }
+                }
+            }
+            if (!gpdm || !gpmc) {
+                alert('请先加载股票数据');
+                return;
+            }
+            const pool = getStockPool();
+            const existingIndex = pool.findIndex(item => item.code === gpdm);
+            const btn = document.getElementById('favoriteBtn');
+            
+            if (existingIndex !== -1) {
+                // 已在池中，移除
+                pool.splice(existingIndex, 1);
+                btn.textContent = '+';
+                btn.classList.remove('in-pool');
+            } else {
+                // 不在池中，加入
+                const date = new Date();
+                const dateString = `${date.getFullYear()}-${(date.getMonth()+1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+                pool.push({ 
+                    code: gpdm, 
+                    name: gpmc,
+                    date: dateString,
+                    change: 0 // 默认涨跌幅
+                });
+                btn.textContent = '-';
+                btn.classList.add('in-pool');
+            }
+            saveStockPool(pool);
+        }
+
+        function isInStockPool(stockCode) {
+            return getStockPool().some(item => item.code === stockCode);
+        }
+
    　　　
 			function changeStyle() {
 				var div = document.getElementById("towrite");
 				div.style.display= "block";
 				//div.style.border= "1px solid #fff";
 				div.style.border= "none";
-				div.style.marginTop= "-5px";
+				div.style.marginTop= "0";
 				div.style.left= "0px";
 				div.style.width= "100%";
-				div.style.height= "98%";
-				div.style.fontSize="12px";
+				div.style.height= "100vh";
+				div.style.fontSize= "14px";
+				div.style.padding= "0";
+				div.style.overflow= "hidden";
 				
 				var div1 = document.getElementById("chart");
 				div1.style.border= "1px solid #696969";
-				div1.style.marginTop= "-5px";
+				div1.style.marginTop= "0";
 				div1.style.left= "0px";
-				div1.style.width= "94%";
-				div1.style.height= "92%";
+				div1.style.width= "100%";
+				div1.style.height= "calc(100vh - 120px)";
 				
-				<!-- var div2 = document.getElementById("towrite1");					 -->
-				<!-- div2.style.border= "1px solid #696969";				 -->
-				<!-- div2.style.left= "0px"; 				 -->
-				<!-- div2.style.width= "90%";	 -->
-				<!-- div2.style.height= "30%";						 -->
+
 			}
 			
 			Date.prototype.Format = function (fmt) {
@@ -387,7 +581,8 @@
 			function getSource(p) {
 				var u = decodeURI(window.location.href);
 				var dm = "";
-				var dm2 = document.getElementById('inputDm').value;
+				// 去掉文本输入框相关代码
+				// var dm2 = document.getElementById('inputDm').value;
 				if(u.indexOf("##") > -1){
 					var gp = u.split('##');
 					dm = gp[1];
@@ -396,15 +591,10 @@
 						yy = gp[3];
 					}
 				}
+				// 修正默认代码逻辑
 				if (dm == 'xxxxxx' || dm == ''){
-					if(dm2=='' || dm2==null){
-						dm="000001";
-						gpmc="000001";
-					}
-					else{
-						dm = dm2;
-						gpmc = dm2;
-					}
+				  dm="000001";
+				  gpmc="000001";
 				}
 				
 				
@@ -446,6 +636,17 @@
 							preClose = data.data.preClose;
 							var arr = data.data.trends;
 							gpmc = data.data.name;
+                            // Update favorite button
+                            const btn = document.getElementById('favoriteBtn');
+                            if (btn) {
+                                const isInPool = isInStockPool(gpdm);
+                                btn.textContent = isInPool ? '-' : '+';
+                                if (isInPool) {
+                                    btn.classList.add('in-pool');
+                                } else {
+                                    btn.classList.remove('in-pool');
+                                }
+                            }
 							//document.write(JSON.stringify(arr));
 							for (var i = 0; i < arr.length; i++){
 								var aa = arr[i].split(',');
@@ -523,7 +724,23 @@
 		</script>
 		<script>
 			function GetChart(arr) {
-				var res = getParamValues("close", arr);
+    var chartDom = document.getElementById('chart');
+    // 1. 检查宽高
+    if (chartDom.offsetWidth === 0 || chartDom.offsetHeight === 0) {
+        // 容器不可见或未设置宽高，直接返回
+        return;
+    }
+    // 2. 销毁已有实例
+    if (echarts.getInstanceByDom(chartDom)) {
+        echarts.getInstanceByDom(chartDom).dispose();
+    }
+    var myChart = echarts.init(chartDom);
+
+    // 修复 top21 未定义问题
+    var top21 = 80; // 主力净标题的纵向百分比位置，默认值可根据实际页面调整
+    var top2 = 65;  // 成交量 grid 的纵向百分比位置，默认值可根据实际页面调整
+
+    var res = getParamValues("close", arr);
 				
 				//过滤null
 				var values = arr.map(function(o){
@@ -582,11 +799,6 @@
           })
           return close
         }
-				var myChart = echarts.init(document.getElementById('chart'));
-				const upColor = '#ec0000';//00da3c
-				const downColor = '#00FFFF';//ec0000
-				var top2 = 68;
-				var top21 = top2 - 3;
 				var option = {
 					animation: false, //取消动画效果
 					title: [
@@ -731,15 +943,7 @@
 						}
 					},
 					<!-- axisPointer: {   //上下区域连接 -->
-						<!-- link: [ -->
-							<!-- { -->
-								<!-- xAxisIndex: 'all' -->
-							<!-- } -->
-						<!-- ], -->
-							<!-- label: { -->
-							<!-- backgroundColor: '#777' -->
-						<!-- } -->
-					<!-- }, -->
+
 					grid: [
 						{
 							top: '3%',
@@ -807,141 +1011,126 @@
 						}
 					],
 					yAxis: [
-						{
-							type: 'value',
-							gridIndex: 0,
-							//position:'right',//坐标轴位置，移至右边
-							//offset: 10,     //Y 轴相对于默认位置的偏移
-							scale: true,   //刻度 自适应
-							splitArea: {     //分割区域颜色
-								show: false
-							},
-							min: min(),
-							max: max(),
-							interval: _interval,
-							splitLine:{ //y轴网格线
-								show:false,
-								lineStyle: {
-									color: '#808080',
-									width: 1,
-									type: 'dashed', //（'solid'，实线类型；'dashed'，虚线类型；'dotted',点状类型）
-								}
-							},
-							axisLine: { //y轴坐标线设置
-								show: true,
-								lineStyle: {
-									color: '#D3D3D3', //y轴颜色
-									//width: 2,    // 坐标轴线宽
-									type: 'dotted',     // 坐标轴线线的类型（'solid'，实线类型；'dashed'，虚线类型；'dotted',点状类型）
-								},
-							},
-							axisLabel: {  //y轴标签设置
-								show: true,  //是否显示
-								 color: function (val) {
-									val = Number(val).toFixed(2);
-									if (val == preClose) {
-									  return '#fff'
-									}
-									return val > preClose ? '#FF8C00' : '#7FFFAA';
-								  },
-								formatter: function (value){
-									return keepTwoDecimal(value)
-								}
-							}
-						},
-						{
-							type: 'value',
-							gridIndex: 1,
-							position:'right',//坐标轴位置，移至右边
-							offset: 10,     //Y 轴相对于默认位置的偏移
-							scale: true,   //刻度 自适应
-							splitArea: {     //分割区域颜色
-								show: false
-							},
-							min: min(),
-							max: max(),
-							interval: _interval,
-							splitLine:{ //y轴网格线
-								show:true,
-								lineStyle: {
-									color: '#808080',
-									width: 1,
-									type: 'dashed', //（'solid'，实线类型；'dashed'，虚线类型；'dotted',点状类型）
-								}
-							},
-							axisLine: { //y轴坐标线设置
-								show: true,
-								lineStyle: {
-									color: '#D3D3D3', //y轴颜色
-									//width: 2,    // 坐标轴线宽
-									type: 'dotted',     // 坐标轴线线的类型（'solid'，实线类型；'dashed'，虚线类型；'dotted',点状类型）
-								},
-							},
-							axisLabel: {  //y轴标签设置
-								show: true,  //是否显示
-								color: function (val) {
-								val = Number(val).toFixed(2);
-									if (val == preClose) {
-										return '#fff'
-									}
-									return val > preClose ? '#FF8C00' : '#7FFFAA';
-								},
-								formatter: function (value) {
-									var resul = ratioCalculate(value, preClose);
-									return Number(resul).toFixed(2) + '%'
-								}
-							}
-						},
-						{
-							gridIndex: 2,  //对应坐标轴所在grid的索引
-							position:'right',//坐标轴位置，移至右边
-							offset: 10,
-							scale: true,
-							splitNumber: 2,
-							splitLine:{ //y轴网格线
-								show:true,
-								lineStyle: {
-									color: '#808080',
-									width: 1,
-									type: 'dotted', //（'solid'，实线类型；'dashed'，虚线类型；'dotted',点状类型）
-								}
-							},
-							axisLine: { //y轴坐标线设置
-								show: true,
-								lineStyle: {
-									color: '#D3D3D3', //y轴颜色
-									//width: 2,    // 坐标轴线宽
-									type: 'dotted',     // 坐标轴线线的类型（'solid'，实线类型；'dashed'，虚线类型；'dotted',点状类型）
-								},
-							},
-							axisLabel: {  //y轴标签设置
-								show: true,
-								formatter: function (value){
-									if(value != 0){
-										return NumberTransform(value)
-									}else{
-										return 0
-									}
-								}
-							}
-						}
+    {
+        type: 'value',
+        gridIndex: 0,
+        //position:'right',//坐标轴位置，移至右边
+        //offset: 10,     //Y 轴相对于默认位置的偏移
+        scale: true,   //刻度 自适应
+        splitArea: {
+            show: false // ← 修正这里，去掉点号
+        },
+        min: min(),
+        max: max(),
+        interval: _interval,
+        splitLine:{ //y轴网格线
+            show:false,
+            lineStyle: {
+                color: '#808080',
+                width: 1,
+                type: 'dashed', //（'solid'，实线类型；'dashed'，虚线类型；'dotted',点状类型）
+            }
+        },
+        axisLine: { //y轴坐标线设置
+            show: true,
+            lineStyle: {
+                color: '#D3D3D3', //y轴颜色
+                //width: 2,    // 坐标轴线宽
+                type: 'dotted',     // 坐标轴线线的类型（'solid'，实线类型；'dashed'，虚线类型；'dotted',点状类型）
+            },
+        },
+        axisLabel: {  //y轴标签设置
+            show: true,  //是否显示
+             color: function (val) {
+				val = Number(val).toFixed(2);
+				if (val == preClose) {
+				  return '#fff'
+				}
+				return val > preClose ? '#FF8C00' : '#7FFFAA';
+			  },
+			formatter: function (value){
+				return keepTwoDecimal(value)
+			}
+        }
+    },
+    {
+        type: 'value',
+        gridIndex: 1,
+        position:'right',
+        offset: 10,
+        scale: true,
+        splitArea: {
+            show: false // ← 修正这里，去掉点号
+        },
+        min: min(),
+        max: max(),
+        interval: _interval,
+        splitLine:{ //y轴网格线
+            show:true,
+            lineStyle: {
+                color: '#808080',
+                width: 1,
+                type: 'dashed', //（'solid'，实线类型；'dashed'，虚线类型；'dotted',点状类型）
+            }
+        },
+        axisLine: { //y轴坐标线设置
+            show: true,
+            lineStyle: {
+                color: '#D3D3D3', //y轴颜色
+                //width: 2,    // 坐标轴线宽
+                type: 'dotted',     // 坐标轴线线的类型（'solid'，实线类型；'dashed'，虚线类型；'dotted',点状类型）
+            },
+        },
+        axisLabel: {  //y轴标签设置
+            show: true,  //是否显示
+            color: function (val) {
+			val = Number(val).toFixed(2);
+				if (val == preClose) {
+					return '#fff'
+				}
+				return val > preClose ? '#FF8C00' : '#7FFFAA';
+			},
+			formatter: function (value) {
+				var resul = ratioCalculate(value, preClose);
+				return Number(resul).toFixed(2) + '%'
+			}
+        }
+    },
+    {
+        gridIndex: 2,  //对应坐标轴所在grid的索引
+        position:'right',//坐标轴位置，移至右边
+        offset: 10,
+        scale: true,
+        splitNumber: 2,
+        splitLine: {
+            show:true,
+            lineStyle: {
+                color: '#808080',
+                width: 1,
+                type: 'dotted',
+            }
+        },
+        axisLine: { //y轴坐标线设置
+            show: true,
+            lineStyle: {
+                color: '#D3D3D3', //y轴颜色
+                //width: 2,    // 坐标轴线宽
+                type: 'dotted',     // 坐标轴线线的类型（'solid'，实线类型；'dashed'，虚线类型；'dotted',点状类型）
+            },
+        },
+        axisLabel: {  //y轴标签设置
+            show: true,
+            formatter: function (value){
+				if(value != 0){
+					return NumberTransform(value)
+				}else{
+					return 0
+				}
+			}
+        }
+    }
 					],
-					<!-- dataZoom: [   //区间 -->
-					<!-- { -->
-					  <!-- type: 'inside', -->
-					  <!-- xAxisIndex: [0, 1], -->
-					  <!-- start: 0, -->
-					  <!-- end: 100 -->
-					<!-- }, -->
-					<!-- { -->
-					  <!-- show: true, -->
-					  <!-- xAxisIndex: [0, 1], -->
-					  <!-- type: 'slider', -->
-					  <!-- top: '85%', -->
-					  <!-- start: 0, -->
-					  <!-- end: 100 -->
-					<!-- } -->
-				  <!-- ], -->
+
 					series: [
 						{
 							name: '分时',
@@ -959,19 +1148,7 @@
 									color: '#D3D3D3',//拐点颜色
 								}
 							},
-							<!-- areaStyle: { -->
-								<!-- normal: { -->
-									<!-- color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ -->
-										<!-- offset: 0, -->
-										<!-- color: 'rgba(0, 136, 212, 0.7)' -->
-									<!-- }, { -->
-										<!-- offset: 0.8, -->
-										<!-- color: 'rgba(0, 136, 212, 0.02)' -->
-									<!-- }], false), -->
-									<!-- shadowColor: 'rgba(0, 0, 0, 0.1)', -->
-									<!-- shadowBlur: 10 -->
-								<!-- } -->
-							<!-- },						  -->
+
 							markLine:{   //增加标注线
 								name:'昨日收盘价',
 								symbol: ['none', 'none'],
@@ -1098,6 +1275,143 @@
 				$(window).resize(myChart.resize);   //解决Echarts 隐藏再显示后宽度高度变小的问题
 			}
 		</script>
+<!-- 在body标签内合适位置添加AI分析弹窗 -->
+<div id="aiAnalysisModal" class="ai-modal" style="display:none;">
+  <div id="aiAnalysisHeader" class="ai-modal-header">
+    <span>AI分析</span>
+    <button class="ai-modal-close" onclick="closeAiAnalysis()">×</button>
+  </div>
+  <div class="ai-modal-content">
+    <p>这里是AI分析内容，可自定义展示。</p>
+  </div>
+</div>
+
+<script>
+function formatAiText(text) {
+    // 转义HTML
+    text = escapeHtml(text);
+
+    // 转换 Markdown 标题（#### **标题** 或 #### 标题）
+//     text = text.replace(/####\s*\*\*(.*?)\*\*/g, '<div style="margin:18px 0 8px 0;font-weight:bold;font-size:17px;color:#ffb400;">$1</div>');
+//     text = text.replace(/####\s*(.*?)\n/g, '<div style="margin:18px 0 8px 0;font-weight:bold;font-size:17px;color:#ffb400;">$1</div>');
+
+    // 转换 Markdown 加粗（**文本**）
+    text = text.replace(/\*\*(.*?)\*\*/g, '<b style="color:#ffb400;">$1</b>');
+
+    // 转换 换行符 为 <br>
+    text = text.replace(/\\n/g, '<br>');
+    text = text.replace(/\n/g, '<br>');
+
+    // 转换 <a href=...> 链接
+    text = text.replace(/&lt;a href=(.*?)&gt;(.*?)&lt;\/a&gt;/g, '<a href="$1" target="_blank" rel="noopener noreferrer" style="color:#4ec9ff;text-decoration:underline;">$2</a>');
+
+    // 加粗关键词
+    text = text.replace(/(建议|结论|买入|卖出|风险|提示|操作)/g, '<b style="color:#ffb400;">$1</b>');
+
+    return text;
+}
+
+async function aiAnalysis() {
+    document.getElementById('aiAnalysisModal').style.display = 'block';
+    const modalContent = document.querySelector('.ai-modal-content');
+    modalContent.innerHTML = '<span style="color:#aaa;">AI分析中，请稍候...</span>';
+
+    let message = gpdm || "000001";
+
+    try {
+        const resp = await fetch('https://api.9yee.com/stock_advice', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_query: message })
+        });
+        const data = await resp.json();
+        let result = data.result || data.advice || JSON.stringify(data);
+
+        // 格式化为气泡样式
+        let bubbleHtml = `<div class="ai-bubble">${formatAiText(result)}</div>`;
+        typeWriter(modalContent, bubbleHtml, 0, true);
+    } catch (e) {
+        modalContent.innerHTML = '<span style="color:#f66;">AI分析失败，请稍后重试。</span>';
+    }
+}
+
+// 打字机效果函数（支持HTML内容）
+function typeWriter(element, html, i, isHtml) {
+    // 参考 chat.html，采用每次输出多个字符，速度更快
+    const speed = 10; // 每10ms刷新一次
+    const step = 120;   // 每次输出6个字符
+    if (!isHtml) {
+        if (i < html.length) {
+            element.innerHTML = html.slice(0, i + step) + '<span style="opacity:0.5;">|</span>';
+            element.scrollTop = element.scrollHeight;
+            setTimeout(function () {
+                typeWriter(element, html, i + step, false);
+            }, speed);
+        } else {
+            element.innerHTML = html;
+            element.scrollTop = element.scrollHeight;
+        }
+    } else {
+        let match = html.match(/<div class="ai-bubble">(.*)<\/div>/s);
+        let content = match ? match[1] : html;
+        let prefix = `<div class="ai-bubble">`;
+        let suffix = `</div>`;
+        if (i < content.length) {
+            element.innerHTML = prefix + content.slice(0, i + step) + '<span style="opacity:0.5;">|</span>' + suffix;
+            element.scrollTop = element.scrollHeight;
+            setTimeout(function () {
+                typeWriter(element, html, i + step, true);
+            }, speed);
+        } else {
+            element.innerHTML = prefix + content + suffix;
+            element.scrollTop = element.scrollHeight;
+        }
+    }
+}
+
+// HTML转义
+function escapeHtml(text) {
+    return text.replace(/[&<>"']/g, function (m) {
+        return ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        })[m];
+    });
+}
+
+// 关闭AI分析弹窗
+function closeAiAnalysis() {
+    document.getElementById('aiAnalysisModal').style.display = 'none';
+}
+
+// 拖拽弹窗功能
+(function() {
+    var modal = document.getElementById('aiAnalysisModal');
+    var header = document.getElementById('aiAnalysisHeader');
+    var offsetX = 0, offsetY = 0, isDown = false;
+
+    header.onmousedown = function(e) {
+        isDown = true;
+        offsetX = e.clientX - modal.offsetLeft;
+        offsetY = e.clientY - modal.offsetTop;
+        document.onmousemove = function(e) {
+            if (isDown) {
+                modal.style.left = (e.clientX - offsetX) + 'px';
+                modal.style.top = (e.clientY - offsetY) + 'px';
+            }
+        };
+        document.onmouseup = function() {
+            isDown = false;
+            document.onmousemove = null;
+            document.onmouseup = null;
+        };
+    };
+})();
+</script>
+
 	</body>
 </html>
 

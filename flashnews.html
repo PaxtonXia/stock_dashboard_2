@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]> <html class="ie6"> <![endif]-->
+<!--[if IE 7]>    <html class="ie7"> <![endif]-->
+<!--[if IE 8]>    <html class="ie8"> <![endif]-->
+<!--[if gt IE 8]><!--> <html> <!--<![endif]-->
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <title>快讯实时</title>
+    <!--[if lt IE 9]>
+    <script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/respond.js@1.4.2/dest/respond.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/es5-shim@4.5.13/es5-shim.min.js"></script>
+    <![endif]-->
+    <script type="text/javascript" src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+    <style type="text/css">
+        body {
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            font-family: Arial, sans-serif;
+        }
+        .news-container {
+            margin: 5px;
+            padding: 5px;
+            border: 1px solid #333;
+        }
+        .news-item {
+            padding: 8px;
+            margin-bottom: 5px;
+            border-bottom: 1px solid #333;
+        }
+        .news-time {
+            color: #888;
+            font-size: 12px;
+            margin-bottom: 5px;
+            letter-spacing: 0.05em;
+        }
+        .news-content {
+            color: #e0e0e0;
+            font-size: 12px;
+            letter-spacing: 0.05em;
+        }
+        .news-type {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 12px;
+            margin-right: 8px;
+            letter-spacing: 0.05em;
+        }
+        .related-plates {
+            margin-top: 5px;
+            letter-spacing: 0.05em;
+        }
+        .type-10001 { background-color: #800000; }
+        .type-10005 { background-color: #008080; }
+        .type-10003 { background-color: #808080; }
+        .type-10007 { background-color: #808000; }
+        .type-10009 { background-color: #008000; }
+    </style>
+</head>
+<body>
+    <div class="news-container" id="newsContainer">
+        <div id="loading">加载中...</div>
+        <div id="error" style="color: red;"></div>
+    </div>
+
+    <script type="text/javascript">
+        var typeMap = {
+            '10001': '封涨停板',
+            '10005': '逼近涨停',
+            '10003': '打开涨停',
+            '10007': '即将打开涨停',
+            '10009': '大幅拉升'
+        };
+
+        function formatTime(timestamp) {
+            // 转换时间戳从秒到毫秒
+            var date = new Date(timestamp * 1000);
+            var hours = date.getHours();
+            var minutes = date.getMinutes();
+            var seconds = date.getSeconds();
+            return (hours < 10 ? '0' + hours : hours) + ':' + 
+                   (minutes < 10 ? '0' + minutes : minutes) + ':' + 
+                   (seconds < 10 ? '0' + seconds : seconds);
+        }
+
+        function renderNews(newsData) {
+            var container = document.getElementById('newsContainer');
+            $('#loading').hide();
+            
+            if (!newsData || newsData.length === 0) {
+                container.innerHTML = '<div style="color: yellow;">暂无数据</div>';
+                return;
+            }
+
+            // 过滤掉包含ST的股票
+            var filteredData = [];
+            for (var i = 0; i < newsData.length; i++) {
+                var item = newsData[i];
+                var stockData = item.stock_abnormal_event_data;
+                if (stockData && stockData.name.indexOf('ST') === -1) {
+                    filteredData.push(item);
+                }
+            }
+
+            var newsHtml = '';
+            for (var j = 0; j < filteredData.length; j++) {
+                var item = filteredData[j];
+                var content = '';
+                var stockData = item.stock_abnormal_event_data;
+                
+                if (stockData) {
+                    var changePercent = (stockData.pcp * 100).toFixed(2);
+                    var color = stockData.pcp > 0 ? '#ff3333' : '#00ff00';
+                    // 判断市场类型：以6开头的是上海，其他是深圳
+                    var marketPrefix = stockData.symbol.indexOf('6') === 0 ? '1' : '0';
+                    var fullStockCode = marketPrefix + stockData.symbol;
+                    content = '<span style="color: ' + color + '">' +
+                        '<a href="http://www.treeid/breed_' + fullStockCode + '" style="color: inherit; text-decoration: underline;">' +
+                            stockData.symbol + '</a> ' +
+                        '<a href="http://www.treeid/breed_' + fullStockCode + '" style="color: inherit; text-decoration: underline;">' +
+                            stockData.name + '</a> ' +
+                        changePercent + '% ￥' + stockData.price +
+                        '</span>';
+                    
+                    if (stockData.related_plates && stockData.related_plates.length > 0) {
+                        var plates = [];
+                        for (var k = 0; k < Math.min(stockData.related_plates.length, 3); k++) {
+                            var plate = stockData.related_plates[k];
+                            var plateChange = (plate.plate_pcp * 100).toFixed(2);
+                            var plateColor = plate.plate_pcp > 0 ? '#ff3333' : '#00ff00';
+                            plates.push('<span style="color: ' + plateColor + '">' + plate.plate_name + '(' + plateChange + '%)</span>');
+                        }
+                        content += '<div class="related-plates">' + plates.join(' ') + '</div>';
+                    }
+                }
+                
+                newsHtml += '<div class="news-item">' +
+                    '<span class="news-type type-' + item.event_type + '">' + (typeMap[item.event_type] || '其他') + '</span>' +
+                    '<div class="news-time">' + formatTime(item.event_timestamp) + '</div>' +
+                    '<div class="news-content">' + content + '</div>' +
+                '</div>';
+            }
+
+            container.innerHTML = newsHtml;
+        }
+
+        function fetchNews() {
+            $('#loading').show();
+            $('#error').hide();
+            
+            $.ajax({
+                url: 'https://flash-api.xuangubao.com.cn/api/event/history',
+                type: 'GET',
+                data: {
+                    count: 50,
+                    types: '10001,10005,10003,10007,10009'
+                },
+                dataType: 'json',
+                success: function(response) {
+                    $('#loading').hide();
+                    console.log('Raw Response:', response);
+                    
+                    try {
+                        if (response && response.code === 20000 && Array.isArray(response.data)) {
+                            renderNews(response.data);
+                        } else {
+                            throw new Error('无效的数据格式');
+                        }
+                    } catch (e) {
+                        console.error('数据解析错误:', e);
+                        $('#error').text('数据解析错误：' + e.message).show();
+                    }
+                },
+                error: function(xhr, status, error) {
+                    $('#loading').hide();
+                    console.error('Network Error:', {
+                        status: status,
+                        error: error,
+                        response: xhr.responseText
+                    });
+                    $('#error').text('网络请求失败: ' + error).show();
+                }
+            });
+        }
+
+        // 初始加载
+        fetchNews();
+
+        // 每10秒更新一次
+        setInterval(fetchNews, 10000);
+    </script>
+</body>
+</html>

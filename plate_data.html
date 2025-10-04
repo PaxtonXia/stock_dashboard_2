@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]> <html class="ie6"> <![endif]-->
+<!--[if IE 7]>    <html class="ie7"> <![endif]-->
+<!--[if IE 8]>    <html class="ie8"> <![endif]-->
+<!--[if gt IE 8]><!--> <html> <!--<![endif]-->
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <!--[if lt IE 9]>
+    <script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/respond.js@1.4.2/dest/respond.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/es5-shim@4.5.13/es5-shim.min.js"></script>
+    <![endif]-->
+    <title>板块实时数据</title>
+    <script type="text/javascript" src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+    <style type="text/css">
+        body {
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 10px;
+        }
+        .plate-container {
+            margin: 10px auto;
+            max-width: 1000px;
+            padding: 0;
+            border-radius: 8px;
+            background-color: #222;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        .plate-header {
+            padding: 18px 25px;
+            font-weight: bold;
+            background-color: #2a2a2a;
+            border-bottom: 1px solid #3a3a3a;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            position: relative;
+            z-index: 1;
+        }
+        .plate-item {
+            padding: 15px;
+            border-bottom: 1px solid #3a3a3a;
+            background-color: #252525;
+            margin: 0 5px;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+        .plate-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            background-color: #282828;
+        }
+        .plate-item:last-child {
+            border-bottom: none;
+        }
+        .stock-list {
+            margin-top: 15px;
+            overflow: hidden; /* Clear floats */
+        }
+        .stock-item {
+            float: left;
+            width: 100%;
+            margin-bottom: 10px;
+            -webkit-box-sizing: border-box;
+               -moz-box-sizing: border-box;
+                    box-sizing: border-box;
+        }
+        .stock-item {
+            padding: 8px 10px;
+            background-color: #2e2e2e;
+            border-radius: 6px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .stock-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            background-color: #323232;
+        }
+        .plate-desc {
+            color: #bbb;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .stock-list {
+            margin-top: 10px;
+            overflow: hidden; /* Clear floats */
+        }
+        .stock-item {
+            padding: 10px;
+            background-color: #2a2a2a;
+            border-radius: 4px;
+        }
+        .stock-name {
+            font-weight: bold;
+            color: #e0e0e0;
+            display: inline-block;
+        }
+        .stock-code {
+            color: #aaa;
+            margin-left: 8px;
+            font-size: 12px;
+        }
+        .stock-price {
+            color: #e0e0e0;
+            margin-right: 15px;
+        }
+        .stock-info-line {
+            display: flex;
+            margin-top: 5px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .stock-info-item {
+            margin-right: 10px;
+            font-size: 12px;
+        }
+        .stock-desc {
+            margin-top: 5px;
+            color: #aaa;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+        .divider {
+            color: #444;
+            margin: 0 5px;
+        }
+        .positive {
+            color: #ff3333;
+        }
+        .negative {
+            color: #00ff00;
+        }
+        #loading {
+            padding: 20px;
+            text-align: center;
+        }
+        #error {
+            color: red;
+            padding: 20px;
+            text-align: center;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="plate-container">
+
+        <div id="plateList"></div>
+        <div id="loading">加载中...</div>
+        <div id="error"></div>
+    </div>
+
+    <script type="text/javascript">
+        function formatTime(timestamp) {
+            var date = new Date(timestamp * 1000);
+            var hours = date.getHours();
+            var minutes = date.getMinutes();
+            var seconds = date.getSeconds();
+            return (hours < 10 ? '0' + hours : hours) + ':' + 
+                   (minutes < 10 ? '0' + minutes : minutes) + ':' + 
+                   (seconds < 10 ? '0' + seconds : seconds);
+        }
+
+        var stocksData = {};
+        
+        function fetchStocks() {
+            return $.ajax({
+                url: 'https://flash-api.xuangubao.com.cn/api/surge_stock/stocks?normal=true&uplimit=true',
+                type: 'GET',
+                dataType: 'json'
+            });
+        }
+
+        function renderPlates(plateData) {
+            var container = document.getElementById('plateList');
+            $('#loading').hide();
+            
+            if (!plateData || !plateData.items || plateData.items.length === 0) {
+                container.innerHTML = '<div style="color: yellow; padding: 20px; text-align: center;">暂无数据</div>';
+                return;
+            }
+
+            var plateHtml = '';
+            plateData.items.forEach(function(plate) {
+                var stockHtml = '';
+                if (stocksData[plate.id]) {
+                    stocksData[plate.id].forEach(function(stock) {
+                        var changePercent = (stock[3] * 100).toFixed(2);
+                        var turnover = (stock[10] * 100).toFixed(2);
+                        var marketValue = (stock[4] / 100000000).toFixed(2);
+                        var changeClass = stock[3] > 0 ? 'positive' : 'negative';
+                        
+                        stockHtml += '<div class="stock-item">' +
+                            '<div style="display: flex; align-items: center; margin-bottom: 5px;">' +
+                                '<a href="http://www.treeid/breed_' + (stock[0].startsWith('6') ? '1' : '0') + stock[0] + '" class="stock-name" style="color: inherit; text-decoration: none;">' + stock[1] + '</a>' +
+                                '<a href="http://www.treeid/breed_' + (stock[0].startsWith('6') ? '1' : '0') + stock[0] + '" class="stock-code" style="margin-left: 8px; color: inherit; text-decoration: none;">' + stock[0] + '</a>' +
+                                '<div style="flex-grow: 1; text-align: right;">' +
+                                    '<span class="stock-price" style="margin-right: 15px;">' + stock[2] + '</span>' +
+                                    '<span class="stock-info-item ' + changeClass + '">' + 
+                                        (stock[3] > 0 ? '+' : '') + changePercent + '%</span>' +
+                                '</div>' +
+                            '</div>' +
+                            '<div class="stock-info-line">' +
+                                '<span class="stock-info-item">换手: ' + turnover + '%</span>' +
+                                '<span class="divider"> | </span>' +
+                                '<span class="stock-info-item">市值: ' + marketValue + '亿</span>' +
+                            '</div>';
+                        
+                        if (stock[5]) {
+                            stockHtml += '<div class="stock-desc">' + stock[5] + '</div>';
+                        }
+                        
+                        stockHtml += '</div>';
+                    });
+                }
+
+                plateHtml += '<div class="plate-item">' +
+                    '<div class="plate-title">' +
+                        '<div class="plate-name">' + plate.name + '</div>' +
+                    '</div>' +
+                    '<div class="plate-desc">' + (plate.description || '暂无描述') + 
+                        (stockHtml ? '<div class="stock-list">' + stockHtml + '</div>' : '') +
+                    '</div>' +
+                '</div>';
+            });
+
+            container.innerHTML = plateHtml;
+        }
+
+        function processStocksData(response) {
+            if (response && response.code === 20000 && response.data && response.data.items) {
+                stocksData = {};
+                response.data.items.forEach(function(stock) {
+                    if (stock[8]) { // plates array
+                        stock[8].forEach(function(plate) {
+                            if (!stocksData[plate.id]) {
+                                stocksData[plate.id] = [];
+                            }
+                            stocksData[plate.id].push(stock);
+                        });
+                    }
+                });
+            }
+        }
+
+        function fetchAllData() {
+            $('#loading').show();
+            $('#error').hide();
+            
+            $.when(
+                $.ajax({
+                    url: 'https://flash-api.xuangubao.com.cn/api/surge_stock/plates',
+                    type: 'GET',
+                    dataType: 'json'
+                }),
+                fetchStocks()
+            ).done(function(platesResponse, stocksResponse) {
+                $('#loading').hide();
+                
+                try {
+                    if (platesResponse[0] && platesResponse[0].code === 20000 && platesResponse[0].data) {
+                        processStocksData(stocksResponse[0]);
+                        renderPlates(platesResponse[0].data);
+                    } else {
+                        throw new Error('无效的数据格式');
+                    }
+                } catch (e) {
+                    console.error('数据解析错误:', e);
+                    $('#error').text('数据解析错误：' + e.message).show();
+                }
+            }).fail(function(xhr, status, error) {
+                $('#loading').hide();
+                console.error('Network Error:', {
+                    status: status,
+                    error: error,
+                    response: xhr.responseText
+                });
+                $('#error').text('网络请求失败: ' + error).show();
+            });
+        }
+
+        // 初始加载
+        fetchAllData();
+
+        // 每10秒更新一次
+        setInterval(fetchAllData, 10000);
+    </script>
+</body>
+</html>

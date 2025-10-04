@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>价格分布分析</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            background-color: #1f1f1f;
+        }
+        #tradeChart {
+            width: 100%;
+            height: 100vh;
+            min-height: 800px;
+            margin: 0;
+            -webkit-box-sizing: border-box;
+            -moz-box-sizing: border-box;
+            box-sizing: border-box;
+        }
+        .main-buy {
+            color: #ff1f1f;
+            font-weight: bold;
+        }
+        .main-sell {
+            color: #389e0d;
+            font-weight: bold;
+        }
+    </style>
+    <script src="https://cdn.bootcdn.net/ajax/libs/es6-promise/4.1.1/es6-promise.auto.min.js"></script>
+    <script>
+        if (!window.Promise) {
+            document.write('<script src="https://cdn.bootcdn.net/ajax/libs/es6-promise/4.1.1/es6-promise.min.js"><\/script>');
+        }
+        
+        (function(self) {
+            'use strict';
+            if (self.fetch) {
+                return;
+            }
+            self.fetch = function(url) {
+                return new Promise(function(resolve, reject) {
+                    var xhr;
+                    if (window.XMLHttpRequest) {
+                        xhr = new XMLHttpRequest();
+                    } else {
+                        xhr = new ActiveXObject("Microsoft.XMLHTTP");
+                    }
+                    xhr.onload = function() {
+                        resolve({
+                            ok: xhr.status >= 200 && xhr.status < 300,
+                            status: xhr.status,
+                            statusText: xhr.statusText,
+                            json: function() {
+                                try {
+                                    return Promise.resolve(JSON.parse(xhr.responseText));
+                                } catch(e) {
+                                    return Promise.reject(e);
+                                }
+                            }
+                        });
+                    };
+                    xhr.onerror = function() {
+                        reject(new TypeError('Network request failed'));
+                    };
+                    xhr.open('GET', url, true);
+                    xhr.send(null);
+                });
+            };
+        })(window);
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+    <script>
+        if (typeof echarts === 'undefined') {
+            document.write('<script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js"><\/script>');
+        }
+    </script>
+    <style>
+        body {
+            font-family: Arial, "Microsoft YaHei", sans-serif;
+            margin: 0;
+            background-color: #1f1f1f;
+        }
+        #tradeChart {
+            width: 100%;
+            height: 100vh;
+            min-height: 800px;
+            margin: 0;
+            -webkit-box-sizing: border-box;
+            -moz-box-sizing: border-box;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <div id="tradeChart"></div>
+
+    <script>
+        // 兼容的DOM加载检测
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+            fetchData();
+            setInterval(fetchData, 1000);
+        } else {
+            document.addEventListener('DOMContentLoaded', function() {
+                fetchData();
+                setInterval(fetchData, 1000);
+            });
+        }
+
+        function fetchData() {
+            try {
+                var stockCode = '000831';
+                var query = window.location.search.substring(1);
+                var vars = query.split('&');
+                for (var i = 0; i < vars.length; i++) {
+                    var pair = vars[i].split('=');
+                    if (pair[0] == 'code') {
+                        stockCode = decodeURIComponent(pair[1]);
+                        break;
+                    }
+                }
+                
+                var url = 'http://vaserviece.10jqka.com.cn/Level2/index.php?&op=mainMonitorDetail&stockcode=' + stockCode;
+                
+                console.log('正在获取数据，URL:', url);
+                return fetch(url).then(function(response) {
+                    return response.json();
+                }).then(function(data) {
+                    renderData(data);
+                }).catch(function(error) {
+                    console.error('获取数据失败:', error);
+                });
+            } catch (e) {
+                console.error('获取数据时发生错误:', e);
+                return Promise.reject(e);
+            }
+        }
+
+        function renderData(data) {
+            if (!data || !data.list || !(data.list instanceof Array)) {
+                console.error('数据格式不正确');
+                return;
+            }
+            
+            // Aggregate data by price
+            var priceMap = {};
+            
+            for (var i = 0; i < data.list.length; i++) {
+                var item = data.list[i];
+                
+                // 只显示主力主买和主力主卖
+                if (item.nature !== '主力主买' && item.nature !== '主力主卖') {
+                    continue;
+                }
+                
+                var price = '0.00';
+                if (item.avgprice) {
+                    price = parseFloat(item.avgprice).toFixed(2);
+                }
+                
+                var amount = parseFloat(item.money) / 10000; // Convert to 万元
+                
+                if (!priceMap[price]) {
+                    priceMap[price] = {
+                        buy: 0,
+                        sell: 0
+                    };
+                }
+                
+                if (item.nature === '主力主买') {
+                    priceMap[price].buy += amount;
+                } else {
+                    priceMap[price].sell -= amount;
+                }
+            }
+            
+            // Prepare chart data
+            var chartData = {
+                prices: [],
+                buyData: [],
+                sellData: []
+            };
+            
+            // 按价格降序排序 (高价在上，低价在下)
+            var sortedPrices = Object.keys(priceMap).sort((a, b) => parseFloat(b) - parseFloat(a));
+            
+            sortedPrices.forEach(price => {
+                chartData.prices.push(price);
+                chartData.buyData.push(priceMap[price].buy);
+                chartData.sellData.push(priceMap[price].sell);
+            });
+
+            // Reverse to ensure high price at top, low at bottom
+            chartData.prices.reverse();
+            chartData.buyData.reverse();
+            chartData.sellData.reverse();
+
+            var currentPrice = parseFloat(data.title.price);
+            renderChart(chartData, data.title.stockname, currentPrice);
+        }
+
+        function renderChart(chartData, stockName, currentPrice) {
+            try {
+                if (typeof echarts === 'undefined') {
+                    console.error('ECharts 库未加载成功');
+                    return;
+                }
+
+                var itemHeight = 25;
+                var padding = 40;
+                var dataLength = chartData.prices.length;
+                var calculatedHeight = dataLength * itemHeight + padding;
+                
+                var chartDom = document.getElementById('tradeChart');
+                chartDom.style.height = calculatedHeight + 'px';
+                
+                var myChart = echarts.init(chartDom);
+                
+                const option = {
+                    backgroundColor: '#1f1f1f',
+                    // title: {
+                    //     text: stockName + ' - 价格分布分析',
+                    //     left: 'center',
+                    //     textStyle: {
+                    //         color: '#999'
+                    //     }
+                    // },
+                    tooltip: {
+                        trigger: 'axis',
+                        axisPointer: {
+                            type: 'shadow'
+                        },
+                        formatter: function(params) {
+                            var data = params[0];
+                            var index = data.dataIndex;
+                            var tradeType = params.seriesName === '主力主买' ? 
+                                           '<span class="main-buy">主力主买</span>' : 
+                                           '<span class="main-sell">主力主卖</span>';
+                                           
+                            return '价格: ' + chartData.prices[index] + ' 元<br/>' +
+                                   '类型: ' + tradeType + '<br/>' +
+                                   '成交额: ' + Math.abs(data.value).toFixed(2) + ' 万元';
+                        },
+                        backgroundColor: 'rgba(50,50,50,0.9)',
+                        borderColor: '#333',
+                        textStyle: {
+                            color: '#fff'
+                        }
+                    },
+                    grid: {
+                        left: '15%',
+                        right: '15%',
+                        bottom: '20px',
+                        top: '40px',
+                        containLabel: true
+                    },
+                    yAxis: {
+                        type: 'category',
+                        data: chartData.prices,
+                        name: '价格（元）',
+                        nameTextStyle: {
+                            color: '#999',
+                            padding: [0, 0, 0, 20]
+                        },
+                        axisLabel: {
+                            interval: 0,
+                            color: '#999',
+                            align: 'right',
+                            padding: [0, 25, 0, 0]
+                        },
+                        axisLine: {
+                            lineStyle: {
+                                color: '#333'
+                            }
+                        },
+                        splitLine: {
+                            show: false
+                        }
+                    },
+                    xAxis: {
+                        type: 'value',
+                        name: '成交额（万元）',
+                        nameTextStyle: {
+                            color: '#999',
+                            padding: [0, 0, 0, 20]
+                        },
+                        axisLabel: {
+                            color: '#999'
+                        },
+                        axisLine: {
+                            lineStyle: {
+                                color: '#333'
+                            }
+                        },
+                        splitLine: {
+                            show: true,
+                            lineStyle: {
+                                color: '#333',
+                                type: 'dashed'
+                            }
+                        },
+                        markLine: {
+                            symbol: ['none', 'none'],
+                            data: [
+                                {
+                                    yAxis: currentPrice,
+                                    lineStyle: {
+                                        color: '#fff',
+                                        width: 2,
+                                        type: 'solid'
+                                    },
+                                    label: {
+                                        show: true,
+                                        position: 'insideLeft',
+                                        formatter: '当前价: ' + currentPrice,
+                                        color: '#fff'
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    series: [
+                        {
+                            name: '主力主买',
+                            type: 'bar',
+                            data: chartData.buyData,
+                            barWidth: '16px',
+                            barGap: '4px',
+                            barCategoryGap: '4px',
+                            itemStyle: {
+                                color: '#ff1f1f',
+                                borderWidth: 1,
+                                borderColor: '#1f1f1f',
+                                borderType: 'solid'
+                            },
+                            label: {
+                                show: true,
+                                position: 'right',
+                                formatter: function(params) {
+                                    var value = Math.abs(params.value);
+                                    return value > 0 ? value.toFixed(2) + '万' : '';
+                                },
+                                fontSize: 12,
+                                color: '#ff1f1f',
+                                distance: 15,
+                                align: 'left'
+                            }
+                        },
+                        {
+                            name: '主力主卖',
+                            type: 'bar',
+                            data: chartData.sellData,
+                            barWidth: '16px',
+                            barGap: '-100%',
+                            itemStyle: {
+                                color: '#389e0d',
+                                borderWidth: 1,
+                                borderColor: '#1f1f1f',
+                                borderType: 'solid'
+                            },
+                            label: {
+                                show: true,
+                                position: 'left',
+                                formatter: function(params) {
+                                    var value = Math.abs(params.value);
+                                    return value > 0 ? value.toFixed(2) + '万' : '';
+                                },
+                                fontSize: 12,
+                                color: '#389e0d',
+                                distance: 15,
+                                align: 'right'
+                            }
+                        }
+                    ]
+                };
+        
+                myChart.setOption(option);
+
+                window.addEventListener('resize', function() {
+                    myChart.resize();
+                });
+            } catch (error) {
+                console.error('渲染图表时出错:', error);
+            }
+        }
+    </script>
+</body>
+</html>

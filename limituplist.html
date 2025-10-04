@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>涨停股票池</title>
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style type="text/css">
+        body {
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            font-family: "Microsoft YaHei", Arial, sans-serif;
+            font-size: 13px;
+            letter-spacing: 0.5px;
+        }
+        .msg-container {
+            margin: 5px;
+            padding: 5px;
+            border: 1px solid #333;
+            border-radius: 3px;
+        }
+        .msg-item {
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #2a2a2a;
+            letter-spacing: 0.6px;
+            line-height: 1.6;
+        }
+        .msg-time {
+            color: #888;
+            font-size: 12px;
+            margin-bottom: 3px;
+            letter-spacing: 0.4px;
+        }
+        .msg-title {
+            font-size: 13px;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #fff;
+            letter-spacing: 0.5px;
+        }
+        .msg-summary {
+            color: #bbb;
+            font-size: 12px;
+            line-height: 1.6;
+            margin-bottom: 5px;
+            letter-spacing: 0.4px;
+        }
+        .stock-info {
+            margin-top: 6px;
+            line-height: 1.8;
+        }
+        .stock-reason {
+            color: #aaa;
+            font-size: 12px;
+            margin: 5px 0;
+            letter-spacing: 0.4px;
+        }
+        .tags {
+            margin-top: 6px;
+        }
+        .tag {
+            display: inline-block;
+            padding: 1px 6px;
+            margin-right: 6px;
+            margin-bottom: 4px;
+            background-color: #2d2d2d;
+            border-radius: 3px;
+            font-size: 12px;
+            color: #999;
+            letter-spacing: 0.4px;
+        }
+        .stock-item {
+            display: inline-block;
+            padding: 1px 6px;
+            margin-right: 6px;
+            background-color: #2d2d2d;
+            border-radius: 3px;
+            color: #eee;
+            font-size: 12px;
+            letter-spacing: 0.4px;
+        }
+        a {
+            text-decoration: none;
+            color: inherit;
+        }
+        a:hover {
+            text-decoration: underline;
+            opacity: 0.9;
+        }
+        #loading {
+            color: #888;
+            padding: 8px;
+            text-align: center;
+            background: rgba(0,0,0,0.3);
+            border-radius: 3px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="msg-container" id="msgContainer">
+        <div id="loading">加载中...</div>
+        <div id="error" style="color: red;"></div>
+    </div>
+
+    <script type="text/javascript">
+        function fetchMessages() {
+            console.log('开始获取数据...');
+            $('#loading').show();
+            $('#error').hide();
+            
+            $.ajax({
+                url: 'https://flash-api.xuangubao.com.cn/api/pool/detail',
+                type: 'GET',
+                data: {
+                    pool_name: 'limit_up'
+                },
+                dataType: 'json',
+                success: function(response) {
+                    $('#loading').hide();
+                    console.log('Raw Response:', response);
+                    
+                    try {
+                        if (response && response.data && Array.isArray(response.data)) {
+                            renderMessages(response.data);
+                        } else {
+                            throw new Error('无效的数据格式');
+                        }
+                    } catch (e) {
+                        console.error('数据解析错误:', e);
+                        $('#error').text('数据解析错误：' + e.message).show();
+                    }
+                },
+                error: function(xhr, status, error) {
+                    $('#loading').hide();
+                    console.error('Network Error:', {
+                        status: status,
+                        error: error,
+                        response: xhr.responseText
+                    });
+                    $('#error').text('网络请求失败: ' + error).show();
+                }
+            });
+        }
+
+        function renderMessages(messages) {
+            const container = document.getElementById('msgContainer');
+            
+            if (!messages || messages.length === 0) {
+                container.innerHTML = '<div style="color: yellow;">暂无数据</div>';
+                return;
+            }
+
+            const msgHtml = messages.map(item => {
+                const changePercent = (item.change_percent * 100).toFixed(2);
+                const color = item.change_percent > 0 ? '#ff3333' : '#00ff00';
+                const marketPrefix = item.symbol.startsWith('6') ? '1' : '0';
+                const fullStockCode = marketPrefix + item.symbol.split('.')[0];
+                
+                // Format related plates
+                let platesHtml = '';
+                if (item.surge_reason && item.surge_reason.related_plates) {
+                    platesHtml = item.surge_reason.related_plates
+                        .map(plate => `<span class="tag">${plate.plate_name}</span>`)
+                        .join('');
+                }
+
+                // Format stock reason
+                const stockReason = item.surge_reason ? item.surge_reason.stock_reason : '';
+                
+                // Format limit up timeline
+                let limitTimelineHtml = '';
+                if (item.limit_timeline && item.limit_timeline.items) {
+                    limitTimelineHtml = item.limit_timeline.items
+                        .map(timeline => {
+                            const time = new Date(timeline.timestamp * 1000).toLocaleTimeString('zh-CN', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                second: '2-digit'
+                            });
+                            const status = timeline.status === 1 ? '封板' : '打开';
+                            return `<span class="tag">${time} ${status}</span>`;
+                        })
+                        .join('');
+                }
+
+                return `
+                    <div class="msg-item">
+                        <span style="color: ${color}">
+                            <a href="http://www.treeid/breed_${fullStockCode}" style="color: inherit; text-decoration: underline;">
+                                ${item.symbol.split('.')[0]}</a> 
+                            <a href="http://www.treeid/breed_${fullStockCode}" style="color: inherit; text-decoration: underline;">
+                                ${item.stock_chi_name}</a> 
+                            ${changePercent}% ￥${item.price}
+                        </span>
+                        <div class="stock-info">
+                            <div class="tags">
+                                ${limitTimelineHtml}
+                            </div>
+                            <div class="stock-reason">${stockReason}</div>
+                            <div class="related-plates">${platesHtml}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = msgHtml;
+        }
+
+        // 初始加载
+        fetchMessages();
+
+        // 每30秒更新一次
+        setInterval(fetchMessages, 30000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>涨停破板池</title>
+    <script type="text/javascript" src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+    <style type="text/css">
+        body {
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            font-family: "Microsoft YaHei", Arial, sans-serif;
+            font-size: 13px;
+            letter-spacing: 0.5px;
+        }
+        .msg-container {
+            margin: 5px;
+            padding: 5px;
+            border: 1px solid #333;
+            border-radius: 3px;
+        }
+        .msg-item {
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #2a2a2a;
+            letter-spacing: 0.6px;
+            line-height: 1.6;
+        }
+        .stock-info {
+            margin-top: 6px;
+            line-height: 1.8;
+        }
+        .stock-reason {
+            color: #aaa;
+            font-size: 12px;
+            margin: 5px 0;
+            letter-spacing: 0.4px;
+        }
+        .tags {
+            margin-top: 6px;
+        }
+        .tag {
+            display: inline-block;
+            padding: 1px 6px;
+            margin-right: 6px;
+            margin-bottom: 4px;
+            background-color: #2d2d2d;
+            border-radius: 3px;
+            font-size: 12px;
+            color: #999;
+            letter-spacing: 0.4px;
+        }
+        .stock-item {
+            display: inline-block;
+            padding: 1px 6px;
+            margin-right: 6px;
+            background-color: #2d2d2d;
+            border-radius: 3px;
+            color: #eee;
+            font-size: 12px;
+            letter-spacing: 0.4px;
+        }
+        a {
+            text-decoration: none;
+            color: inherit;
+        }
+        a:hover {
+            text-decoration: underline;
+            opacity: 0.9;
+        }
+        .related-plates {
+            margin-top: 5px;
+            font-size: 12px;
+            color: #888;
+            letter-spacing: 0.05em;
+        }
+        .plate-item {
+            display: inline-block;
+            margin-right: 8px;
+            padding: 2px 6px;
+            background-color: #2d2d2d;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="msg-container" id="msgContainer"></div>
+
+    <script type="text/javascript">
+        function fetchMessages() {
+            $.ajax({
+                url: 'https://flash-api.xuangubao.com.cn/api/pool/detail',
+                data: {
+                    pool_name: 'limit_up_broken'
+                },
+                success: function(response) {
+                    if (response && response.data) {
+                        renderMessages(response.data);
+                    }
+                }
+            });
+        }
+
+        function renderMessages(messages) {
+            const container = document.getElementById('msgContainer');
+            if (!messages || messages.length === 0) {
+                container.innerHTML = '<div style="color: yellow;">暂无数据</div>';
+                return;
+            }
+
+            const msgHtml = messages.map(function(item) {
+                const changePercent = (item.change_percent * 100).toFixed(2);
+                const color = item.change_percent > 0 ? '#ff3333' : '#00ff00';
+                const marketPrefix = item.symbol.charAt(0) === '6' ? '1' : '0';
+                const stockCode = item.symbol.split('.')[0];
+                const fullStockCode = marketPrefix + stockCode;
+
+                // 处理概念板块信息
+                var platesHtml = '';
+                if (item.surge_reason && item.surge_reason.related_plates) {
+                    var plates = item.surge_reason.related_plates;
+                    for (var i = 0; i < plates.length; i++) {
+                        platesHtml += '<span class="plate-item">' + plates[i].plate_name + '</span> ';
+                    }
+                }
+
+                // 处理涨停时间信息
+                var timeStr = '';
+                if (item.first_limit_up) {
+                    var date = new Date(item.first_limit_up * 1000);
+                    timeStr = ('0' + date.getHours()).slice(-2) + ':' + 
+                             ('0' + date.getMinutes()).slice(-2) + ':' + 
+                             ('0' + date.getSeconds()).slice(-2);
+                }
+
+                // 处理涨停原因
+                var reasonHtml = '';
+                if (item.surge_reason && item.surge_reason.stock_reason) {
+                    reasonHtml = '<div class="stock-reason">' + item.surge_reason.stock_reason + '</div>';
+                }
+
+                return '<div class="msg-item">' +
+                    '<span style="color:' + color + '">' +
+                    '<a href="http://www.treeid/breed_' + fullStockCode + '" style="color: inherit; text-decoration: underline;">' +
+                    stockCode + '</a> ' +
+                    '<a href="http://www.treeid/breed_' + fullStockCode + '" style="color: inherit; text-decoration: underline;">' +
+                    item.stock_chi_name + '</a> ' +
+                    changePercent + '% ￥' + item.price +
+                    '</span>' +
+                    '<div class="stock-info">' +
+                    '<div class="tags">' +
+                    (timeStr ? '<span class="tag">首次涨停: ' + timeStr + '</span>' : '') +
+                    '<span class="tag">封单: ' + (item.buy_lock_volume_ratio * 100).toFixed(2) + '%</span>' +
+                    '<span class="tag">破板: ' + (item.break_limit_up_times || 0) + '次</span>' +
+                    '</div>' +
+                    reasonHtml +
+                    '<div class="related-plates">' + platesHtml + '</div>' +
+                    '</div>' +
+                    '</div>';
+            }).join('');
+
+            container.innerHTML = msgHtml;
+        }
+
+        $(document).ready(function() {
+            fetchMessages();
+            
+            setInterval(function() {
+                fetchMessages();
+            }, 60000);
+        });
+    </script>
+</body>
+</html>

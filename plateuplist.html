@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>板块拉升</title>
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style type="text/css">
+        body {
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            font-family: Arial, sans-serif;
+        }
+        .plate-container {
+            margin: 5px;
+            padding: 5px;
+            border: 1px solid #333;
+        }
+        .plate-item {
+            padding: 8px;
+            margin-bottom: 5px;
+            border-bottom: 1px solid #333;
+        }
+        .plate-time {
+            color: #888;
+            font-size: 12px;
+            margin-bottom: 5px;
+            letter-spacing: 0.05em;
+        }
+        .plate-content {
+            color: #e0e0e0;
+            font-size: 12px;
+            letter-spacing: 0.05em;
+        }
+        .plate-type {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 12px;
+            margin-right: 8px;
+            letter-spacing: 0.05em;
+        }
+        .type-11000 { background-color: #800000; }
+        .type-11001 { background-color: #008080; }
+        .stock-list {
+            margin-top: 8px;
+            color: #bbb;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        .stock-title {
+            color: #888;
+            margin-bottom: 5px;
+            font-size: 12px;
+            display: block;
+        }
+        .stock-item {
+            display: inline-block;
+            margin: 2px 8px 2px 0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .stock-change {
+            margin-left: 4px;
+            font-family: Consolas, monospace;
+        }
+        .stock-mtm {
+            margin-left: 4px;
+            color: #888;
+            font-size: 11px;
+            font-family: Consolas, monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="plate-container" id="plateContainer">
+        <div id="loading">加载中...</div>
+        <div id="error" style="color: red;"></div>
+    </div>
+
+    <script type="text/javascript">
+        const typeMap = {
+            '11000': '板块拉升',
+            '11001': '板块走强'
+        };
+
+        function formatTime(timestamp) {
+            const date = new Date(timestamp * 1000);
+            return date.toLocaleTimeString('zh-CN', { 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit'
+            });
+        }
+
+        function renderPlates(plateData) {
+            const container = document.getElementById('plateContainer');
+            $('#loading').hide();
+            
+            if (!plateData || plateData.length === 0) {
+                container.innerHTML = '<div style="color: yellow;">暂无数据</div>';
+                return;
+            }
+
+            const plateHtml = plateData.map(item => {
+                const plateInfo = item.plate_abnormal_event_data;
+                if (!plateInfo) return '';
+
+                // Get plate percentage change from pcp field
+                const changePercent = plateInfo.pcp ? (plateInfo.pcp * 100) : 0;
+                const formattedChangePercent = changePercent.toFixed(2);
+                const color = changePercent > 0 ? '#ff3333' : '#00ff00';
+
+                let stockListHtml = '';
+                if (plateInfo.related_stocks && plateInfo.related_stocks.length > 0) {
+                    const stockItems = plateInfo.related_stocks.map(stock => {
+                        // Get stock percentage change and mtm
+                        const stockChangePercent = stock.pcp ? (stock.pcp * 100) : 0;
+                        const stockMtm = stock.mtm ? (stock.mtm * 100) : 0;
+                        const formattedStockChangePercent = stockChangePercent.toFixed(2);
+                        const formattedStockMtm = stockMtm.toFixed(2);
+                        const stockColor = stockChangePercent > 0 ? '#ff3333' : '#00ff00';
+                        
+                        // Extract stock code and determine market type
+                        const stockCode = stock.symbol.split('.')[0];
+                        const marketPrefix = stockCode.startsWith('6') ? '1' : '0';
+                        const fullStockCode = marketPrefix + stockCode;
+                        
+                        return `<span class="stock-item" style="color: ${stockColor}">
+                            <a href="http://www.treeid/breed_${fullStockCode}" style="color: inherit; text-decoration: none;">
+                                ${stock.name}<span style="color: #888;">(${stockCode})</span>
+                            </a>
+                            <span class="stock-change">${formattedStockChangePercent}%</span>
+                            <span class="stock-mtm">涨速:${formattedStockMtm}%</span>
+                        </span>`;
+                    }).join('');
+                    stockListHtml = `<div class="stock-list"><span class="stock-title">领涨个股：</span>${stockItems}</div>`;
+                }
+
+                return `
+                    <div class="plate-item">
+                        <span class="plate-type type-${item.event_type}">${typeMap[item.event_type] || '其他'}</span>
+                        <div class="plate-time">${formatTime(item.event_timestamp)}</div>
+                        <div class="plate-content">
+                            <span style="color: ${color}">${plateInfo.plate_name} ${formattedChangePercent}%</span>
+                            ${stockListHtml}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = plateHtml;
+        }
+
+        function fetchPlates() {
+            $('#loading').show();
+            $('#error').hide();
+            
+            $.ajax({
+                url: 'https://flash-api.xuangubao.com.cn/api/event/history',
+                type: 'GET',
+                data: {
+                    count: 30,
+                    types: '11000,11001'
+                },
+                dataType: 'json',
+                success: function(response) {
+                    $('#loading').hide();
+                    console.log('Raw Response:', response);
+                    
+                    try {
+                        if (response && response.code === 20000 && Array.isArray(response.data)) {
+                            renderPlates(response.data);
+                        } else {
+                            throw new Error('无效的数据格式');
+                        }
+                    } catch (e) {
+                        console.error('数据解析错误:', e);
+                        $('#error').text('数据解析错误：' + e.message).show();
+                    }
+                },
+                error: function(xhr, status, error) {
+                    $('#loading').hide();
+                    console.error('Network Error:', {
+                        status: status,
+                        error: error,
+                        response: xhr.responseText
+                    });
+                    $('#error').text('网络请求失败: ' + error).show();
+                }
+            });
+        }
+
+        // 初始加载
+        fetchPlates();
+
+        // 每10秒更新一次
+        setInterval(fetchPlates, 10000);
+    </script>
+</body>
+</html>

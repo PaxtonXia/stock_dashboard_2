@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大单订单流</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;  /* 移除边距 */
+            background-color: #1f1f1f;  /* 深色背景 */
+        }
+        .container {
+            max-width: 100%;  /* 全屏显示 */
+            margin: 0;
+            background-color: #1f1f1f;  /* 深色主题 */
+            padding: 0;
+            box-shadow: none;
+        }
+        #tradeChart {
+            width: 100%;
+            height: 100vh;  /* 全屏高度 */
+            min-height: 800px;
+            margin: 0;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        .buy {
+            color: #ff4d4f;
+        }
+        .sell {
+            color: #52c41a;
+        }
+        /* 添加新的颜色样式 */
+        .main-buy {
+            color: #ff1f1f;
+            font-weight: bold;
+        }
+        .passive-buy {
+            color: #ff7875;
+        }
+        .main-sell {
+            color: #389e0d;
+            font-weight: bold;
+        }
+        .passive-sell {
+            color: #95de64;
+        }
+    </style>
+    <!-- 在 head 标签中添加 polyfill -->
+    <!-- 替换 polyfill CDN -->
+    <!-- 替换 CDN 链接为内联代码 -->
+    <!--[if lt IE 9]>
+    <script src="https://cdn.bootcdn.net/ajax/libs/es5-shim/4.5.7/es5-shim.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/es5-shim/4.5.7/es5-sham.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/json3/3.3.2/json3.min.js"></script>
+    <![endif]-->
+    <script src="https://cdn.bootcdn.net/ajax/libs/es6-promise/4.1.1/es6-promise.auto.min.js"></script>
+    <script>
+        // 兼容性检查
+        if (!window.Promise) {
+            document.write('<script src="https://cdn.bootcdn.net/ajax/libs/es6-promise/4.1.1/es6-promise.min.js"><\/script>');
+        }
+        
+        // 简单的 fetch polyfill
+        (function(self) {
+            'use strict';
+            if (self.fetch) {
+                return;
+            }
+            self.fetch = function(url) {
+                return new Promise(function(resolve, reject) {
+                    var xhr;
+                    if (window.XMLHttpRequest) {
+                        xhr = new XMLHttpRequest();
+                    } else {
+                        // 兼容IE6
+                        xhr = new ActiveXObject("Microsoft.XMLHTTP");
+                    }
+                    xhr.onload = function() {
+                        resolve({
+                            ok: xhr.status >= 200 && xhr.status < 300,
+                            status: xhr.status,
+                            statusText: xhr.statusText,
+                            json: function() {
+                                try {
+                                    return Promise.resolve(JSON.parse(xhr.responseText));
+                                } catch(e) {
+                                    return Promise.reject(e);
+                                }
+                            }
+                        });
+                    };
+                    xhr.onerror = function() {
+                        reject(new TypeError('Network request failed'));
+                    };
+                    xhr.open('GET', url, true);
+                    xhr.send(null);
+                });
+            };
+        })(window);
+    </script>
+    <!-- ECharts CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+    <!-- 备用 CDN -->
+    <script>
+        if (typeof echarts === 'undefined') {
+            document.write('<script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js"><\/script>');
+        }
+    </script>
+    <style>
+        body {
+            font-family: Arial, "Microsoft YaHei", sans-serif;  /* 添加中文字体支持 */
+            margin: 0;
+            background-color: #1f1f1f;
+        }
+        /* 添加浏览器前缀 */
+        .container {
+            max-width: 100%;
+            margin: 0;
+            background-color: #1f1f1f;
+            padding: 0;
+            box-shadow: none;
+            -webkit-box-shadow: none;
+            -moz-box-shadow: none;
+        }
+        #tradeChart {
+            width: 100%;
+            height: 100vh;
+            min-height: 800px;
+            margin: 0;
+            -webkit-box-sizing: border-box;
+            -moz-box-sizing: border-box;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="tradeChart" style="width: 100%; height: auto; min-height: 800px; margin-top: 20px;"></div>
+
+        <script>
+            // 在页面加载完成后获取数据
+            document.addEventListener('DOMContentLoaded', function() {
+                fetchData();
+                setInterval(fetchData, 1000);
+            });
+
+            // 更新时间显示
+            function updateTime() {
+                // 由于移除了时间显示元素，此函数可以为空或移除
+            }
+
+            // 获取大单数据
+            function fetchData() {
+                try {
+                    // 从 URL 获取股票代码参数 - 兼容旧版浏览器
+                    var stockCode = '000831'; // 默认值
+                    var query = window.location.search.substring(1);
+                    var vars = query.split('&');
+                    for (var i = 0; i < vars.length; i++) {
+                        var pair = vars[i].split('=');
+                        if (pair[0] == 'code') {
+                            stockCode = decodeURIComponent(pair[1]);
+                            break;
+                        }
+                    }
+                    
+                    var url = 'http://vaserviece.10jqka.com.cn/Level2/index.php?&op=mainMonitorDetail&stockcode=' + stockCode;
+                    
+                    console.log('正在获取数据，URL:', url);
+                    return fetch(url).then(function(response) {
+                        return response.json();
+                    }).then(function(data) {
+                        renderData(data);
+                        scrollToBottom();
+                    }).catch(function(error) {
+                        console.error('获取数据失败:', error);
+                    });
+                } catch (e) {
+                    console.error('获取数据时发生错误:', e);
+                    return Promise.reject(e);
+                }
+                
+                // 兼容性处理的滚动函数
+                function scrollToBottom() {
+                    try {
+                        var scrollHeight = Math.max(
+                            document.documentElement.scrollHeight,
+                            document.body.scrollHeight
+                        );
+                        window.scrollTo(0, scrollHeight);
+                    } catch (e) {
+                        console.error('滚动失败:', e);
+                    }
+                }
+            }
+
+            function renderData(data) {
+                if (!data || !data.list || !(data.list instanceof Array)) {
+                    console.error('数据格式不正确');
+                    return;
+                }
+                
+                // 准备图表数据
+                var chartData = {
+                    times: [],
+                    amounts: [],
+                    prices: []
+                };
+
+                for (var i = 0; i < data.list.length; i++) {
+                    var item = data.list[i];
+                    var direction = item.tradetype === '1' ? 'buy' : 'sell';
+                    var amount = parseFloat(item.money) / 10000;
+                    var netAmount = direction === 'buy' ? amount : -amount;
+                    
+                    // 使用 avgprice 替代 price
+                    var price = '0.00';
+                    if (item.avgprice) {
+                        price = parseFloat(item.avgprice).toFixed(2);
+                    }
+                    
+                    chartData.times.push(item.ctime);
+                    chartData.prices.push(price);
+                    chartData.amounts.push({
+                        value: netAmount,
+                        itemStyle: {
+                            color: getTradeColor(item.nature)
+                        }
+                    });
+                }
+
+                // 渲染图表
+                renderChart(chartData, data.title.stockname);
+            }
+
+            // 获取交易颜色
+            function getTradeColor(nature) {
+                switch(nature) {
+                    case '主力主买': return '#ff1f1f';
+                    case '主力被买': return '#ff7875';
+                    case '主力主卖': return '#389e0d';
+                    case '主力被卖': return '#95de64';
+                    default: return '#999999';
+                }
+            }
+
+            // 渲染柱状图
+            function renderChart(chartData, stockName) {
+                try {
+                    if (typeof echarts === 'undefined') {
+                        console.error('ECharts 库未加载成功');
+                        return;
+                    }
+
+                    // 优化高度计算
+                    var itemHeight = 25;  // 每个数据项的高度
+                    var padding = 40;     // 上下留出的空间
+                    var dataLength = chartData.times.length;
+                    var calculatedHeight = dataLength * itemHeight + padding;  // 直接根据数据量计算高度
+                    
+                    // 设置图表容器高度
+                    var chartDom = document.getElementById('tradeChart');
+                    chartDom.style.height = calculatedHeight + 'px';
+                    
+                    var myChart = echarts.init(chartDom);
+                    
+                    // 调整网格配置
+                    const option = {
+                        backgroundColor: '#1f1f1f',
+                        title: {
+                            text: stockName,
+                            left: 'center',
+                            textStyle: {
+                                color: '#999'
+                            }
+                        },
+                        tooltip: {
+                            trigger: 'axis',
+                            axisPointer: {
+                                type: 'shadow'
+                            },
+                            formatter: function(params) {
+                                var data = params[0];
+                                var index = data.dataIndex;
+                                return data.name + '<br/>' +
+                                       '成交额：' + Math.abs(data.value).toFixed(2) + ' 万元<br/>' +
+                                       '成交价：' + chartData.prices[index] + ' 元';
+                            },
+                            backgroundColor: 'rgba(50,50,50,0.9)',
+                            borderColor: '#333',
+                            textStyle: {
+                                color: '#fff'
+                            }
+                        },
+                        grid: {
+                            left: '15%',
+                            right: '15%',
+                            bottom: '20px',   // 改用固定底部边距
+                            top: '40px',      // 改用固定顶部边距
+                            containLabel: true
+                        },
+                        xAxis: {
+                            type: 'value',
+                            name: '成交额（万元）',
+                            nameTextStyle: {
+                                color: '#999',
+                                padding: [0, 0, 0, 20]  // 调整名称位置
+                            },
+                            axisLabel: {
+                                color: '#999',
+                                formatter: function(value) {
+                                    return Math.abs(value);
+                                }
+                            },
+                            axisLine: {
+                                lineStyle: {
+                                    color: '#333'
+                                }
+                            },
+                            splitLine: {
+                                show: true,
+                                lineStyle: {
+                                    color: '#333',
+                                    type: 'dashed'
+                                }
+                            }
+                        },
+                        yAxis: {
+                            type: 'category',
+                            data: chartData.times,
+                            axisLabel: {
+                                interval: 0,
+                                color: '#999',
+                                align: 'right',
+                                padding: [0, 15, 0, 0]  // 调整标签位置
+                            },
+                            axisLine: {
+                                lineStyle: {
+                                    color: '#333'
+                                }
+                            },
+                            splitLine: {
+                                show: false
+                            }
+                        },
+                        series: [{
+                            type: 'bar',
+                            data: chartData.amounts,
+                            barWidth: '16px',    // 减小柱子宽度
+                            barGap: '4px',       // 增加间距
+                            barCategoryGap: '4px', // 增加类目间距
+                            itemStyle: {
+                                borderWidth: 1,
+                                borderColor: '#1f1f1f',
+                                borderType: 'solid'
+                            },
+                            label: {
+                                show: true,
+                                position: 'right',
+                                formatter: function(params) {
+                                var index = params.dataIndex;
+                                var value = Math.abs(params.value).toFixed(2);
+                                var price = chartData.prices[index];
+                                return value + '万 (' + price + '元)';
+                                },
+                                fontSize: 12,
+                                color: '#999',
+                                distance: 15,
+                                align: 'left'
+                            }
+                        }]
+                    };
+            
+                    myChart.setOption(option);
+
+                    // 添加窗口大小改变时自动调整图表大小
+                    window.addEventListener('resize', function() {
+                        myChart.resize();
+                    });
+                } catch (error) {
+                    console.error('渲染图表时出错:', error);
+                }
+            }
+
+            // 添加筛选事件监听
+            // 移除这些事件监听器
+            // document.getElementById('stockFilter').addEventListener('change', fetchData);
+            // document.getElementById('orderType').addEventListener('change', fetchData);
+            // document.getElementById('minAmount').addEventListener('input', fetchData);
+
+            // 初始化页面
+            // 兼容的DOM加载检测
+            if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                fetchData();
+                setInterval(fetchData, 30000);
+            } else {
+                document.addEventListener('DOMContentLoaded', function() {
+                    fetchData();
+                    setInterval(fetchData, 30000);
+                });
+            }
+        </script>
+</body>
+</html>

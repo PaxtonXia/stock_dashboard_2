@@ -1,0 +1,1794 @@
+﻿<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+		<title>实时大单分时</title>
+		<link href="css/redball.css" rel="stylesheet" type="text/css" />
+		<style type="text/css">
+			html, body { 
+				height: 100%; 
+				overflow: hidden; 
+				margin: 0; 
+				padding: 0; 
+				box-sizing: border-box; 
+				font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+				background: #0f1419;
+				color: #e8e8e8;
+			}
+			p {margin:0px;}
+			#box{
+				display:inline-block;
+				margin:0px 5px 0px 80px;
+				border-box:50%;
+				width:10px;
+				height:10px;
+			}
+			.fixedBox{
+				border: none;
+				background: #1a1f2b;
+			}
+			.fixedBox::-webkit-scrollbar {
+				width: 8px;
+				height: 8px;
+			}
+			.fixedBox::-webkit-scrollbar-track {
+				background: rgba(255,255,255,0.05);
+				border-radius: 4px;
+			}
+			.fixedBox::-webkit-scrollbar-thumb {
+				background: rgba(255,255,255,0.2);
+				border-radius: 4px;
+			}
+      .tabs {
+        display: flex;
+        align-items: center;
+        margin-bottom: 4px;
+        padding: 2px 6px;
+        background: rgba(37, 37, 56, 0.5);
+        border-radius: 0;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        border: 1px solid rgba(255,255,255,0.06);
+        gap: 3px;
+        margin-top: 0;
+      }
+      
+      .tabs span {
+        cursor: pointer;
+        padding: 3px 8px;
+        background: rgba(255,255,255,0.04);
+        color: #e0e0e0;
+        border-radius: 3px;
+        transition: all 0.2s ease;
+        font-size: 12px;
+        font-weight: 500;
+        border: 1px solid transparent;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      .filter-dropdown {
+        height: 32px;
+        background: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 6px;
+        color: #e0e0e0;
+        padding: 0 8px;
+        font-size: 14px;
+        margin-right: 12px;
+      }
+      .filter-dropdown:focus {
+        outline: none;
+        border-color: #4a9eff;
+        box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.2);
+      }
+      .tabs span:hover {
+        background: rgba(74, 158, 255, 0.2);
+        border-color: rgba(74, 158, 255, 0.5);
+        transform: translateY(-1px);
+      }
+      .tabs .active {
+        background: linear-gradient(135deg, #4a9eff 0%, #2b6cb0 100%);
+        color: white;
+        border-color: #4a9eff;
+        box-shadow: 0 2px 8px rgba(74, 158, 255, 0.3);
+      }
+      #tempTitle {
+        margin-bottom: 0;
+        font-size: 14px;
+        font-weight: 500;
+        color: #a0aec0;
+        margin-right: 16px;
+      }
+	.custom-button {
+		display: inline-flex;
+		justify-content: center;
+		align-items: center;
+		padding: 4px 8px;
+		background: linear-gradient(135deg, #4a9eff 0%, #2b6cb0 100%);
+		color: white;
+		border-radius: 4px;
+		border: none;
+		cursor: pointer;
+		transition: all 0.2s ease;
+		font-size: 12px;
+		font-weight: 500;
+		box-shadow: 0 1px 4px rgba(74, 158, 255, 0.3);
+		margin-left: 4px;
+	}
+
+	.custom-button:hover {
+		transform: translateY(-1px);
+		box-shadow: 0 2px 6px rgba(74, 158, 255, 0.4);
+		background: linear-gradient(135deg, #5aa8ff 0%, #3b7cc0 100%);
+	}
+	
+	.custom-button img {
+		height: 16px;
+		width: auto;
+		vertical-align: middle;
+	}
+
+	.ai-modal {
+		position: fixed;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		z-index: 9999;
+		background: linear-gradient(135deg, #1e293b 0%, #2d3748 100%);
+		color: #fff;
+		border-radius: 16px;
+		box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+		width: 600px;
+		height: 420px;
+		border: 1px solid rgba(255,255,255,0.1);
+		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+		font-size: 14px;
+		transition: all 0.3s ease;
+		overflow: hidden;
+		backdrop-filter: blur(10px);
+	}
+	.ai-modal-header {
+        cursor: move;
+        padding: 16px 20px;
+        background: linear-gradient(135deg, rgba(74, 158, 255, 0.2) 0%, rgba(43, 108, 176, 0.2) 100%);
+        border-radius: 16px 16px 0 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-weight: 600;
+        font-size: 16px;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        color: #e0e0e0;
+    }
+	.ai-modal-header::before {
+		content: '🤖';
+		margin-right: 10px;
+		font-size: 20px;
+	}
+	.ai-modal-close {
+		background: none;
+		border: none;
+		color: #e0e0e0;
+		font-size: 22px;
+		cursor: pointer;
+		padding: 6px;
+		border-radius: 50%;
+		transition: all 0.3s ease;
+		opacity: 0.8;
+		width: 32px;
+		height: 32px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+	.ai-modal-close:hover {
+		opacity: 1;
+		background: rgba(255,255,255,0.1);
+		transform: scale(1.1);
+	}
+	.ai-modal-content {
+		padding: 24px;
+		font-size: 14px;
+		color: #e0e0e0;
+		line-height: 1.6;
+		height: 320px;
+		overflow-y: auto;
+		box-sizing: border-box;
+		background: rgba(255,255,255,0.02);
+	}
+	.ai-modal-content::-webkit-scrollbar {
+		width: 8px;
+	}
+	.ai-modal-content::-webkit-scrollbar-track {
+		background: rgba(255,255,255,0.05);
+		border-radius: 4px;
+	}
+	.ai-modal-content::-webkit-scrollbar-thumb {
+		background: rgba(255,255,255,0.2);
+		border-radius: 4px;
+	}
+	.ai-bubble {
+		background: linear-gradient(135deg, rgba(74, 158, 255, 0.15) 0%, rgba(43, 108, 176, 0.15) 100%);
+		color: #fff;
+		border-radius: 12px;
+		padding: 16px 20px;
+		margin: 12px 0;
+		font-size: 14px;
+		line-height: 1.7;
+		box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+		word-break: break-word;
+		border: 1px solid rgba(74, 158, 255, 0.3);
+		max-width: 100%;
+	}
+
+        .chart-btn {
+            cursor: pointer;
+            color: #4a9eff;
+            text-decoration: none;
+            padding: 4px 8px;
+            border-radius: 3px;
+            background: rgba(74, 158, 255, 0.1);
+            transition: all 0.2s ease;
+            border: 1px solid rgba(74, 158, 255, 0.3);
+            outline: none;
+            font-size: 12px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 32px;
+        }
+
+        .chart-btn:hover {
+            background: rgba(74, 158, 255, 0.2);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(74, 158, 255, 0.3);
+        }
+
+        .chart-btn.in-pool {
+            background: rgba(255, 193, 7, 0.2);
+            color: #ffc107;
+            border-color: rgba(255, 193, 7, 0.4);
+        }
+
+        .chart-btn.in-pool:hover {
+            background: rgba(255, 193, 7, 0.3);
+            box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
+        }
+		</style>
+		<script type="text/javascript" src="js/json2html.js"></script>
+		<script type="text/javascript" src="js/jquery.min.js"></script>
+		<script type="text/javascript" src="DatePicker/WdatePicker.js"> </script>
+		<script type="text/javascript" src="js/echarts.js"></script>
+	</head>
+	<body>
+		<div id="towrite" class="fixedBox" style="display:none;">
+		<div>
+        	<!-- 移除开关按钮和喇叭图片 -->
+        	<!-- <button class="custom-button" onclick="togglePlaySound()"><span id="spanPlaySound" >开</span><img src="res/laba.jpg" class="button-image"></button> -->
+        	<!-- <audio id="buyAudio" src="res/alert1.mp3" preload="auto"></audio>
+        	<audio id="sellAudio" src="res/alert2.mp3" preload="auto"></audio> -->
+		</div>
+      <div class="tabs">
+        <span class="tab-main active" onclick="handleClick(0)">全部</span>
+        <span class="tab-buy" onclick="handleClick(1)">买单</span>
+        <span class="tab-out" onclick="handleClick(2)">卖单</span>
+        <!-- 已去掉文本输入框 -->
+        <select onchange="handleChange()" class="filter-dropdown" id="valueFilter">
+          <option value="0">全部</option>
+          <option value="1000000">100万</option>
+          <option value="3000000">300万</option>
+          <option value="5000000">500万</option>
+          <option value="10000000">1000万</option>
+        </select>
+        <div id="tempTitle"></div>
+        <div style="display: flex; align-items: center; gap: 3px; margin-left: auto;">
+          <button class="custom-button" id="aiAnalysisBtn" onclick="aiAnalysis()">AI分析</button>
+          <span class="chart-btn" id="favoriteBtn" onclick="toggleFavorite()">+</span>
+        </div>
+      </div>
+	  
+			<div id="title" style="height:16px;"></div>
+			<div id="chart" style="position:relative; width: 100%; height: calc(40vh - 80px);"></div>
+			<!-- <div id="towrite1" class="fixedBox" style="position:relative; float:left;margin-top:-18px;"></div> -->
+			
+			<!-- 主力买卖柱状图 - 放在主容器内部，但在主图下方 -->
+			<div id="tradeChart" style="width: 100%; height: calc(70vh - 80px); margin-top: 0; border: 1px solid #696969; background: #1f1f1f;"></div>
+		</div>
+		
+		<script>
+      // 获取数据
+	  let codeBigMoneyLastTimeMap = {}; // 股票代码最新大资金时间Map
+	  let bigmoneyPlaySoundFlag = false; // 大资金语言播报开关
+      var scatterData = []
+      let circleType = 0
+      let circlePrice = 0
+      const fn = (val) => {
+        let val1 = val
+        if (val1.indexOf("万") != -1) {
+          val1 = parseFloat(val1) * 10000;
+        } else if (val1.indexOf("亿") != -1) {
+          val1 = parseFloat(val1) * 100000000;
+        } else {
+          val1 = parseFloat(val1);
+        }
+        return val1
+      }
+
+	  const togglePlaySound = () => {
+		bigmoneyPlaySoundFlag = !bigmoneyPlaySoundFlag;
+		if (bigmoneyPlaySoundFlag) {
+			playsound(true)
+			let spanPlaySound = document.getElementById('spanPlaySound');
+			spanPlaySound.textContent = '关';
+		} else {
+			let spanPlaySound = document.getElementById('spanPlaySound');
+			spanPlaySound.textContent = '开';
+		}
+	  }
+
+      const playsound = (isbuy) => {
+		console.log('playsound')
+		let audioId = 'buyAudio';
+		if (!isbuy) {
+			audioId = 'sellAudio';
+		}
+		let audioElement = document.getElementById(audioId);
+  		audioElement.play();
+      }
+
+      const handleClick = (num) => {
+        const arrs = ['tab-main', 'tab-buy', 'tab-out']
+        arrs.forEach((v, i) => {
+          const ele = document.querySelector('.' + v)
+          ele.classList.remove('active')
+          if (num === i) {
+            ele.classList.add('active')
+            circleType = i
+          }
+        })
+        v = 1
+        getSource()
+      }
+      const handleChange = (val) => {
+        circlePrice = document.querySelector('#valueFilter').value
+        v = 1
+        getSource()
+      }
+      function getScatterData(dm) {
+		dest_url = 'https://vaserviece.10jqka.com.cn/Level2/index.php?&op=mainMonitorDetail&stockcode='+dm;
+		console.log('getScatterData', dest_url)
+        $.ajax({
+          url: 'https://vaserviece.10jqka.com.cn/Level2/index.php?&op=mainMonitorDetail&stockcode='+dm,
+          type: "get",
+          // dataType: "text",
+          async : false,
+          cache:false,
+          timeout:30000,
+          success: function(data) {
+            const temp = JSON.parse(data)
+            scatterData = []
+            let listTemp = temp.list
+            listTemp = listTemp.filter((v) => {
+              return  (circleType !== 0 ? v.tradetype == circleType : true) && (circlePrice !== 0 ? fn(v.value) > circlePrice : true)
+            })
+
+			let isbuy = false;
+			let bigmoney = false;
+			let bigmoneyLastTime = '';
+            listTemp.forEach((item) => {
+              const curTime = item.ctime.slice(0, 5)
+              item.realTime = curTime
+              item.realVolumn = Math.floor(item.volume.split('手')[0])
+              item.realValue = Math.floor(item.value.split('万')[0])
+              item.others = [
+                {
+                  realVolumn: item.volume,
+                  realValue: item.value,
+                  nature: item.nature
+                }
+              ]
+              const isBuy = item.tradetype === '1'
+              // 判断是否超过100万
+			  if (item.realValue >= 100) {
+				bigmoney = true;
+			  	isbuy = isBuy;
+				bigmoneyLastTime = item.realTime;
+				console.log('检测到大单交易', isbuy, item.realTime, item.realValue, item.realVolumn);
+			  }
+              if (!isBuy) {
+                item.realValue = -item.realValue
+                item.realVolumn = -item.realVolumn
+              }
+              const isExistScatter = scatterData.find(v => v.realTime === curTime)
+              if (isExistScatter) {
+                isExistScatter.realValue = isExistScatter.realValue + item.realValue
+                isExistScatter.realVolumn =  isExistScatter.realVolumn + item.realVolumn
+                isExistScatter.others.push({
+                  realVolumn: item.volume,
+                  realValue: item.value,
+                  nature: item.nature
+                })
+              } else {
+                scatterData.push(item)
+              }
+            })
+           
+            const fn2 = (val) => {
+              val = Math.abs(val)
+              let num = 10000
+              var sizesValue = ''
+              /**
+               * 判断取哪个单位
+               */
+              if(val < 1000){
+                // 如果小于1000则直接返回
+                sizesValue = ''
+                return val
+              }else if(val > 1000 && val < 9999){
+                sizesValue = '千'
+              } else if(val > 10000 && val < 99999999){
+                sizesValue = '万'
+              } else if(val > 100000000){
+                sizesValue = '亿'
+              }
+              /**
+               * 大于一万则运行下方计算
+               */
+              let i = Math.floor(Math.log(val) / Math.log(num))
+              /**
+               * toFixed(0)看你们后面想要取值多少，我是不取所以填了0，一般都是取2个值
+               */
+              var sizes = ((val / Math.pow(num, i))).toFixed(0)
+              sizes = sizes + sizesValue
+              return sizes
+            }
+            const temp3 = (fn(temp.title.mainbuy) - fn(temp.title.mainsell)).toFixed(0)
+            const temp2 = temp3 < 0 ? '-' + fn2(temp3) : fn2(temp3)
+            const tempColor1 = temp3 < 0 ? 'green' : 'red'
+            document.getElementById('tempTitle').innerHTML = `主力买：<span style="color:red;margin-right:6px;">${temp.title.mainbuy}</span>主力卖：<span style="color:green;margin-right:6px;">${temp.title.mainsell}</span>主力净：<span style="color:${tempColor1};margin-right:6px;">${temp2}</span>`
+			
+			// 大资金播放提示音
+			if (bigmoney) {
+				//  出现大资金比较上次播放时间戳，如果时间戳有变更再播放
+				if (!(dm in codeBigMoneyLastTimeMap) || (codeBigMoneyLastTimeMap[dm] < bigmoneyLastTime)) {
+					console.log('getSource', dm, bigmoneyLastTime)
+					// 更新最新播放时间
+					codeBigMoneyLastTimeMap[dm] = bigmoneyLastTime;
+					// 如果语音播报开关未打开则不进行播音
+					if (bigmoneyPlaySoundFlag) {
+						playsound(isbuy);
+					}
+				}
+			}
+            
+            // 使用主图数据渲染主力买卖柱状图
+            console.log('主图数据获取成功，传递给主力买卖柱状图:', temp);
+            console.log('主图数据详情:');
+            if (temp && temp.list) {
+                temp.list.forEach((item, index) => {
+                    console.log(`记录${index}:`, item);
+                });
+            }
+            if (temp && temp.list && temp.list.length > 0) {
+                processTradeData(temp);
+            } else {
+                console.warn('主图数据为空，无法渲染主力买卖柱状图');
+                var chartDom = document.getElementById('tradeChart');
+                if (chartDom) {
+                    chartDom.innerHTML = '<div style="color: #ffa500; text-align: center; padding: 20px;">暂无主力买卖数据</div>';
+                }
+            }
+          },
+          error: function(xhr, status, errorThrown) {
+            console.log(xhr, status, errorThrown);
+          }
+        });
+      }
+			var yy = 1;  //部分显示（小图）；
+			window.onload = function() {
+				changeStyle();
+				getSource(jk);
+				
+			}
+
+			$(function() {
+				setInterval(function() {
+					getSource(jk);
+				},
+				300);
+			})
+			
+			// 主力买卖数据加载 - 使用主图数据源
+			$(function() {
+				// 不需要单独加载，使用主图的数据
+			})
+			
+			function time_range(beginTime, endTime) {
+				var strb = beginTime.split(":");
+				if (strb.length != 2) {
+					return false;
+				}
+
+				var stre = endTime.split(":");
+				if (stre.length != 2) {
+					return false;
+				}
+
+				var b = new Date();
+				var e = new Date();
+				var n = new Date();
+
+				b.setHours(strb[0]);
+				b.setMinutes(strb[1]);
+				e.setHours(stre[0]);
+				e.setMinutes(stre[1]);
+
+				console.log('time_range', n.getTime(), b.getTime(), e.getTime());　　　　　　
+				if (n.getTime() - b.getTime() > 0 && n.getTime() - e.getTime() < 0) {
+					v = 1;
+					console.log('time_range', true);　　　　　　
+					return true;
+				} else {
+					console.log('time_range', false);
+				    return false;
+				}
+			}　　　
+
+        // 自选股票池相关函数
+        const STOCK_POOL_KEY = 'stock_pool';
+
+        function getStockPool() {
+            const poolStr = localStorage.getItem(STOCK_POOL_KEY);
+            if (poolStr) {
+                try {
+                    return JSON.parse(poolStr);
+                } catch (e) {
+                    console.error('Error parsing stock pool', e);
+                }
+            }
+            return [];
+        }
+
+        function saveStockPool(pool) {
+            localStorage.setItem(STOCK_POOL_KEY, JSON.stringify(pool));
+        }
+
+        function toggleFavorite() {
+            // 如果股票代码或名称为空，尝试从页面获取
+            if (!gpdm || !gpmc) {
+                // 从页面标题获取股票名称
+                const titleDiv = document.getElementById('title');
+                if (titleDiv && titleDiv.innerText) {
+                    // 例如 "000001   平安银行   2025-10-02"
+                    const arr = titleDiv.innerText.split(/\s+/);
+                    if (arr.length >= 2) {
+                        gpdm = arr[0];
+                        gpmc = arr[1];
+                    }
+                }
+            }
+            if (!gpdm || !gpmc) {
+                alert('请先加载股票数据');
+                return;
+            }
+            const pool = getStockPool();
+            const existingIndex = pool.findIndex(item => item.code === gpdm);
+            const btn = document.getElementById('favoriteBtn');
+            
+            if (existingIndex !== -1) {
+                // 已在池中，移除
+                pool.splice(existingIndex, 1);
+                btn.textContent = '+';
+                btn.classList.remove('in-pool');
+            } else {
+                // 不在池中，加入
+                const date = new Date();
+                const dateString = `${date.getFullYear()}-${(date.getMonth()+1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+                pool.push({ 
+                    code: gpdm, 
+                    name: gpmc,
+                    date: dateString,
+                    change: 0 // 默认涨跌幅
+                });
+                btn.textContent = '-';
+                btn.classList.add('in-pool');
+            }
+            saveStockPool(pool);
+        }
+
+        function isInStockPool(stockCode) {
+            return getStockPool().some(item => item.code === stockCode);
+        }
+
+   　　　
+			function changeStyle() {
+				var div = document.getElementById("towrite");
+				// 改为flex布局，纵向排列
+				div.style.display= "flex";
+				div.style.flexDirection= "column";
+				div.style.border= "none";
+				div.style.marginTop= "0";
+				div.style.left= "0px";
+				div.style.width= "100%";
+				div.style.height= "100%"; // 自适应容器高度
+				div.style.fontSize= "14px";
+				div.style.padding= "0";
+				div.style.overflow= "auto"; // 允许滚动
+				div.style.gap = "0"; // 移除容器内部间距
+				
+				var chartDiv = document.getElementById("chart");
+				chartDiv.style.border= "1px solid #696969";
+				chartDiv.style.marginTop= "0";
+				chartDiv.style.left= "0px";
+				chartDiv.style.width= "100%";
+				// 主图自适应填充剩余空间
+				chartDiv.style.height= "auto";
+				chartDiv.style.flexGrow = "1";
+				chartDiv.style.flexShrink = "0";
+				chartDiv.style.minHeight = "0"; // 重要：允许压缩
+				
+				// 交易图增加高度并移除间距
+				var tradeChartDiv = document.getElementById("tradeChart");
+				tradeChartDiv.style.width= "100%";
+				tradeChartDiv.style.height= "calc(40vh - 80px)"; // 增加高度
+				tradeChartDiv.style.flexShrink = "0"; // 防止压缩
+				tradeChartDiv.style.marginTop= "0"; // 移除顶部间距
+				tradeChartDiv.style.border= "1px solid #696969";
+				tradeChartDiv.style.background= "#1f1f1f";
+			}
+			
+			Date.prototype.Format = function (fmt) {
+				var o = {
+				"M+": this.getMonth() + 1, //月份
+				"d+": this.getDate(), //日
+				"h+": this.getHours(), //小时
+				"m+": this.getMinutes(), //分
+				"s+": this.getSeconds(), //秒
+				"q+": Math.floor((this.getMonth() + 3) / 3), //季度
+				"S": this.getMilliseconds() //毫秒
+				};
+				if (/(y+)/.test(fmt)) fmt = fmt.replace(RegExp.$1, (this.getFullYear() + "").substr(4 - RegExp.$1.length));
+				for (var k in o)
+				if (new RegExp("(" + k + ")").test(fmt)) fmt = fmt.replace(RegExp.$1, (RegExp.$1.length == 1) ? (o[k]) : (("00" + o[k]).substr(("" + o[k]).length)));
+				return fmt;
+			};
+			
+			function keepTwoDecimal(num) {
+               var result = parseFloat(num);
+               if (isNaN(result)) {
+                   return false;
+               }
+               result = Math.round(num * 100) / 100;
+               return result;
+			}
+			
+			function NumberTransform(num) {
+				var result = num;
+				if(Math.abs(num) > 100000000){
+					result = num / 100000000;
+					result = result.toFixed(0) + "亿";
+				}else if(Math.abs(num) > 10000){
+					result = num/10000;
+					result = result.toFixed(0) + "万";
+				}
+				return result;
+			};
+			
+			var z = 0;  //刷新
+			var v = 0;	//刷新
+			var gpdm = "";
+			var gpmc = "";
+			var rq = "";
+			var preClose = 0;	//昨收盘
+			var jk = 0;  //默认是否显示竞价
+			function getSource(p) {
+				var u = decodeURI(window.location.href);
+				var dm = "";
+				// 去掉文本输入框相关代码
+				// var dm2 = document.getElementById('inputDm').value;
+				if(u.indexOf("##") > -1){
+					var gp = u.split('##');
+					dm = gp[1];
+					gpmc = gp[2];
+					if(gp[3] != undefined){
+						yy = gp[3];
+					}
+				}
+				// 修正默认代码逻辑
+				if (dm == 'xxxxxx' || dm == ''){
+				  dm="000001";
+				  gpmc="000001";
+				}
+				
+				
+				console.log('getSource', dm, gpdm, v, p, jk);
+				if(dm != gpdm || v == 1 || p != jk){
+					//alert(p)
+					console.log('dm != gpdm || v == 1 || p != jk');
+					v = 0;
+					jk = p;
+					
+					// 如果切换了股票，清空主力买卖历史数据
+					if (dm != gpdm) {
+						console.log('切换股票，清空主力买卖历史数据');
+						tradeDataHistory = {};
+						tradeDataLoaded = false;
+					}
+					
+					gpdm = dm;
+					var dms = "";
+					var dmt = "";
+					if(dm.substr(0,1)=="6"){
+						dms = "SH" + dm;
+						dmt = "1." + dm;
+					}else{
+						dms = "SZ" + dm;
+						dmt = "0." + dm;
+					}
+					
+					if(dm == "999999"){
+						dmt = "1.000001";
+					}else if(dm.substr(0,3)=="399"){
+						dmt = "0." + dm;
+					}
+					
+					var url ="https://push2his.eastmoney.com/api/qt/stock/trends2/get?fields1=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13&fields2=f51,f52,f53,f54,f55,f56,f57,f58&secid=" + dmt;
+					var res = [];
+					$.ajax({
+						type: "get",
+						url: url,
+						dataType: "json",
+						async : false,
+						cache:false,
+						timeout:3000,
+						success: function(data) {
+							//alert(JSON.stringify(data))
+							//document.write(JSON.stringify(data));
+							preClose = data.data.preClose;
+							var arr = data.data.trends;
+							gpmc = data.data.name;
+                            // Update favorite button
+                            const btn = document.getElementById('favoriteBtn');
+                            if (btn) {
+                                const isInPool = isInStockPool(gpdm);
+                                btn.textContent = isInPool ? '-' : '+';
+                                if (isInPool) {
+                                    btn.classList.add('in-pool');
+                                } else {
+                                    btn.classList.remove('in-pool');
+                                }
+                            }
+							//document.write(JSON.stringify(arr));
+							for (var i = 0; i < arr.length; i++){
+								var aa = arr[i].split(',');
+								if(i == 0){
+									rq = aa[0].split(" ")[0];
+								}
+								var time = aa[0].split(" ")[1];
+								if(jk == 0){
+									if(Number(time.replace(":","")) >= 930){
+										var rc = {"time":aa[0].split(" ")[1],"open":Number(aa[1]),"close":Number(aa[2]),"high":Number(aa[3]),"low":Number(aa[4]),"vol":Number(aa[5]),"jprice":Number(aa[7])}
+										res.push(rc);
+									}
+								}else{
+									var rc = {"time":aa[0].split(" ")[1],"open":Number(aa[1]),"close":Number(aa[2]),"high":Number(aa[3]),"low":Number(aa[4]),"vol":Number(aa[5]),"jprice":Number(aa[7])}
+									res.push(rc);
+								}
+							}
+						}
+					})
+          			getScatterData(dm)
+					//alert(JSON.stringify(res))
+					//document.write("<br>"+rq + "<br>");
+					//document.write(JSON.stringify(res));
+					var div = document.getElementById('title');
+					
+					var jj = '<a href="javascript:getSource(0);"  id="jj"  style="padding-left:20px;font-size:14px;">竞价</a>';
+					if(jk == 0){
+						jj = '<a href="javascript:getSource(1);"  id="jj"  style="padding-left:20px;font-size:14px;">竞价</a>';
+					}
+					
+					if(yy == 1){
+						div.innerHTML = '<font size="2">' + gpdm + "&nbsp;&nbsp;&nbsp;" + gpmc + "&nbsp;&nbsp;&nbsp;" + rq + jj + "</font>";
+						var aObj = document.getElementById("jj");
+						aObj.style.color = "#fff";
+					}else{
+						div.style.margin= "-3px 0px 0px 0px";
+						div.innerHTML = '<font size="1">' + gpdm + "&nbsp;&nbsp;&nbsp;" + gpmc + "</font>";
+					}
+					if(jk == 1){
+						aObj.style.color = "#00FFFF";
+					}
+					
+					GetChart(res);
+				} else {
+					//console.log('getSource', z);
+					z++;
+					if(z == 60){
+						z = 0;
+						time_range("9:00","15:15")  //刷新数据
+						//time_range("9:00","23:15")  //测试, 刷新数据
+					}
+				}
+			}
+			
+			function getParamValues(name, arr) {
+				var ret = []
+				var len = 256;
+				if(jk == 0){
+					len = 241;
+				}
+				for (var i = 0; i < len; i++) {
+					if(arr[i] != undefined){
+						ret.push(arr[i][name])
+					}else{
+						ret.push(null)
+					}
+				}
+				return ret
+			}
+			
+			function ratioCalculate(price, yclose) {  //涨跌幅
+			  return ((price - yclose) / yclose * 100).toFixed(2);
+			}
+			
+		</script>
+		<script>
+			function GetChart(arr) {
+    var chartDom = document.getElementById('chart');
+    // 1. 检查宽高
+    if (chartDom.offsetWidth === 0 || chartDom.offsetHeight === 0) {
+        // 容器不可见或未设置宽高，直接返回
+        return;
+    }
+    // 2. 销毁已有实例
+    if (echarts.getInstanceByDom(chartDom)) {
+        echarts.getInstanceByDom(chartDom).dispose();
+    }
+    var myChart = echarts.init(chartDom);
+
+    // 修复 top21 未定义问题
+    var top21 = 80; // 主力净标题的纵向百分比位置，默认值可根据实际页面调整
+    var top2 = 65;  // 成交量 grid 的纵向百分比位置，默认值可根据实际页面调整
+
+    var res = getParamValues("close", arr);
+				
+				//过滤null
+				var values = arr.map(function(o){
+					return o.close;
+				}).filter(function(val) {
+					return val !== null
+				});
+				
+				//alert(JSON.stringify(values))
+				var maxa = Math.max(...values);
+				var mina = Math.min(...values);
+				var zfa = Math.abs((maxa / preClose - 1));
+				var zfb = Math.abs((mina / preClose - 1));
+				
+				function min() {
+					if(zfa >= zfb){
+						return Number(preClose * (1 - zfa)).toFixed(2)
+					}else{
+						return mina
+					}
+				}
+				function max() {
+					if(zfb >= zfa){
+						return Number(preClose * (1 + zfb)).toFixed(2)
+					}else{
+						return maxa
+					}
+				}
+				
+				var _interval = ((preClose-min()) / 4);
+				var left = "5%";
+				var right = "8%";
+				var fsize = "14";
+				var show = true;
+				if(yy == 0){
+					_interval = ((preClose-min()) / 2);
+					left = "8%";
+					right = "12%";
+					fsize = "12";
+					show = false;
+				}
+				var jm = "09:30";
+				if(jk == 0){
+					jm = "";
+				}
+        function getScatterSourceData (arr) {
+          
+          const time = getParamValues("time", arr)
+          const close = getParamValues("close", arr)
+          time.forEach((v, i) => {
+            const isExist = scatterData.find(scatter => scatter.realTime === v)
+            if (isExist) {
+            } else {
+              close[i] = 0
+            }
+          })
+          return close
+        }
+				var option = {
+					animation: false, //取消动画效果
+					title: [
+						{
+							left: 'left',
+							//text: '分时图'
+						}
+					],
+					tooltip: {   //提示框
+						show: show,
+						trigger: 'axis',
+						position: function (point, params, dom, rect, size) {
+            				// point: 鼠标位置
+            				// params: 当前数据信息
+            				// dom: tooltip DOM 节点
+            				// rect: 图表容器大小
+            				// size: tooltip 大小
+
+            				// 计算并返回一个数组，表示 tooltip 的 x 和 y 坐标
+            				return [point[0], point[1]];
+        				},
+						formatter(params) {  //添加文字
+							var str = params[0].name + '<br>';
+							if(params[0].name != "null"){
+								// 创建一个对象来存储不同类型的数据
+								let data = {
+									price: '',
+									ratio: '',
+									avgPrice: ''
+								};
+								
+								params.forEach(item => {
+									var name = item.seriesName;
+									var c = '<span style="display:inline-block;margin-right:5px;border-radius:50%;width:10px;height:10px;left:5px;background-color:' + item.color + '"></span>';
+									
+									if(name == "分时"){
+										data.price = c + '价格:' + item.data;
+										data.ratio = c + '涨幅:' + ratioCalculate(item.data, preClose) + "%";
+									}else if(name == "分时均价"){
+										data.avgPrice = c + '均价:' + item.data;
+									}else if(name.indexOf("成交量") > -1){
+										// Show original volume value in tooltip
+										str += c + item.seriesName + " : " + (item.data / 0.00005) + "<br>";
+									} else if(item.componentSubType === 'scatter') {
+										const temp = scatterData.find(v => v.realTime === item.axisValue)
+										if (temp && temp.others) {
+											// Initialize variables 
+											let mainBuy = 0;
+											let mainSell = 0;
+											let passiveBuy = 0;
+											let passiveSell = 0;
+
+											// Calculate totals for each type
+											temp.others.forEach((trade) => {
+												let realValue = Math.floor(trade.realValue.split('万')[0]);
+												if (trade.nature.includes('主买')) {
+													mainBuy += realValue;
+												} else if (trade.nature.includes('主卖')) {
+													mainSell += realValue;
+												} else if (trade.nature.includes('被买')) {
+													passiveBuy += realValue;
+												} else if (trade.nature.includes('被卖')) {
+													passiveSell += realValue;
+												}
+											});
+
+											// Add price, ratio and average price in one line
+											str += `<div style="display:flex;justify-content:space-between;margin:5px 0;color:#fff;">
+												<span>${data.price}</span>
+												<span>${data.ratio}</span>
+												<span>${data.avgPrice}</span>
+											</div>`;
+
+											// Add total buy/sell in one line
+											str += `<div style="display:flex;justify-content:space-between;margin:5px 0;color:#fff;">
+												<span>总买: <span style="color:#ff4444;font-weight:bold">${mainBuy + passiveBuy}万</span></span>
+												<span>总卖: <span style="color:#00aa00;font-weight:bold">${mainSell + passiveSell}万</span></span>
+											</div>`;
+
+											// Rest of the bar chart code remains the same
+											let maxValue = Math.max(mainBuy, mainSell, passiveBuy, passiveSell);
+											const barWidth = 100;
+											
+											str += '<div style="margin:5px 0;padding:5px;background:rgba(0,0,0,0.7);border-radius:4px;">';
+											
+											// Function to create bar
+											const createBar = (value, color, label) => {
+											    if (value <= 0) return '';
+											    const width = Math.min((value / maxValue * barWidth), 100); // 限制最大宽度
+											    return `
+											        <div style="display:flex;align-items:center;margin:3px 0;min-width:250px;">
+											            <div style="width:40px;font-size:12px;color:#fff;padding-top:2px;">${label}</div>
+											            <div style="position:relative;width:${width}px;margin:0 5px;overflow:hidden;padding-top:2px;">
+											                ${temp.others.map(trade => {
+											                    if (trade.nature.includes(label)) {
+											                        const tradeValue = Math.floor(trade.realValue.split('万')[0]);
+											                        const tradeWidth = (tradeValue / value * 100);
+											                        return `
+											                            <div style="
+											                                position:relative;
+											                                display:inline-block;
+											                                background:${color};
+											                                height:12px;
+											                                width:${tradeWidth}%;
+											                                border-right:1px dashed rgba(255,255,255,0.5);
+											                            "></div>
+											                        `;
+											                    }
+											                    return '';
+											                }).join('')}
+											            </div>
+											            <div style="font-size:12px;color:${color};font-weight:bold;white-space:nowrap;padding-top:2px;">(${value}万)</div>
+											        </div>
+											    `;
+											};
+
+											// Add bars for each type
+											str += createBar(mainBuy, '#ff4444', '主买');
+											str += createBar(passiveBuy, '#ff9999', '被买');
+											str += createBar(mainSell, '#00aa00', '主卖');
+											str += createBar(passiveSell, '#44ff44', '被卖');
+											
+											str += '</div>';
+										}
+									}
+								});
+								return str;
+							}
+						}
+					},
+					<!-- axisPointer: {   //上下区域连接 -->
+
+					grid: [
+						{
+							top: '8%',      // 增加顶部间距，让图表整体下移
+							left: left,
+							right: right,
+							height: '80%',  // 增加主图高度
+							bottom: '2%'    // 进一步减少底部间距
+						}
+					],
+					xAxis: [
+						{
+							type: 'category',
+							gridIndex: 0,
+							data: getParamValues("time", arr),
+							axisTick: { show: false },
+							axisLine:{  //x轴坐标线设置
+								lineStyle:{
+									color:"#808080",  //x轴坐标线颜色
+									width: 1   // 坐标轴线宽
+								}
+							},
+							axisLabel:{	 //x轴标签设置
+								showMaxLabel:true, //显示最大 tick(最后一天)
+								interval: 0,
+								formatter: function (value, index) {
+									var c = index % 15;
+									if(yy == 0){
+										c = index % 60;
+									}
+									if(value != "null" && c == 0){
+										return value
+									}
+								},
+								textStyle:{  //x轴文字
+									color:"#FFF"
+								}
+							}
+						}
+					],
+					yAxis: [
+    {
+        type: 'value',
+        gridIndex: 0,
+        scale: true,
+        splitArea: {
+            show: false
+        },
+        min: min(),
+        max: max(),
+        interval: _interval,
+        splitLine:{ 
+            show:false,
+            lineStyle: {
+                color: '#808080',
+                width: 1,
+                type: 'dashed',
+            }
+        },
+        axisLine: {
+            show: true,
+            lineStyle: {
+                color: '#D3D3D3',
+                type: 'dotted',
+            },
+        },
+        axisLabel: {
+            show: true,
+             color: function (val) {
+				val = Number(val).toFixed(2);
+				if (val == preClose) {
+				  return '#fff'
+				}
+				return val > preClose ? '#FF8C00' : '#7FFFAA';
+			  },
+			formatter: function (value){
+				return keepTwoDecimal(value)
+			}
+        }
+    },
+    {
+        type: 'value',
+        gridIndex: 0,
+        position:'right',
+        offset: 10,
+        scale: true,
+        splitArea: {
+            show: false
+        },
+        splitLine: {
+            show:true,
+            lineStyle: {
+                color: '#808080',
+                width: 1,
+                type: 'dotted',
+            }
+        },
+        axisLine: { 
+            show: true,
+            lineStyle: {
+                color: '#D3D3D3',
+                type: 'dotted',
+            },
+        },
+        axisLabel: {
+            show: true,
+            formatter: function (value){
+				if(value != 0){
+					return NumberTransform(value)
+				}else{
+					return 0
+				}
+			}
+        }
+    }
+					],
+
+					series: [
+						{
+							name: '分时',
+							type: 'line',
+							gridIndex: 0,
+							xAxisIndex: 0,
+							yAxisIndex: 0,
+							data: getParamValues("close", arr),
+							itemStyle: {
+								normal: {
+									lineStyle: {
+										width: 2,//折线宽度
+										color: "#D3D3D3"//折线颜色
+									},
+									color: '#D3D3D3',//拐点颜色
+								}
+							},
+
+							markLine:{   //增加标注线
+								name:'昨日收盘价',
+								symbol: ['none', 'none'],
+								label:{
+									show:false,
+									formatter:  preClose,
+									position: 'start',
+								},
+								lineStyle: {
+									color: '#4289c5',
+									type: 'solid'
+								},
+								data: [{
+									yAxis: preClose
+								}]
+							}
+						},
+						{
+							name: '分时均价',
+							type: 'line',
+							gridIndex: 0,
+							xAxisIndex: 0,
+							yAxisIndex: 0,
+							data: getParamValues("jprice", arr),
+							itemStyle: {
+								normal: {
+									lineStyle: {
+										width: 2,//折线宽度
+										color: "#EBEB00"//折线颜色
+									},
+									color: '#EBEB00',//拐点颜色
+								}
+							}
+						},
+						// 分时涨幅系列已移除
+						{
+							name: '成交量',
+							type: 'bar',
+							gridIndex: 0,
+							xAxisIndex: 0,
+							yAxisIndex: 1,
+							data: getParamValues("vol", arr).map(v => v * 0.00005), // Scale volume to fit price range
+							barWidth: 2,
+							baseValue: preClose,  // Set baseline to preClose
+							itemStyle: {
+								color: function(params) {
+									var index = params.dataIndex;
+									if (index > 0) {
+										var cur = arr[index].close;
+										var prev = arr[index-1].close;
+										return cur >= prev ? '#ff4444' : '#00aa00';
+									}
+									return '#DAA520';
+								},
+							},
+							markLine: {
+								name: '0轴',
+								symbol: ['none', 'none'],
+								silent: true,
+								lineStyle: {
+									color: '#4289c5',
+									width: 1,
+									type: 'solid'
+								},
+								data: [{
+									yAxis: preClose,
+									label: {
+										show: false
+									}
+								}]
+							}
+						},
+            {
+              type:'scatter',
+              data: getScatterSourceData(arr),
+              symbolSize:function (arg, opt){
+                if (arg === 0) return  0
+                const realValue = scatterData.find(v => v.realTime === opt.name).realVolumn
+                val = Math.abs(realValue)
+                const info = Math.floor(val / 1000)
+                const temp = 12
+    let circle = (temp + ((info - 1) * 0.1 + ((val - info * 1000) / 1000 * 0.1)) * temp).toFixed(2);
+    if (circle>60) circle=60;
+                return circle
+              },
+              itemStyle:{
+                color:function (arg){
+                  const temp = scatterData.find(v => v.realTime === arg.name)
+                  let color = 'red'
+                  if (temp && temp.realVolumn < 0) {
+                    color = 'green'
+                  }
+                  return color
+                }
+              },
+              label: {
+                show: false
+              }
+            }
+					]
+				}
+				myChart.setOption(option);
+				$(window).resize(myChart.resize);   //解决Echarts 隐藏再显示后宽度高度变小的问题
+			}
+		</script>
+<!-- 在body标签内合适位置添加AI分析弹窗 -->
+<div id="aiAnalysisModal" class="ai-modal" style="display:none;">
+  <div id="aiAnalysisHeader" class="ai-modal-header">
+    <span>AI分析</span>
+    <button class="ai-modal-close" onclick="closeAiAnalysis()">×</button>
+  </div>
+  <div class="ai-modal-content">
+    <p>这里是AI分析内容，可自定义展示。</p>
+  </div>
+</div>
+
+<script>
+function formatAiText(text) {
+    // 转义HTML
+    text = escapeHtml(text);
+
+    // 转换 Markdown 标题（#### **标题** 或 #### 标题）
+//     text = text.replace(/####\s*\*\*(.*?)\*\*/g, '<div style="margin:18px 0 8px 0;font-weight:bold;font-size:17px;color:#ffb400;">$1</div>');
+//     text = text.replace(/####\s*(.*?)\n/g, '<div style="margin:18px 0 8px 0;font-weight:bold;font-size:17px;color:#ffb400;">$1</div>');
+
+    // 转换 Markdown 加粗（**文本**）
+    text = text.replace(/\*\*(.*?)\*\*/g, '<b style="color:#ffb400;">$1</b>');
+
+    // 转换 换行符 为 <br>
+    text = text.replace(/\\n/g, '<br>');
+    text = text.replace(/\n/g, '<br>');
+
+    // 转换 <a href=...> 链接
+    text = text.replace(/&lt;a href=(.*?)&gt;(.*?)&lt;\/a&gt;/g, '<a href="$1" target="_blank" rel="noopener noreferrer" style="color:#4ec9ff;text-decoration:underline;">$2</a>');
+
+    // 加粗关键词
+    text = text.replace(/(建议|结论|买入|卖出|风险|提示|操作)/g, '<b style="color:#ffb400;">$1</b>');
+
+    return text;
+}
+
+async function aiAnalysis() {
+    document.getElementById('aiAnalysisModal').style.display = 'block';
+    const modalContent = document.querySelector('.ai-modal-content');
+    modalContent.innerHTML = '<span style="color:#aaa;">AI分析中，请稍候...</span>';
+
+    let message = gpdm || "000001";
+
+    try {
+        const resp = await fetch('https://api.9yee.com/stock_advice', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_query: message })
+        });
+        const data = await resp.json();
+        let result = data.result || data.advice || JSON.stringify(data);
+
+        // 格式化为气泡样式
+        let bubbleHtml = `<div class="ai-bubble">${formatAiText(result)}</div>`;
+        typeWriter(modalContent, bubbleHtml, 0, true);
+    } catch (e) {
+        modalContent.innerHTML = '<span style="color:#f66;">AI分析失败，请稍后重试。</span>';
+    }
+}
+
+// 打字机效果函数（支持HTML内容）
+function typeWriter(element, html, i, isHtml) {
+    // 参考 chat.html，采用每次输出多个字符，速度更快
+    const speed = 10; // 每10ms刷新一次
+    const step = 120;   // 每次输出6个字符
+    if (!isHtml) {
+        if (i < html.length) {
+            element.innerHTML = html.slice(0, i + step) + '<span style="opacity:0.5;">|</span>';
+            element.scrollTop = element.scrollHeight;
+            setTimeout(function () {
+                typeWriter(element, html, i + step, false);
+            }, speed);
+        } else {
+            element.innerHTML = html;
+            element.scrollTop = element.scrollHeight;
+        }
+    } else {
+        let match = html.match(/<div class="ai-bubble">(.*)<\/div>/s);
+        let content = match ? match[1] : html;
+        let prefix = `<div class="ai-bubble">`;
+        let suffix = `</div>`;
+        if (i < content.length) {
+            element.innerHTML = prefix + content.slice(0, i + step) + '<span style="opacity:0.5;">|</span>' + suffix;
+            element.scrollTop = element.scrollHeight;
+            setTimeout(function () {
+                typeWriter(element, html, i + step, true);
+            }, speed);
+        } else {
+            element.innerHTML = prefix + content + suffix;
+            element.scrollTop = element.scrollHeight;
+        }
+    }
+}
+
+// HTML转义
+function escapeHtml(text) {
+    return text.replace(/[&<>"']/g, function (m) {
+        return ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        })[m];
+    });
+}
+
+// 关闭AI分析弹窗
+function closeAiAnalysis() {
+    document.getElementById('aiAnalysisModal').style.display = 'none';
+}
+
+// 拖拽弹窗功能
+(function() {
+    var modal = document.getElementById('aiAnalysisModal');
+    var header = document.getElementById('aiAnalysisHeader');
+    var offsetX = 0, offsetY = 0, isDown = false;
+
+    header.onmousedown = function(e) {
+        isDown = true;
+        offsetX = e.clientX - modal.offsetLeft;
+        offsetY = e.clientY - modal.offsetTop;
+        document.onmousemove = function(e) {
+            if (isDown) {
+                modal.style.left = (e.clientX - offsetX) + 'px';
+                modal.style.top = (e.clientY - offsetY) + 'px';
+            }
+        };
+        document.onmouseup = function() {
+            isDown = false;
+            document.onmousemove = null;
+            document.onmouseup = null;
+        };
+	};
+})();
+</script>
+
+<!-- 主力买卖柱状图功能 -->
+<script>
+// 全局变量存储主力买卖数据
+var tradeDataHistory = {}; // 按时间存储历史数据
+var tradeDataLoaded = false; // 数据是否已加载
+
+// 严格参考主图的数据加载方式
+function getTradeData() {
+    try {
+        var stockCode = gpdm || '000831';
+        console.log('获取主力买卖数据，股票代码:', stockCode);
+        
+        var url = 'https://vaserviece.10jqka.com.cn/Level2/index.php?&op=mainMonitorDetail&stockcode=' + stockCode;
+        console.log('请求URL:', url);
+        
+        $.ajax({
+            url: url,
+            type: "get",
+            async: true,
+            cache: false,
+            timeout: 30000,
+            success: function(data) {
+                console.log('主力买卖数据原始响应:', data);
+                try {
+                    // 尝试解析JSON数据
+                    var parsedData = typeof data === 'string' ? JSON.parse(data) : data;
+                    console.log('主力买卖数据解析后:', parsedData);
+                    processTradeData(parsedData);
+                } catch (e) {
+                    console.error('解析主力买卖数据失败:', e, '原始数据:', data);
+                    // 显示错误信息
+                    var chartDom = document.getElementById('tradeChart');
+                    if (chartDom) {
+                        chartDom.innerHTML = '<div style="color: #ffa500; text-align: center; padding: 20px;">主力买卖数据解析失败</div>';
+                    }
+                }
+            },
+            error: function(xhr, status, errorThrown) {
+                console.error('获取主力买卖数据失败:', xhr, status, errorThrown);
+                // 显示错误信息
+                var chartDom = document.getElementById('tradeChart');
+                if (chartDom) {
+                    chartDom.innerHTML = '<div style="color: #ff4444; text-align: center; padding: 20px;">获取主力买卖数据失败，请检查网络连接</div>';
+                }
+            }
+        });
+    } catch (e) {
+        console.error('获取主力买卖数据时发生错误:', e);
+    }
+}
+
+function processTradeData(data) {
+    if (!data || !data.list || !(data.list instanceof Array)) {
+        console.error('主力买卖数据格式不正确');
+        return;
+    }
+    
+    console.log('处理主力买卖数据，共', data.list.length, '条记录');
+    
+    // 如果是第一次加载，清空历史数据
+    if (!tradeDataLoaded) {
+        tradeDataHistory = {};
+        tradeDataLoaded = true;
+    }
+    
+    // 按时间分组累加数据
+    var timeGroupData = {};
+    
+    for (var i = 0; i < data.list.length; i++) {
+        var item = data.list[i];
+        
+        // 检查数据字段
+        if (!item.nature || !item.ctime || !item.tradetype || !item.value) {
+            console.log('跳过无效记录:', item);
+            continue;
+        }
+        
+        // 只处理主力买卖数据
+        if (item.nature !== '主力主买' && item.nature !== '主力主卖') {
+            continue;
+        }
+        
+        // 使用标准化时间作为分组键
+        var normalizedTime = item.ctime.slice(0, 5); // HH:MM格式
+        var timeKey = item.ctime; // 完整时间作为唯一标识
+        
+        // 如果这个时间点的数据已经存在，跳过
+        if (tradeDataHistory[timeKey]) {
+            continue;
+        }
+        
+        // 正确解析金额值
+        var amount = 0;
+        if (item.value.includes('万')) {
+            amount = parseFloat(item.value.replace('万', ''));
+        } else if (item.value.includes('亿')) {
+            amount = parseFloat(item.value.replace('亿', '')) * 10000; // 1亿 = 10000万
+        } else {
+            amount = parseFloat(item.value) / 10000; // 假设是元，转换为万
+        }
+        
+        // 按时间分组累加
+        if (!timeGroupData[normalizedTime]) {
+            timeGroupData[normalizedTime] = {
+                buyAmount: 0,
+                sellAmount: 0,
+                records: []
+            };
+        }
+        
+        if (item.tradetype === '1') {
+            timeGroupData[normalizedTime].buyAmount += amount;
+        } else {
+            timeGroupData[normalizedTime].sellAmount += amount;
+        }
+        
+        timeGroupData[normalizedTime].records.push({
+            time: item.ctime,
+            nature: item.nature,
+            value: item.value,
+            amount: amount
+        });
+    }
+    
+    // 将分组数据添加到历史记录中
+    var newDataCount = 0;
+    for (var time in timeGroupData) {
+        var groupData = timeGroupData[time];
+        var netAmount = groupData.buyAmount - groupData.sellAmount;
+        
+        // 使用第一个记录的时间作为唯一标识
+        var firstRecordTime = groupData.records[0].time;
+        
+        tradeDataHistory[firstRecordTime] = {
+            value: netAmount,
+            color: netAmount >= 0 ? '#ff1f1f' : '#389e0d',
+            time: firstRecordTime,
+            normalizedTime: time,
+            originalValue: groupData.records.map(r => r.value).join(', '),
+            buyAmount: groupData.buyAmount,
+            sellAmount: groupData.sellAmount,
+            recordCount: groupData.records.length
+        };
+        
+        newDataCount++;
+        console.log('添加分组数据:', time, '买入:', groupData.buyAmount, '万, 卖出:', groupData.sellAmount, '万, 净额:', netAmount, '万, 记录数:', groupData.records.length);
+    }
+    
+    console.log('本次添加了', newDataCount, '条分组数据');
+    
+    // 如果有新数据，更新图表
+    if (newDataCount > 0) {
+        renderTradeData();
+    }
+}
+
+function renderTradeData() {
+    console.log('渲染主力买卖数据，历史数据条数:', Object.keys(tradeDataHistory).length);
+    
+    // 强制使用主图的时间数据，确保时间坐标严格对应
+    var allTimes = [];
+    var chartDom = document.getElementById('chart');
+    if (chartDom && echarts.getInstanceByDom(chartDom)) {
+        var mainChart = echarts.getInstanceByDom(chartDom);
+        var mainOption = mainChart.getOption();
+        if (mainOption && mainOption.xAxis && mainOption.xAxis[0] && mainOption.xAxis[0].data) {
+            allTimes = mainOption.xAxis[0].data;
+            console.log('使用主图时间数据:', allTimes);
+        }
+    }
+    
+    // 如果无法获取主图时间，则等待主图加载完成
+    if (allTimes.length === 0) {
+        console.log('等待主图加载完成...');
+        setTimeout(renderTradeData, 100);
+        return;
+    }
+
+    // Create chart data with all times
+    var chartData = {
+        times: allTimes,
+        amounts: []
+    };
+
+    // 严格按主图时间轴处理数据 - 确保完全对齐
+    for (var j = 0; j < allTimes.length; j++) {
+        var time = allTimes[j];
+        var foundData = null;
+        
+        // 精确匹配时间点 - 使用完整时间格式匹配
+        for (var timeKey in tradeDataHistory) {
+            // 使用标准化时间格式进行精确匹配
+            var normalizedKey = tradeDataHistory[timeKey].normalizedTime;
+            if (normalizedKey === time) {
+                foundData = tradeDataHistory[timeKey];
+                break;
+            }
+        }
+        
+        if (foundData) {
+            chartData.amounts.push({
+                value: foundData.value,
+                itemStyle: { color: foundData.color }
+            });
+        } else {
+            // 对于没有交易数据的时间点，使用0而不是null，确保时间轴对齐
+            chartData.amounts.push(0);
+        }
+    }
+
+    console.log('最终图表数据 - 时间轴严格对应:', chartData);
+    renderTradeChart(chartData, gpmc || '股票');
+}
+
+function getTradeColor(nature) {
+    switch(nature) {
+        case '主力主买': return '#ff1f1f';
+        case '主力主卖': return '#389e0d';
+        default: return '#999999';
+    }
+}
+
+function renderTradeChart(chartData, stockName) {
+    try {
+        if (typeof echarts === 'undefined') {
+            console.error('ECharts 库未加载成功');
+            return;
+        }
+
+        var chartDom = document.getElementById('tradeChart');
+        console.log('tradeChart容器:', chartDom);
+        console.log('容器尺寸:', chartDom.offsetWidth, 'x', chartDom.offsetHeight);
+        
+        if (!chartDom) {
+            console.error('找不到tradeChart容器');
+            return;
+        }
+        
+        if (chartDom.offsetWidth === 0 || chartDom.offsetHeight === 0) {
+            console.error('tradeChart容器尺寸为0，可能被隐藏了');
+            return;
+        }
+        
+        // 销毁已存在的图表实例
+        if (echarts.getInstanceByDom(chartDom)) {
+            echarts.getInstanceByDom(chartDom).dispose();
+        }
+        var myChart = echarts.init(chartDom);
+        
+        const option = {
+            backgroundColor: '#1f1f1f',
+
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: {
+                    type: 'shadow'
+                },
+                formatter: function(params) {
+                    var data = params[0];
+                    if (!data.data) {
+                        return data.name + '<br/>没有交易数据';
+                    }
+                    var tradeType = data.data.value >= 0 ? 
+                                   '<span class="main-buy">主力主买</span>' : 
+                                   '<span class="main-sell">主力主卖</span>';
+                    
+                    return data.name + '<br/>' +
+                           '类型: ' + tradeType + '<br/>' +
+                           '成交额: ' + Math.abs(data.value).toFixed(2) + ' 万元';
+                },
+                backgroundColor: 'rgba(50,50,50,0.9)',
+                borderColor: '#333',
+                textStyle: {
+                    color: '#fff'
+                }
+            },
+            grid: {
+                left: '2%',
+                right: '5%',
+                bottom: '10px',
+                top: '20px',
+                containLabel: true
+            },
+            xAxis: {
+                type: 'category',
+                data: chartData.times,
+                axisLabel: {
+                    interval: function(index, value) {
+                        // Only show labels at 15-minute intervals (00, 15, 30, 45 minutes)
+                        var minutes = parseInt(value.split(':')[1]);
+                        return minutes % 15 === 0;
+                    },
+                    color: '#999',
+                    align: 'center',
+                    padding: [0, 0, 0, 0]
+                },
+                axisLine: {
+                    lineStyle: {
+                        color: '#333'
+                    }
+                },
+                splitLine: {
+                    show: false
+                },
+                // 确保与主图x轴对齐
+                boundaryGap: true,
+                offset: 0
+            },
+            yAxis: {
+                type: 'value',
+                name: '成交额（万元）',
+                nameTextStyle: {
+                    color: '#999',
+                    padding: [0, 0, 0, 20]
+                },
+                axisLabel: {
+                    color: '#999',
+                    formatter: function(value) {
+                        return Math.abs(value);
+                    }
+                },
+                axisLine: {
+                    lineStyle: {
+                        color: '#333'
+                    }
+                },
+                splitLine: {
+                    show: true,
+                    lineStyle: {
+                        color: '#333',
+                        type: 'dashed'
+                    }
+                }
+            },
+            series: [{
+                type: 'bar',
+                data: chartData.amounts,
+                barWidth: '4px',
+                barGap: '2px',
+                barCategoryGap: '2px',
+                itemStyle: {
+                    borderWidth: 1,
+                    borderColor: '#1f1f1f',
+                    borderType: 'solid'
+                },
+                label: {
+                    show: false
+                },
+                emphasis: {
+                    itemStyle: {
+                        color: function(params) {
+                            return params.data.itemStyle.color;
+                        }
+                    }
+                }
+            }]
+        };
+
+        myChart.setOption(option);
+
+        window.addEventListener('resize', function() {
+            myChart.resize();
+        });
+    } catch (error) {
+        console.error('渲染主力买卖图表时出错:', error);
+    }
+}
+</script>
+
+	</body>
+</html>
+
+</copilot-edited-file>

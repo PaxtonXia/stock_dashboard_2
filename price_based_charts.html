@@ -100,11 +100,11 @@
         // 兼容的DOM加载检测
         if (document.readyState === 'complete' || document.readyState === 'interactive') {
             fetchData();
-            setInterval(fetchData, 5000); // 改为5秒请求一次
+            setInterval(fetchData, 1000);
         } else {
             document.addEventListener('DOMContentLoaded', function() {
                 fetchData();
-                setInterval(fetchData, 5000); // 改为5秒请求一次
+                setInterval(fetchData, 1000);
             });
         }
 
@@ -197,29 +197,6 @@
             chartData.sellData.reverse();
 
             var currentPrice = parseFloat(data.title.price);
-            console.log('当前价:', currentPrice, '类型:', typeof currentPrice);
-            
-            // 确保当前价在价格数据中
-            var currentPriceStr = currentPrice.toFixed(2);
-            if (!chartData.prices.includes(currentPriceStr)) {
-                chartData.prices.push(currentPriceStr);
-                chartData.buyData.push(0);
-                chartData.sellData.push(0);
-                
-                // 重新排序确保价格顺序正确
-                var combined = chartData.prices.map((price, index) => ({
-                    price,
-                    buy: chartData.buyData[index],
-                    sell: chartData.sellData[index]
-                }));
-                
-                combined.sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
-                
-                chartData.prices = combined.map(item => item.price);
-                chartData.buyData = combined.map(item => item.buy);
-                chartData.sellData = combined.map(item => item.sell);
-            }
-            
             renderChart(chartData, data.title.stockname, currentPrice);
         }
 
@@ -255,13 +232,15 @@ var padding = 20;
                             type: 'shadow'
                         },
                         formatter: function(params) {
-                            var price = chartData.prices[params[0].dataIndex];
-                            var buyTotal = Math.abs(params[0].value);
-                            var sellTotal = Math.abs(params[1].value);
-                            
-                            return '价格: ' + price + ' 元<br/>' +
-                                   '买入总额: ' + buyTotal.toFixed(2) + ' 万元<br/>' +
-                                   '卖出总额: ' + sellTotal.toFixed(2) + ' 万元';
+                            var data = params[0];
+                            var index = data.dataIndex;
+                            var tradeType = params.seriesName === '主力主买' ? 
+                                           '<span class="main-buy">主力主买</span>' : 
+                                           '<span class="main-sell">主力主卖</span>';
+                                           
+                            return '价格: ' + chartData.prices[index] + ' 元<br/>' +
+                                   '类型: ' + tradeType + '<br/>' +
+                                   '成交额: ' + Math.abs(data.value).toFixed(2) + ' 万元';
                         },
                         backgroundColor: 'rgba(50,50,50,0.9)',
                         borderColor: '#333',
@@ -275,29 +254,6 @@ var padding = 20;
                         bottom: '20px',
                         top: '40px',
                         containLabel: true
-                    },
-                    xAxis: {
-                        type: 'value',
-                        name: '成交额（万元）',
-                        nameTextStyle: {
-                            color: '#999',
-                            padding: [0, 0, 0, 20]
-                        },
-                        axisLabel: {
-                            color: '#999'
-                        },
-                        axisLine: {
-                            lineStyle: {
-                                color: '#333'
-                            }
-                        },
-                        splitLine: {
-                            show: true,
-                            lineStyle: {
-                                color: '#333',
-                                type: 'dashed'
-                            }
-                        }
                     },
                     yAxis: {
                         type: 'category',
@@ -320,6 +276,48 @@ var padding = 20;
                         },
                         splitLine: {
                             show: false
+                        }
+                    },
+                    xAxis: {
+                        type: 'value',
+                        name: '成交额（万元）',
+                        nameTextStyle: {
+                            color: '#999',
+                            padding: [0, 0, 0, 20]
+                        },
+                        axisLabel: {
+                            color: '#999'
+                        },
+                        axisLine: {
+                            lineStyle: {
+                                color: '#333'
+                            }
+                        },
+                        splitLine: {
+                            show: true,
+                            lineStyle: {
+                                color: '#333',
+                                type: 'dashed'
+                            }
+                        },
+                        markLine: {
+                            symbol: ['none', 'none'],
+                            data: [
+                                {
+                                    yAxis: currentPrice,
+                                    lineStyle: {
+                                        color: '#fff',
+                                        width: 2,
+                                        type: 'solid'
+                                    },
+                                    label: {
+                                        show: true,
+                                        position: 'insideLeft',
+                                        formatter: '当前价: ' + currentPrice,
+                                        color: '#fff'
+                                    }
+                                }
+                            ]
                         }
                     },
                     series: [
@@ -355,23 +353,6 @@ itemStyle: {
 label: {
     show: false
 }
-                        }
-                    ],
-                    graphic: [
-                        {
-                            type: 'text',
-                            left: '15%',
-                            top: '10px',
-                            style: {
-                                text: '当前价: ' + currentPrice.toFixed(2),
-                                font: 'bold 12px Arial',
-                                fill: '#ff0000',
-                                backgroundColor: '#1f1f1f',
-                                padding: [3, 6],
-                                borderColor: '#ff0000',
-                                borderWidth: 1
-                            },
-                            zlevel: 100
                         }
                     ]
                 };

@@ -262,7 +262,7 @@
 		<script type="text/javascript" src="js/echarts.js"></script>
 	</head>
 	<body>
-		<div id="towrite" class="fixedBox" style="display:none;">
+		<div id="towrite" class="fixedBox" style="display:flex;">
 		<div>
         	<!-- 移除开关按钮和喇叭图片 -->
         	<!-- <button class="custom-button" onclick="togglePlaySound()"><span id="spanPlaySound" >开</span><img src="res/laba.jpg" class="button-image"></button> -->
@@ -1224,7 +1224,7 @@
 							itemStyle: {
 								color: function(params) {
 									var index = params.dataIndex;
-									if (index > 0) {
+									if (index > 0 && arr[index] && arr[index-1]) {
 										var cur = arr[index].close;
 										var prev = arr[index-1].close;
 										return cur >= prev ? '#ff4444' : '#00aa00';

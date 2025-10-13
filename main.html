@@ -542,170 +542,6 @@
             ];
         }
 
-        // 市场风格走势相关
-        const apiUrls = [
-            { url: 'https://push2.eastmoney.com/api/qt/stock/trends2/get?wbp2u=0%7C0%7C0%7C0%7Capprn&ut=7e4f3ebb6c51ccc48f333bf648b58749&dpt=apprn.nxfxb&fields1=f1,f2,f5,f10,f13&fields2=f51,f53&iscr=0&iscca=0&secid=0.399373', name: '大盘价值 (0.399373)' },
-            { url: 'https://push2.eastmoney.com/api/qt/stock/trends2/get?wbp2u=0%7C0%7C0%7C0%7Capprn&ut=7e4f3ebb6c51ccc48f333bf648b58749&dpt= apprn.nxfxb&fields1=f1,f2,f5,f10,f13&fields2=f51,f53&iscr=0&iscca=0&secid=0.399372', name: '大盘成长 (0.399372)' },
-            { url: 'https://push2.eastmoney.com/api/qt/stock/trends2/get?wbp2u=0%7C0%7C0%7C0%7Capprn&ut=7e4f3ebb6c51ccc48f333bf648b58749&dpt=apprn.nxfxb&fields1=f1,f2,f5,f10,f13&fields2=f51,f53&iscr=0&iscca=0&secid=0.399377', name: '小盘价值 (0.399377)' },
-            { url: 'https://push2.eastmoney.com/api/qt/stock/trends2/get?wbp2u=0%7C0%7C0%7C0%7Capprn&ut=7e4f3ebb6c51ccc48f333bf648b58749&dpt=apprn.nxfxb&fields1=f1,f2,f5,f10,f13&fields2=f51,f53&iscr=0&iscca=0&secid=0.399376', name: '小盘成长 (0.399376)' }
-        ];
-
-        let marketStyleChart = null;
-        let marketStyleOption = null;
-        let marketStyleTimer = null;
-        let marketStyleChartInited = false;
-
-        // 与大盘走势一致的数据处理
-        function processMarketStyleData(trends) {
-            const timeAxis = generateTradingTimeAxis();
-            if (!trends || trends.length === 0) return Array(timeAxis.length).fill(null);
-
-            const timeValueMap = {};
-            let firstValue = null;
-            trends.forEach(item => {
-                const [dateTime, value] = item.split(',');
-                const time = dateTime.slice(11, 16);
-                if (firstValue === null) firstValue = parseFloat(value);
-                timeValueMap[time] = parseFloat(value);
-            });
-
-            return timeAxis.map(time => {
-                // 休市时间段填null
-                if ((time > '11:30' && time < '13:00')) return null;
-                const v = timeValueMap[time];
-                if (v === undefined || firstValue === 0) return null;
-                // 百分比走势
-                return ((v - firstValue) / firstValue * 100);
-            });
-        }
-
-        async function fetchAllMarketStyleDataAndUpdate() {
-            const allSeries = [];
-            const timeAxis = generateTradingTimeAxis();
-
-            await Promise.all(apiUrls.map(async (api, idx) => {
-                try {
-                    const resp = await fetch(api.url);
-                    const data = await resp.json();
-                    const trends = data?.data?.trends || [];
-                    const percentArr = processMarketStyleData(trends);
-
-                    allSeries.push({
-                        name: api.name,
-                        type: 'line',
-                        data: percentArr,
-                        showSymbol: false,
-                        smooth: false,
-                        lineStyle: {
-                            width: 2
-                        },
-                        emphasis: { focus: 'series' }
-                    });
-                } catch (e) {
-                    allSeries.push({
-                        name: api.name,
-                        type: 'line',
-                        data: Array(timeAxis.length).fill(null),
-                        showSymbol: false,
-                        smooth: false,
-                        lineStyle: { width: 2 },
-                        emphasis: { focus: 'series' }
-                    });
-                }
-            }));
-
-            // 样式、坐标轴、缩放、tooltip等严格与大盘走势一致
-            if (!marketStyleOption) {
-                marketStyleOption = {
-                    animation: false,
-                    title: { show: false },
-                    tooltip: {
-                        trigger: 'axis',
-                        axisPointer: { type: 'cross', label: { backgroundColor: '#6a7985' } },
-                        backgroundColor: 'rgba(30,30,45,0.95)',
-                        borderColor: '#444',
-                        borderWidth: 1,
-                        textStyle: { color: '#fff' },
-                        extraCssText: 'box-shadow: 0 2px 8px rgba(0,0,0,0.4);',
-                        formatter: function(params) {
-                            let time = params[0]?.axisValue || '';
-                            let html = `<div style="margin-bottom:4px;color:#aaa;">时间：${time}</div>`;
-                            html += params.map(item => `
-                                ${item.marker}
-                                <span style="color:${item.color}">${item.seriesName}</span>: 
-                                ${item.value != null ? item.value.toFixed(2) : '--'}%
-                            `).join('<br>');
-                            return html;
-                        }
-                    },
-                    legend: {
-                        data: apiUrls.map(api => api.name),
-                        bottom: 8,
-                        textStyle: { color: '#d0d0d0', fontSize: 12 },
-                        itemWidth: 12,
-                        itemHeight: 8
-                    },
-                    grid: {
-                        left: 50,
-                        right: 30,
-                        bottom: 60,
-                        top: 20,
-                        containLabel: false
-                    },
-                    xAxis: {
-                        type: 'category',
-                        data: timeAxis,
-                        boundaryGap: false,
-                        axisLine: { lineStyle: { color: '#666' } },
-                        splitLine: { show: true, lineStyle: { color: '#333', type: 'dashed' } },
-                        axisLabel: { color: '#d0d0d0', fontSize: 11 }
-                    },
-                    yAxis: {
-                        type: 'value',
-                        scale: true,
-                        axisLabel: { color: '#d0d0d0', formatter: '{value}%' },
-                        axisLine: { show: true, lineStyle: { color: '#666' } },
-                        splitLine: { lineStyle: { color: '#333', type: 'dashed' } },
-                        boundaryGap: ['10%', '10%']
-                    },
-                    dataZoom: [
-                        {
-                            type: 'inside',
-                            start: 0,
-                            end: 100,
-                            zoomLock: true
-                        },
-                        {
-                            start: 0,
-                            end: 100,
-                            handleSize: '80%',
-                            handleStyle: { color: '#666' }
-                        }
-                    ],
-                    series: allSeries
-                };
-                marketStyleChart.setOption(marketStyleOption, true);
-            } else {
-                marketStyleChart.setOption({
-                    legend: { data: apiUrls.map(api => api.name) },
-                    series: allSeries
-                }, false, true);
-            }
-        }
-
-        // 初始化图表
-        const marketStyleChartDom = document.getElementById('market-style-chart');
-        if (marketStyleChartDom) {
-            marketStyleChart = echarts.init(marketStyleChartDom);
-            fetchAllMarketStyleDataAndUpdate();
-            if (marketStyleTimer) clearInterval(marketStyleTimer);
-            marketStyleTimer = setInterval(fetchAllMarketStyleDataAndUpdate, 60000);
-        }
-
-        window.addEventListener('resize', function() {
-            if (marketStyleChart) marketStyleChart.resize();
-        });
-
         // 切换卡片显示
     document.getElementById('mainMarketTabBtn').onclick = function() {
         document.getElementById('mainIndexLineChart').style.display = 'block';
@@ -719,17 +555,12 @@
         document.getElementById('market-style-chart').style.display = 'block';
         this.classList.add('active');
         document.getElementById('mainMarketTabBtn').classList.remove('active');
-        // 只在第一次显示时初始化
-        if (!marketStyleChartInited) {
-            marketStyleChart = echarts.init(document.getElementById('market-style-chart'));
-            fetchAllMarketStyleDataAndUpdate();
-            if (marketStyleTimer) clearInterval(marketStyleTimer);
-            marketStyleTimer = setInterval(fetchAllMarketStyleDataAndUpdate, 60000);
-            marketStyleChartInited = true;
+        // 调整图表大小
+        if (window.marketStyleChart) {
+            setTimeout(() => {
+                marketStyleChart.resize();
+            }, 100);
         }
-        setTimeout(function() {
-            if (marketStyleChart) marketStyleChart.resize();
-        }, 100);
     };
 
     // 主力资金帧切换
@@ -762,56 +593,6 @@
         this.classList.add('active');
         document.getElementById('plateTabBtn').classList.remove('active');
     };
-
-    document.addEventListener('DOMContentLoaded', function() {
-    let styleChartInitialized = false;
-    let mainStyleLineChart = null;
-
-    // Initialize charts when switching tabs
-    document.getElementById('styleMarketTabBtn').addEventListener('click', function() {
-        const mainIndexChart = document.getElementById('mainIndexLineChart');
-        const styleChart = document.getElementById('mainStyleLineChart');
-        
-        mainIndexChart.style.display = 'none';
-        styleChart.style.display = 'block';
-        this.classList.add('active');
-        document.getElementById('mainMarketTabBtn').classList.remove('active');
-
-        if (!styleChartInitialized) {
-            // Wait for DOM to be visible before initializing
-            requestAnimationFrame(() => {
-                if (mainStyleLineChart) {
-                    mainStyleLineChart.dispose();
-                }
-                mainStyleLineChart = echarts.init(styleChart);
-                fetchStyleTrend();
-                styleChartInitialized = true;
-                // Start the update interval
-                setInterval(fetchStyleTrend, 30000);
-            });
-        } else {
-            // Just resize if already initialized
-            if (mainStyleLineChart) {
-                mainStyleLineChart.resize();
-            }
-        }
-    });
-
-    // Add resize handler
-    window.addEventListener('resize', function() {
-        if (mainStyleLineChart) {
-            mainStyleLineChart.resize();
-        }
-    });
-
-    // Switch back to main market tab
-    document.getElementById('mainMarketTabBtn').addEventListener('click', function() {
-        document.getElementById('mainIndexLineChart').style.display = 'block';
-        document.getElementById('mainStyleLineChart').style.display = 'none';
-        this.classList.add('active');
-        document.getElementById('styleMarketTabBtn').classList.remove('active');
-    });
-});
     </script>
     <script>
         // 股吧情绪图表初始化

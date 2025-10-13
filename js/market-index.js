@@ -13,27 +13,27 @@ const tradingTimes = generateTradingTimeAxis();
 let currentDataSH = new Array(tradingTimes.length).fill(null);
 let currentDataSZ = new Array(tradingTimes.length).fill(null);
 let currentDataZZ = new Array(tradingTimes.length).fill(null);
-let currentDataA500 = new Array(tradingTimes.length).fill(null);
+let currentDataCY = new Array(tradingTimes.length).fill(null);
 
 async function fetchMainIndexTrend() {
     const urlSH = 'https://api-ddc-wscn.xuangubao.com.cn/market/trend?fields=tick_at,close_px&prod_code=000001.SS';
     const urlSZ = 'https://api-ddc-wscn.xuangubao.com.cn/market/trend?fields=tick_at,close_px&prod_code=399001.SZ';
     const urlZZ = 'https://api-ddc-wscn.xuangubao.com.cn/market/trend?fields=tick_at,close_px&prod_code=000852.SS';
-    const urlA500 = 'https://api-ddc-wscn.xuangubao.com.cn/market/trend?fields=tick_at,close_px&prod_code=512050.SS';
+    const urlCY = 'https://api-ddc-wscn.xuangubao.com.cn/market/trend?fields=tick_at,close_px&prod_code=399006.SZ';
     
     try {
-        const [resSH, resSZ, resZZ, resA500] = await Promise.all([
+        const [resSH, resSZ, resZZ, resCY] = await Promise.all([
             fetch(urlSH),
             fetch(urlSZ),
             fetch(urlZZ),
-            fetch(urlA500)
+            fetch(urlCY)
         ]);
         
-        const [dataSH, dataSZ, dataZZ, dataA500] = await Promise.all([
+        const [dataSH, dataSZ, dataZZ, dataCY] = await Promise.all([
             resSH.json(),
             resSZ.json(),
             resZZ.json(),
-            resA500.json()
+            resCY.json()
         ]);
 
         // 处理数据并更新到固定数组中
@@ -56,7 +56,7 @@ async function fetchMainIndexTrend() {
         currentDataSH = processData(dataSH, currentDataSH, '000001.SS');
         currentDataSZ = processData(dataSZ, currentDataSZ, '399001.SZ');
         currentDataZZ = processData(dataZZ, currentDataZZ, '000852.SS');
-        currentDataA500 = processData(dataA500, currentDataA500, '512050.SS');
+        currentDataCY = processData(dataCY, currentDataCY, '399006.SZ');
 
         // 更新图表
         mainIndexLineChart.setOption({
@@ -141,9 +141,9 @@ async function fetchMainIndexTrend() {
                 },
                 connectNulls: true
             }, {
-                name: 'A500',
+                name: '创业板指',
                 type: 'line',
-                data: currentDataA500,
+                data: currentDataCY,
                 symbol: 'none',
                 lineStyle: { 
                     width: 1.5,

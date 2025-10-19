@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>股票新闻展示</title>
+    <style>
+        html, body { height:100%; margin:0; padding:0; }
+        body { font-family:'Microsoft YaHei',sans-serif; background:#121212; color:#e0e0e0; }
+        .container { background:#1e1e1e; padding:2px; height:100%; overflow:auto; text-align:left; } /* 确保左对齐 */
+        .news-link { margin:3px 0; padding:6px 3px; border-bottom:1px dashed #444; }
+        .news-link:last-child { border-bottom:none; }
+        .news-link a { color:#64B5F6; text-decoration:none; font-size:13px; display:inline; line-height:1.3; }
+        .news-time { display:inline; font-size:11px; color:#aaa; margin-right:8px; }
+        .news-link a:hover { text-decoration:underline; }
+        .loading { color:#aaa; padding:5px; }
+        .error { color:#ff8a80; background:#380000; border-radius:2px; padding:5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+        <div id="resultContainer" class="loading">正在加载新闻数据...</div>
+    </div>
+
+    <script>
+        // 全局计时器变量
+        let refreshTimer = null;
+        
+        // 清除定时器函数
+        function clearRefreshTimer() {
+            if (refreshTimer) {
+                clearInterval(refreshTimer);
+                refreshTimer = null;
+            }
+        }
+        
+        // 页面卸载时清除定时器
+        window.addEventListener('beforeunload', clearRefreshTimer);
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // 从URL参数获取股票代码
+            const urlParams = new URLSearchParams(window.location.search);
+            const symbol = urlParams.get('code');
+            
+            if (symbol) {
+                // 初次加载数据
+                getStockNews(symbol);
+                
+                // 设置定时器每分钟刷新数据
+                refreshTimer = setInterval(() => {
+                    getStockNews(symbol);
+                }, 60000); // 60,000毫秒 = 1分钟
+            } else {
+                document.getElementById('resultContainer').innerHTML = 
+                    '<p class="error">错误: 缺少股票代码参数，请使用格式: stock_news.html?code=股票代码</p>';
+            }
+        });
+        
+        async function getStockNews(symbol) {
+            const resultContainer = document.getElementById('resultContainer');
+            
+            try {
+                const response = await fetch(`https://api.9yee.com/stock_news/${symbol}`);
+                if (!response.ok) {
+                    throw new Error(`请求失败: ${response.status}`);
+                }
+                
+                const newsData = await response.json();
+                displayNews(newsData);
+            } catch (error) {
+                resultContainer.innerHTML = `<p class="error">错误: ${error.message}</p>`;
+            }
+        }
+        
+        function displayNews(news) {
+            const resultContainer = document.getElementById('resultContainer');
+            
+            if (news.length === 0) {
+                resultContainer.innerHTML = '<p>未找到相关新闻</p>';
+                return;
+            }
+            
+            // 按发布时间倒序排序（最新的在最上面）
+            const sortedNews = [...news].sort((a, b) => {
+                const timeA = new Date(a['发布时间'] || 0);
+                const timeB = new Date(b['发布时间'] || 0);
+                return timeB - timeA; // 降序排列
+            });
+            
+            let html = '';
+            sortedNews.forEach(item => {
+                const title = item['新闻标题'] || '无标题';
+                const source = item['文章来源'] || '未知';
+                const time = item['发布时间'] || '未知';
+                const fullLink = item['full_news_link'] || '';
+                
+                // 格式化为 "MM-DD HH:mm" 格式 (例如: 10-15 11:05)
+                let formattedTime = time;
+                if (time.includes('-') && time.includes(':')) {
+                    const [datePart, timePart] = time.split(' ');
+                    const [year, month, day] = datePart.split('-');
+                    formattedTime = `${month}-${day} ${timePart.substring(0, 5)}`;
+                }
+                
+                html += `
+                    <div class="news-link">
+                        <span class="news-time">${formattedTime}</span>
+                        <a href="${fullLink}" target="_blank">${title}</a>
+                    </div>
+                `;
+            });
+            
+            resultContainer.innerHTML = html;
+        }
+    </script>
+</body>
+</html>

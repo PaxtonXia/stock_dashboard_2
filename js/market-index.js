@@ -3,9 +3,129 @@
 // 大盘走势折线图实例
 let mainIndexLineChart;
 
-// 初始化函数
-function initMainIndexChart() {
-    mainIndexLineChart = echarts.init(document.getElementById('mainIndexLineChart'));
+// 初始化大盘走势图表
+function drawIndexTrendChart(containerId) {
+    mainIndexLineChart = echarts.init(document.getElementById(containerId));
+    
+    // 设置初始图表选项
+    mainIndexLineChart.setOption({
+        grid: { left: 10, right: 10, top: 10, bottom: 10, containLabel: true },
+        legend: {
+            show: true,
+            top: 0,
+            right: 10,
+            textStyle: {
+                color: '#ffffff',
+                fontSize: 10
+            },
+            itemWidth: 15,
+            itemHeight: 2
+        },
+        xAxis: {
+            type: 'category',
+            data: generateTradingTimeAxis(),
+            axisLabel: {
+                fontSize: 10,
+                interval: Math.floor(generateTradingTimeAxis().length / 8),
+                formatter: value => value,
+                color: '#ffffff'
+            },
+            splitLine: {
+                show: true,
+                lineStyle: {
+                    type: 'dashed',
+                    color: 'rgba(255,255,255,0.2)'
+                }
+            }
+        },
+        yAxis: {
+            type: 'value',
+            scale: true,
+            axisLabel: { fontSize: 10, formatter: '{value}%', color: '#ffffff' },
+            splitLine: {
+                show: true,
+                lineStyle: {
+                    type: 'dashed',
+                    color: 'rgba(255,255,255,0.2)'
+                }
+            }
+        },
+        series: [{
+            name: '上证指数',
+            type: 'line',
+            data: new Array(generateTradingTimeAxis().length).fill(null),
+            symbol: 'none',
+            lineStyle: { 
+                width: 1.5,
+                color: '#ff5252'
+            },
+            itemStyle: {
+                color: '#ff5252'
+            },
+            connectNulls: true
+        }, {
+            name: '深证成指',
+            type: 'line',
+            data: new Array(generateTradingTimeAxis().length).fill(null),
+            symbol: 'none',
+            lineStyle: { 
+                width: 1.5,
+                color: '#22e090'
+            },
+            itemStyle: {
+                color: '#22e090'
+            },
+            connectNulls: true
+        }, {
+            name: '中证1000',
+            type: 'line',
+            data: new Array(generateTradingTimeAxis().length).fill(null),
+            symbol: 'none',
+            lineStyle: { 
+                width: 1.5,
+                color: '#ffdd00'
+            },
+            itemStyle: {
+                color: '#ffdd00'
+            },
+            connectNulls: true
+        }, {
+            name: '创业板指',
+            type: 'line',
+            data: new Array(generateTradingTimeAxis().length).fill(null),
+            symbol: 'none',
+            lineStyle: { 
+                width: 1.5,
+                color: '#3388ff'
+            },
+            itemStyle: {
+                color: '#3388ff'
+            },
+            connectNulls: true
+        }]
+    });
+}
+
+// 生成交易时间段
+function generateTradingTimeAxis() {
+    const times = [];
+    // 上午交易时段：9:30-11:30
+    for (let h = 9; h <= 11; h++) {
+        for (let m = 0; m < 60; m++) {
+            if ((h === 9 && m >= 30) || (h === 11 && m <= 30) || (h === 10)) {
+                times.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
+            }
+        }
+    }
+    // 下午交易时段：13:00-15:00
+    for (let h = 13; h <= 15; h++) {
+        for (let m = 0; m < 60; m++) {
+            if (h !== 15 || m === 0) {
+                times.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
+            }
+        }
+    }
+    return times;
 }
 
 // 固定的交易时间横坐标
@@ -15,6 +135,7 @@ let currentDataSZ = new Array(tradingTimes.length).fill(null);
 let currentDataZZ = new Array(tradingTimes.length).fill(null);
 let currentDataCY = new Array(tradingTimes.length).fill(null);
 
+// 更新图表数据
 async function fetchMainIndexTrend() {
     const urlSH = 'https://api-ddc-wscn.xuangubao.com.cn/market/trend?fields=tick_at,close_px&prod_code=000001.SS';
     const urlSZ = 'https://api-ddc-wscn.xuangubao.com.cn/market/trend?fields=tick_at,close_px&prod_code=399001.SZ';

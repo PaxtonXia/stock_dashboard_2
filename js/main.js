@@ -7,7 +7,7 @@ let stockData = [];
 document.addEventListener('DOMContentLoaded', function() {
     // 初始化所有图表
     initMarketSentimentCharts();
-    initMainIndexChart();
+    drawIndexTrendChart('mainIndexLineChart');
     
     // 注册全局Chart.js插件
     Chart.plugins.register(ChartDataLabels);
@@ -43,4 +43,4 @@ document.addEventListener('DOMContentLoaded', function() {
 
     fetchHotspotData();
     setInterval(fetchHotspotData, 30000); // 每30秒更新一次
-}); 
+});

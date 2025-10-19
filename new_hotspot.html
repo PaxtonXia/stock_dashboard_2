@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>最强风口</title>
+    <style type="text/css">
+        body {
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .hotspot-container {
+            margin: 5px;
+            padding: 5px;
+            border: 1px solid #333;
+        }
+        .hotspot-item {
+            padding: 8px;
+            margin-bottom: 5px;
+            border-bottom: 1px solid #333;
+        }
+        .hotspot-header {
+            color: #e0e0e0;
+            font-size: 12px;
+            margin-bottom: 5px;
+            letter-spacing: 0.05em;
+        }
+        .hotspot-name {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 12px;
+            margin-right: 8px;
+            letter-spacing: 0.05em;
+            background-color: #800000;
+        }
+        .hotspot-stats {
+            margin-top: 8px;
+            color: #bbb;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        .hotspot-stat {
+            display: inline-block;
+            margin: 2px 8px 2px 0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .stock-list {
+            margin-top: 8px;
+            color: #bbb;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        .stock-title {
+            color: #888;
+            margin-bottom: 5px;
+            font-size: 12px;
+            display: block;
+        }
+        .stock-item {
+            display: inline-block;
+            margin: 2px 8px 2px 0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .stock-change {
+            margin-left: 4px;
+            font-family: Consolas, monospace;
+        }
+        .stock-up {
+            color: #ff3333;
+        }
+        .stock-down {
+            color: #00ff00;
+        }
+        .stock-limit-up {
+            background: rgba(255, 51, 51, 0.1);
+        }
+    </style>
+    <script src="js/jquery.min.js"></script>
+</head>
+<body>
+    <div class="card hotspot-card">
+
+        <div class="hotspot-container" id="hotspotContainer">
+            <!-- 等待数据加载 -->
+            <div id="loading-hotspot">加载中...</div>
+            <div id="error-hotspot"></div>
+        </div>
+    </div>
+
+
+    <script>
+        $(document).ready(function() {
+            console.log('开始获取最强风口数据...');
+            getStrongestWindData();
+            
+            // 设置定时器，每60秒自动刷新数据
+            setInterval(function() {
+                console.log('定时刷新数据...');
+                getStrongestWindData();
+            }, 60000); // 60秒 = 60000毫秒
+        });
+
+        // 调试日志函数
+        function debugLog(msg) {
+            // 移除页面显示，只保留控制台日志
+            console.log(msg);
+        }
+
+        function getStrongestWindData() {
+            debugLog('开始获取数据...');
+            
+            // 调用API获取数据
+            $.when(
+                $.ajax({
+                    url: 'https://flash-api.xuangubao.com.cn/api/surge_stock/plates',
+                    type: 'GET',
+                    dataType: 'json'
+                }),
+                $.ajax({
+                    url: 'https://flash-api.xuangubao.com.cn/api/surge_stock/stocks?normal=true&uplimit=true',
+                    type: 'GET',
+                    dataType: 'json'
+                })
+            ).done(function(plateResp, stockResp) {
+                debugLog('API请求已完成');
+                // 提取实际响应数据（$.when返回数组）
+                const plateResponse = plateResp[0];
+                const stockResponse = stockResp[0];
+                debugLog(`板块API响应状态: ${plateResponse.code}`);
+                debugLog(`股票API响应状态: ${stockResponse.code}`);
+                
+                const hotspotContainer = $('#hotspotContainer');
+                hotspotContainer.empty();
+
+                // 检查两个API是否都成功
+                const isPlateOk = plateResponse.code === 20000 && plateResponse.data?.items?.length > 0;
+                const isStockOk = stockResponse.code === 20000 && stockResponse.data?.items?.length > 0;
+                
+                debugLog(`板块数据状态: ${isPlateOk ? '有效' : '无效'}`);
+                debugLog(`股票数据状态: ${isStockOk ? '有效' : '无效'}`);
+                
+                if (isPlateOk && isStockOk) {
+                    debugLog(`板块数据数量: ${plateResponse.data.items.length}`);
+                    debugLog(`股票数据数量: ${stockResponse.data.items.length}`);
+                    
+                    // 创建板块ID到名称的映射
+                    const plateInfoMap = {};
+                    plateResponse.data.items.forEach(plate => {
+                        plateInfoMap[plate.id] = {
+                            name: plate.name,
+                            description: plate.description || ''
+                        };
+                    });
+
+                    // 创建板块到股票的映射
+                    const plateStocks = {};
+                    
+                    stockResponse.data.items.forEach(stockArray => {
+                        // 根据fields字段映射股票数据
+                        const fields = stockResponse.data.fields;
+                        const stockCode = stockArray[0];
+                        const stockName = stockArray[1];
+                        const stockChange = stockArray[3] * 100; // 转换为百分比
+                        
+                        // 查找涨停状态字段的位置
+                        let isLimitUp = false;
+                        for (let i = 0; i < fields.length; i++) {
+                            if (fields[i] === 'up_limit') {
+                                isLimitUp = stockArray[i];
+                                break;
+                            }
+                        }
+                        
+                        // 查找板块字段的位置
+                        let plates = null;
+                        for (let i = 0; i < fields.length; i++) {
+                            if (fields[i] === 'plates') {
+                                plates = stockArray[i];
+                                break;
+                            }
+                        }
+                        
+                        if (plates && Array.isArray(plates)) {
+                            plates.forEach(plateObj => {
+                                const plateId = plateObj.id;
+                                if (plateInfoMap[plateId]) {
+                                    if (!plateStocks[plateId]) {
+                                        plateStocks[plateId] = [];
+                                    }
+                                    // 添加完整的股票信息
+                                    plateStocks[plateId].push({
+                                        name: stockName,
+                                        code: stockCode,
+                                        change: stockChange,
+                                        isLimitUp: isLimitUp
+                                    });
+                                }
+                            });
+                        }
+                    });
+
+                    debugLog(`有股票的板块数量: ${Object.keys(plateStocks).length}`);
+
+                    // 为每个板块创建热点项
+                    Object.keys(plateStocks).forEach(plateId => {
+                        const plateInfo = plateInfoMap[plateId];
+                        const stocks = plateStocks[plateId];
+                        
+                        const stockItems = stocks.map(stock => {
+                            // 格式化显示值并添加颜色类
+                            const changeValue = parseFloat(stock.change);
+                            const formattedChange = Math.abs(changeValue).toFixed(2);
+                            
+                            // 根据涨停状态和涨跌设置颜色
+                            let textColor = '#ff3333'; // 默认涨红
+                            let bgColor = 'rgba(255, 255, 255, 0.05)'; // 默认背景
+                            
+                            if (stock.isLimitUp) {
+                                // 涨停股票：红色背景，白色文字
+                                textColor = '#ffffff';
+                                bgColor = 'rgba(255, 51, 51, 0.8)';
+                            } else if (changeValue < 0) {
+                                // 下跌股票：绿色文字
+                                textColor = '#00ff00';
+                            }
+                            
+                            // 解析股票代码和市场代码
+                            const stockCode = stock.code;
+                            let marketCode = '1'; // 默认沪市
+                            let pureCode = stockCode;
+                            
+                            if (stockCode.includes('.SZ')) {
+                                marketCode = '0'; // 深市
+                                pureCode = stockCode.replace('.SZ', '');
+                            } else if (stockCode.includes('.SS')) {
+                                marketCode = '1'; // 沪市
+                                pureCode = stockCode.replace('.SS', '');
+                            }
+                            
+                            const stockUrl = `http://www.treeid/breed_${marketCode}${pureCode}`;
+                            
+                            return `<span class="stock-item" style="color: ${textColor}; background: ${bgColor}">
+                                <a href="${stockUrl}" style="color: inherit; text-decoration: none;">
+                                    ${stock.name}<span style="color: #888;">(${pureCode})</span>
+                                </a>
+                                <span class="stock-change">${changeValue >= 0 ? '+' : ''}${formattedChange}%</span>
+                            </span>`;
+                        }).join('');
+
+                        hotspotContainer.append(`
+                            <div class="hotspot-item">
+                                <div class="hotspot-header">
+                                    <span class="hotspot-name">${plateInfo.name}</span>
+                                    <span class="hotspot-stat">股票数量: ${stocks.length}</span>
+                                </div>
+                                <div class="hotspot-stats">
+                                    <span class="hotspot-stat">${plateInfo.description}</span>
+                                </div>
+                                <div class="stock-list">
+                                    ${stockItems}
+                                </div>
+                            </div>
+                        `);
+                    });
+                    debugLog('数据渲染完成');
+                } else {
+                    // 统一错误处理
+                    let errorMsg = '';
+                    if (!isPlateOk) errorMsg += '板块数据加载失败<br>';
+                    if (!isStockOk) errorMsg += '股票数据加载失败<br>';
+                    hotspotContainer.append(`<div class="error">${errorMsg || '未知错误'}</div>`);
+                    debugLog('数据加载失败');
+                }
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                debugLog(`API请求失败: ${textStatus} - ${errorThrown}`);
+                $('#hotspotContainer').append(`<div class="error">API请求失败: ${textStatus}</div>`);
+            });
+        }
+
+        function openStockModal(url) {
+            document.getElementById('stockModalFrame').src = url;
+            document.getElementById('stockModal').style.display = 'block';
+        }
+    </script>
+</body>
+</html>

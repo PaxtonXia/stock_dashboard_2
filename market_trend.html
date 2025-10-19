@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大盘走势</title>
+    <link rel="stylesheet" href="css/font-awesome/all.min.css">
+    <style>
+        /* 基础样式 */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Microsoft YaHei', sans-serif;
+            background-color: #121212;
+            color: #e0e0e0;
+        }
+        .card {
+            background-color: #1e1e1e;
+            border-radius: 8px;
+            padding: 12px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            margin: 10px;
+        }
+        .card-title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 8px;
+        }
+        .card-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #e0e0e0;
+        }
+        .echart {
+            width: 100%;
+            height: 250px;
+        }
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #333;
+            font-size: 12px;
+            color: #aaa;
+        }
+        .refresh-indicator {
+            color: #ffcc00;
+            font-size: 11px;
+        }
+        .last-update {
+            color: #888;
+        }
+    </style>
+    <!-- ECharts库 -->
+    <script src="js/echarts.js"></script>
+</head>
+<body>
+    <!-- 大盘走势模块 -->
+    <div class="card">
+        <div class="card-title-row">
+            <div>
+                <span class="card-title"><i class="fas fa-line-chart"></i> 大盘走势</span>
+            </div>
+        </div>
+        <div id="bar" class="echart"></div>
+        <div class="status-bar">
+            <span class="refresh-indicator" id="refreshIndicator">● 实时更新中</span>
+            <span class="last-update" id="lastUpdateTime">最后更新: --:--:--</span>
+        </div>
+    </div>
+    
+    <!-- 依赖的JS文件 -->
+    <script src="js/utils.js"></script>
+    <script src="js/market-index.js"></script>
+    
+    <script>
+        // 全局变量
+        let refreshInterval;
+        let isRefreshing = false;
+        
+        // 更新最后更新时间
+        function updateLastUpdateTime() {
+            const now = new Date();
+            const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+            document.getElementById('lastUpdateTime').textContent = `最后更新: ${timeStr}`;
+        }
+        
+        // 更新刷新指示器状态
+        function updateRefreshIndicator(isRefreshing) {
+            const indicator = document.getElementById('refreshIndicator');
+            if (isRefreshing) {
+                indicator.innerHTML = '● <span style="color:#ffcc00">更新中...</span>';
+                indicator.style.color = '#ffcc00';
+            } else {
+                indicator.innerHTML = '● 实时更新中';
+                indicator.style.color = '#22e090';
+            }
+        }
+        
+        // 定时获取大盘指数数据
+        function startAutoRefresh() {
+            // 清除现有定时器
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+            
+            // 设置定时刷新（每30秒一次，与main.html保持一致）
+            refreshInterval = setInterval(async () => {
+                if (!isRefreshing) {
+                    isRefreshing = true;
+                    updateRefreshIndicator(true);
+                    
+                    try {
+                        await fetchMainIndexTrend();
+                        updateLastUpdateTime();
+                    } catch (error) {
+                        console.error('定时更新大盘指数数据失败:', error);
+                    } finally {
+                        isRefreshing = false;
+                        updateRefreshIndicator(false);
+                    }
+                }
+            }, 30000); // 30秒
+        }
+        
+        // 初始化大盘走势图表
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化图表并获取数据
+            drawIndexTrendChart('bar');
+            fetchMainIndexTrend();
+            updateLastUpdateTime();
+            
+            // 启动定时刷新
+            startAutoRefresh();
+            
+            // 窗口大小变化时重绘图表
+            window.addEventListener('resize', function() {
+                const chart = echarts.getInstanceByDom(document.getElementById('bar'));
+                if (chart) {
+                    chart.resize();
+                }
+            });
+            
+            // 页面可见性变化时调整定时器
+            document.addEventListener('visibilitychange', function() {
+                if (document.hidden) {
+                    // 页面不可见时暂停定时刷新
+                    if (refreshInterval) {
+                        clearInterval(refreshInterval);
+                        refreshInterval = null;
+                    }
+                } else {
+                    // 页面可见时恢复定时刷新
+                    startAutoRefresh();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

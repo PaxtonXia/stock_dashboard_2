@@ -23,10 +23,10 @@ function drawIndustryTrendChart(containerId) {
         },
         xAxis: {
             type: 'category',
-            data: generateTradingTimeAxis(),
+            data: generateIndustryTradingTimeAxis(),
             axisLabel: {
                 fontSize: 10,
-                interval: Math.floor(generateTradingTimeAxis().length / 8),
+                interval: Math.floor(generateIndustryTradingTimeAxis().length / 8),
                 formatter: value => value,
                 color: '#ffffff'
             },
@@ -53,7 +53,7 @@ function drawIndustryTrendChart(containerId) {
         series: [{
             name: '消费',
             type: 'line',
-            data: new Array(generateTradingTimeAxis().length).fill(null),
+            data: new Array(generateIndustryTradingTimeAxis().length).fill(null),
             symbol: 'none',
             lineStyle: { 
                 width: 1.5,
@@ -66,7 +66,7 @@ function drawIndustryTrendChart(containerId) {
         }, {
             name: '房产',
             type: 'line',
-            data: new Array(generateTradingTimeAxis().length).fill(null),
+            data: new Array(generateIndustryTradingTimeAxis().length).fill(null),
             symbol: 'none',
             lineStyle: { 
                 width: 1.5,
@@ -79,7 +79,7 @@ function drawIndustryTrendChart(containerId) {
         }, {
             name: '银行',
             type: 'line',
-            data: new Array(generateTradingTimeAxis().length).fill(null),
+            data: new Array(generateIndustryTradingTimeAxis().length).fill(null),
             symbol: 'none',
             lineStyle: { 
                 width: 1.5,
@@ -92,7 +92,7 @@ function drawIndustryTrendChart(containerId) {
         }, {
             name: '券商',
             type: 'line',
-            data: new Array(generateTradingTimeAxis().length).fill(null),
+            data: new Array(generateIndustryTradingTimeAxis().length).fill(null),
             symbol: 'none',
             lineStyle: { 
                 width: 1.5,
@@ -105,7 +105,7 @@ function drawIndustryTrendChart(containerId) {
         }, {
             name: '游戏',
             type: 'line',
-            data: new Array(generateTradingTimeAxis().length).fill(null),
+            data: new Array(generateIndustryTradingTimeAxis().length).fill(null),
             symbol: 'none',
             lineStyle: { 
                 width: 1.5,
@@ -118,7 +118,7 @@ function drawIndustryTrendChart(containerId) {
         }, {
             name: '旅游',
             type: 'line',
-            data: new Array(generateTradingTimeAxis().length).fill(null),
+            data: new Array(generateIndustryTradingTimeAxis().length).fill(null),
             symbol: 'none',
             lineStyle: { 
                 width: 1.5,
@@ -131,7 +131,7 @@ function drawIndustryTrendChart(containerId) {
         }, {
             name: '军工',
             type: 'line',
-            data: new Array(generateTradingTimeAxis().length).fill(null),
+            data: new Array(generateIndustryTradingTimeAxis().length).fill(null),
             symbol: 'none',
             lineStyle: { 
                 width: 1.5,
@@ -144,7 +144,7 @@ function drawIndustryTrendChart(containerId) {
         }, {
             name: '软件',
             type: 'line',
-            data: new Array(generateTradingTimeAxis().length).fill(null),
+            data: new Array(generateIndustryTradingTimeAxis().length).fill(null),
             symbol: 'none',
             lineStyle: { 
                 width: 1.5,
@@ -157,7 +157,7 @@ function drawIndustryTrendChart(containerId) {
         }, {
             name: '创新药',
             type: 'line',
-            data: new Array(generateTradingTimeAxis().length).fill(null),
+            data: new Array(generateIndustryTradingTimeAxis().length).fill(null),
             symbol: 'none',
             lineStyle: { 
                 width: 1.5,
@@ -170,7 +170,7 @@ function drawIndustryTrendChart(containerId) {
         }, {
             name: '半导体',
             type: 'line',
-            data: new Array(generateTradingTimeAxis().length).fill(null),
+            data: new Array(generateIndustryTradingTimeAxis().length).fill(null),
             symbol: 'none',
             lineStyle: { 
                 width: 1.5,
@@ -183,7 +183,7 @@ function drawIndustryTrendChart(containerId) {
         }, {
             name: '有色',
             type: 'line',
-            data: new Array(generateTradingTimeAxis().length).fill(null),
+            data: new Array(generateIndustryTradingTimeAxis().length).fill(null),
             symbol: 'none',
             lineStyle: { 
                 width: 1.5,
@@ -196,7 +196,7 @@ function drawIndustryTrendChart(containerId) {
         }, {
             name: '光伏',
             type: 'line',
-            data: new Array(generateTradingTimeAxis().length).fill(null),
+            data: new Array(generateIndustryTradingTimeAxis().length).fill(null),
             symbol: 'none',
             lineStyle: { 
                 width: 1.5,
@@ -210,8 +210,8 @@ function drawIndustryTrendChart(containerId) {
     });
 }
 
-// 生成交易时间段
-function generateTradingTimeAxis() {
+// 生成行业走势交易时间段
+function generateIndustryTradingTimeAxis() {
     const times = [];
     // 上午交易时段：9:30-11:30
     for (let h = 9; h <= 11; h++) {
@@ -233,19 +233,19 @@ function generateTradingTimeAxis() {
 }
 
 // 固定的交易时间横坐标
-const tradingTimes = generateTradingTimeAxis();
-let currentDataConsume = new Array(tradingTimes.length).fill(null);
-let currentDataEstate = new Array(tradingTimes.length).fill(null);
-let currentDataBank = new Array(tradingTimes.length).fill(null);
-let currentDataBroker = new Array(tradingTimes.length).fill(null);
-let currentDataGame = new Array(tradingTimes.length).fill(null);
-let currentDataTourism = new Array(tradingTimes.length).fill(null);
-let currentDataMilitary = new Array(tradingTimes.length).fill(null);
-let currentDataSoftware = new Array(tradingTimes.length).fill(null);
-let currentDataInnovationPharma = new Array(tradingTimes.length).fill(null);
-let currentDataSemiconductor = new Array(tradingTimes.length).fill(null);
-let currentDataNonferrous = new Array(tradingTimes.length).fill(null);
-let currentDataSolar = new Array(tradingTimes.length).fill(null);
+let industryTradingTimes = generateIndustryTradingTimeAxis();
+let currentDataConsume = new Array(industryTradingTimes.length).fill(null);
+let currentDataEstate = new Array(industryTradingTimes.length).fill(null);
+let currentDataBank = new Array(industryTradingTimes.length).fill(null);
+let currentDataBroker = new Array(industryTradingTimes.length).fill(null);
+let currentDataGame = new Array(industryTradingTimes.length).fill(null);
+let currentDataTourism = new Array(industryTradingTimes.length).fill(null);
+let currentDataMilitary = new Array(industryTradingTimes.length).fill(null);
+let currentDataSoftware = new Array(industryTradingTimes.length).fill(null);
+let currentDataInnovationPharma = new Array(industryTradingTimes.length).fill(null);
+let currentDataSemiconductor = new Array(industryTradingTimes.length).fill(null);
+let currentDataNonferrous = new Array(industryTradingTimes.length).fill(null);
+let currentDataSolar = new Array(industryTradingTimes.length).fill(null);
 
 // 更新行业走势数据
 async function fetchIndustryTrend() {
@@ -303,7 +303,7 @@ async function fetchIndustryTrend() {
             items.forEach(item => {
                 const time = new Date(item.time * 1000);
                 const timeStr = `${time.getHours().toString().padStart(2, '0')}:${time.getMinutes().toString().padStart(2, '0')}`;
-                const index = tradingTimes.indexOf(timeStr);
+                const index = industryTradingTimes.indexOf(timeStr);
                 if (index !== -1) {
                     // 计算涨跌幅百分比：(当前指数 - 前收盘指数) / 前收盘指数 * 100
                     currentData[index] = ((item.index - prevCloseIdx) / prevCloseIdx * 100);
@@ -341,10 +341,10 @@ async function fetchIndustryTrend() {
             },
             xAxis: {
                 type: 'category',
-                data: tradingTimes,
+                data: industryTradingTimes,
                 axisLabel: {
                     fontSize: 10,
-                    interval: Math.floor(tradingTimes.length / 8),
+                    interval: Math.floor(industryTradingTimes.length / 8),
                     formatter: value => value,
                     color: '#ffffff'
                 },
@@ -535,16 +535,44 @@ async function fetchIndustryTrend() {
                 extraCssText: 'box-shadow: 0 2px 8px rgba(0,0,0,0.4);',
                 formatter: function(params) {
                     let time = params[0]?.axisValue || '';
-                    let html = `<div style="margin-bottom:4px;color:#aaa;">时间：${time}</div>`;
-                    html += params.map(item => {
-                        const value = item.value != null ? item.value.toFixed(2) : '--';
-                        const valueColor = value > 0 ? '#ff5252' : (value < 0 ? '#22e090' : '#aaa');
-                        return `
-                            ${item.marker}
-                            <span style="color:${item.color}">${item.seriesName}</span>: 
-                            <span style="color:${valueColor}">${value}%</span>
-                        `;
-                    }).join('<br>');
+                    let html = `<div style="margin-bottom:8px;color:#aaa;font-weight:bold;">时间：${time}</div>`;
+                    
+                    // 按涨幅从大到小排序
+                    const sortedParams = [...params].sort((a, b) => {
+                        const aValue = a.value != null ? a.value : -Infinity;
+                        const bValue = b.value != null ? b.value : -Infinity;
+                        return bValue - aValue;
+                    });
+                    
+                    // 将排序后的数据分成三列
+                    const itemsPerColumn = Math.ceil(sortedParams.length / 3);
+                    const columns = [];
+                    
+                    for (let i = 0; i < 3; i++) {
+                        const start = i * itemsPerColumn;
+                        const end = Math.min(start + itemsPerColumn, sortedParams.length);
+                        columns.push(sortedParams.slice(start, end));
+                    }
+                    
+                    html += `<div style="display: flex; gap: 12px;">`;
+                    
+                    columns.forEach(column => {
+                        html += `<div style="flex: 1; min-width: 0;">`;
+                        column.forEach(item => {
+                            const value = item.value != null ? item.value.toFixed(2) : '--';
+                            const valueColor = value > 0 ? '#ff5252' : (value < 0 ? '#22e090' : '#aaa');
+                            html += `
+                                <div style="display: flex; align-items: center; margin-bottom: 4px; font-size: 12px;">
+                                    ${item.marker}
+                                    <span style="color:${item.color}; margin-right: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.seriesName}</span>
+                                    <span style="color:${valueColor}; margin-left: auto; font-weight: bold;">${value}%</span>
+                                </div>
+                            `;
+                        });
+                        html += `</div>`;
+                    });
+                    
+                    html += `</div>`;
                     return html;
                 }
             }

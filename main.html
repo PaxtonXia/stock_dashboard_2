@@ -26,6 +26,7 @@
     <script src="js/news-plates.js"></script>
     <script src="js/main.js"></script>
     <script src="js/market-style.js"></script>
+    <script src="js/industry_trend.js"></script>
     <!-- 在其他 JS 文件引入后添加 -->
     <script src="js/hotspot.js"></script>
 </head>
@@ -114,12 +115,14 @@
             </div>
         </div>
         <div class="dashboard-main">
-            <!-- 大盘/风格走势卡片 -->
+            <!-- 大盘/风格/行业走势卡片 -->
             <div class="card" id="main-market-switch-card" style="min-height: 300px;">
                 <div class="card-title-row" style="justify-content: space-between;">
                     <div>
                         <span class="card-title"><i class="fas fa-line-chart"></i> 
-                            <span id="mainMarketTabBtn" class="tab-btn active" style="cursor:pointer;">大盘走势</span>
+                            <span id="mainMarketTabBtn" class="tab-btn active" style="cursor:pointer;">指数走势</span>
+                            <span style="color:#444;margin:0 8px;">|</span>
+                            <span id="industryTrendTabBtn" class="tab-btn" style="cursor:pointer;">行业走势</span>
                             <span style="color:#444;margin:0 8px;">|</span>
                             <span id="styleMarketTabBtn" class="tab-btn" style="cursor:pointer;">风格走势</span>
                         </span>
@@ -127,6 +130,7 @@
                 </div>
                 <div id="mainIndexLineChart" class="echart tab-pane" style="height: 240px; display: block;"></div>
                 <div id="market-style-chart" class="echart tab-pane" style="height: 240px; display: none;"></div>
+                <div id="industry-trend-chart" class="echart tab-pane" style="height: 240px; display: none;"></div>
             </div>
 
             <!-- 行业/概念主力资金净流入卡片 -->
@@ -546,19 +550,42 @@
     document.getElementById('mainMarketTabBtn').onclick = function() {
         document.getElementById('mainIndexLineChart').style.display = 'block';
         document.getElementById('market-style-chart').style.display = 'none';
+        document.getElementById('industry-trend-chart').style.display = 'none';
         this.classList.add('active');
         document.getElementById('styleMarketTabBtn').classList.remove('active');
+        document.getElementById('industryTrendTabBtn').classList.remove('active');
         if (window.mainIndexLineChartObj) window.mainIndexLineChartObj.resize();
     };
     document.getElementById('styleMarketTabBtn').onclick = function() {
         document.getElementById('mainIndexLineChart').style.display = 'none';
         document.getElementById('market-style-chart').style.display = 'block';
+        document.getElementById('industry-trend-chart').style.display = 'none';
         this.classList.add('active');
         document.getElementById('mainMarketTabBtn').classList.remove('active');
+        document.getElementById('industryTrendTabBtn').classList.remove('active');
         // 调整图表大小
         if (window.marketStyleChart) {
             setTimeout(() => {
                 marketStyleChart.resize();
+            }, 100);
+        }
+    };
+    document.getElementById('industryTrendTabBtn').onclick = function() {
+        document.getElementById('mainIndexLineChart').style.display = 'none';
+        document.getElementById('market-style-chart').style.display = 'none';
+        document.getElementById('industry-trend-chart').style.display = 'block';
+        this.classList.add('active');
+        document.getElementById('mainMarketTabBtn').classList.remove('active');
+        document.getElementById('styleMarketTabBtn').classList.remove('active');
+        // 初始化行业走势图表
+        if (!window.industryTrendChart) {
+            drawIndustryTrendChart('industry-trend-chart');
+            fetchIndustryTrend();
+        }
+        // 调整图表大小
+        if (window.industryTrendChart) {
+            setTimeout(() => {
+                industryTrendChart.resize();
             }, 100);
         }
     };

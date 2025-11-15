@@ -11,9 +11,18 @@
     <script src="js/echarts.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/market-sentiment.js"></script>
-    <style>
-        /* 重置和基础样式 */
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+<style>
+    /* 新增多列布局支持 */
+    .echarts-tooltip {
+        column-gap: 20px;
+        -webkit-column-gap: 20px;
+    }
+    .echarts-tooltip > div {
+        break-inside: avoid;
+    }
+
+    /* 重置和基础样式 */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
         body { 
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; 
             margin: 0; 
@@ -618,25 +627,45 @@
                                     trigger: 'axis',
                                     backgroundColor: 'rgba(50, 50, 50, 0.9)',
                                     borderColor: 'rgba(255,255,255,0.2)',
-                                    formatter: function (params) {
-                                        if (params.length === 0) return '';
-                                        const time = params[0].axisValue;
-                                        let result = `<div style="font-weight: bold; margin-bottom: 4px;">${time}</div>`;
-                                        params.forEach(param => {
-                                            if (param.value !== null && param.value !== undefined) {
-                                                const seriesColor = indices.find(idx => idx.name === param.seriesName)?.color || param.color || '#fff';
-                                                const value = parseFloat(param.value).toFixed(2);
-                                                result += `<div style="display: flex; justify-content: space-between; align-items: center; margin: 2px 0;">
-                                                    <span style="display: flex; align-items: center;">
-                                                        <span style="color: ${seriesColor}; margin-right: 4px;">●</span>
-                                                        <span style="color: ${seriesColor};">${param.seriesName}</span>
-                                                    </span>
-                                                    <span style="color: ${value >= 0 ? '#ff3333' : '#00ff00'}; margin-left: 4px">${value >= 0 ? '+' : ''}${value}%</span>
-                                                </div>`;
-                                            }
-                                        });
-                                        return result;
-                                    }
+formatter: function (params) {
+    if (params.length === 0) return '';
+    const time = params[0].axisValue;
+    
+    // 过滤无效数据并按百分比降序排序
+    const validParams = params.filter(p => p.value !== null && p.value !== undefined);
+    const sortedParams = validParams.sort((a, b) => b.value - a.value);
+
+    // 根据数量决定列数
+    const columnStyle = sortedParams.length > 8 
+        ? 'column-count: 2; column-gap: 20px; -webkit-column-count: 2; -webkit-column-gap: 20px;' 
+        : '';
+
+    let result = `
+        <div style="font-weight: bold; margin-bottom: 8px;">${time}</div>
+        <div style="${columnStyle} min-width: 280px; max-height: 300px; overflow-y: auto;">
+    `;
+
+    sortedParams.forEach(param => {
+        const seriesColor = indices.find(idx => idx.name === param.seriesName)?.color || param.color || '#fff';
+        const value = parseFloat(param.value).toFixed(2);
+        result += `
+            <div style="break-inside: avoid; margin-bottom: 4px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 2px 8px;">
+                    <span style="display: flex; align-items: center;">
+                        <span style="color: ${seriesColor}; margin-right: 6px;">●</span>
+                        <span style="color: ${seriesColor}; font-size: 13px;">${param.seriesName}</span>
+                    </span>
+                    <span style="color: ${value >= 0 ? '#ff3333' : '#00ff00'}; font-size: 13px; font-weight: 500;">
+                        ${value >= 0 ? '+' : ''}${value}%
+                    </span>
+                </div>
+            </div>
+        `;
+    });
+
+    result += '</div>'; // 关闭列容器
+    return result;
+}
                                 },
                                 grid: {
                                     left: '3%',
@@ -910,27 +939,45 @@
                         trigger: 'axis',
                         backgroundColor: 'rgba(50, 50, 50, 0.9)',
                         borderColor: 'rgba(255,255,255,0.2)',
-                        formatter: function (params) {
-                            if (params.length === 0) return '';
-                            const time = params[0].axisValue;
-                            let result = `<div style="font-weight: bold; margin-bottom: 4px;">${time}</div>`;
-                            params.forEach(param => {
-                                if (param.value !== null && param.value !== undefined) {
-                                    // 从series的itemStyle中获取颜色
-                                    const seriesColor = indices.find(idx => idx.name === param.seriesName)?.color || param.color || '#fff';
-                                    const value = parseFloat(param.value).toFixed(2);
-                                    result += `<div style="display: flex; justify-content: space-between; align-items: center; margin: 2px 0;">
-                                        <span style="display: flex; align-items: center;">
-                                            <span style="color: ${seriesColor}; margin-right: 4px;">●</span>
-                                            <span style="color: ${seriesColor};">${param.seriesName}</span>
-                                        </span>
-                                        <span style="color: ${value >= 0 ? '#ff3333' : '#00ff00'}; margin-left:  4px">${value >= 0 ? '+' : ''}${value}%
-                                        </span>
-                                    </div>`;
-                                }
-                            });
-                            return result;
-                        }
+formatter: function (params) {
+    if (params.length === 0) return '';
+    const time = params[0].axisValue;
+    
+    // 过滤无效数据并按百分比降序排序
+    const validParams = params.filter(p => p.value !== null && p.value !== undefined);
+    const sortedParams = validParams.sort((a, b) => b.value - a.value);
+
+    // 根据数量决定列数
+    const columnStyle = sortedParams.length > 8 
+        ? 'column-count: 2; column-gap: 20px; -webkit-column-count: 2; -webkit-column-gap: 20px;' 
+        : '';
+
+    let result = `
+        <div style="font-weight: bold; margin-bottom: 8px;">${time}</div>
+        <div style="${columnStyle} min-width: 280px; max-height: 300px; overflow-y: auto;">
+    `;
+
+    sortedParams.forEach(param => {
+        const seriesColor = indices.find(idx => idx.name === param.seriesName)?.color || param.color || '#fff';
+        const value = parseFloat(param.value).toFixed(2);
+        result += `
+            <div style="break-inside: avoid; margin-bottom: 4px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 2px 8px;">
+                    <span style="display: flex; align-items: center;">
+                        <span style="color: ${seriesColor}; margin-right: 6px;">●</span>
+                        <span style="color: ${seriesColor}; font-size: 13px;">${param.seriesName}</span>
+                    </span>
+                    <span style="color: ${value >= 0 ? '#ff3333' : '#00ff00'}; font-size: 13px; font-weight: 500;">
+                        ${value >= 0 ? '+' : ''}${value}%
+                    </span>
+                </div>
+            </div>
+        `;
+    });
+
+    result += '</div>';
+    return result;
+}
                     },
                     grid: {
                         left: '3%',

@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Stock Point Chart</title>
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: #0f1724;
+      color: #e6eef8;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      padding: 16px;
+      box-sizing: border-box;
+      gap: 12px;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    header h1 {
+      font-size: 18px;
+      margin: 0;
+      color: #cfe8ff;
+    }
+    #chart {
+      /* kept for compatibility — main chart removed */
+      display: none; /* hide main chart container when using full-screen P&F */
+    }
+    .controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .btn {
+      background: #1f6feb;
+      color: #fff;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .btn.ghost {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.06);
+      color: #cfe8ff;
+    }
+    .legend {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      color: rgba(255,255,255,0.7);
+      font-size: 13px;
+    }
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 6px;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1></h1>
+      <div class="controls">
+        <button id="download" class="btn">导出PNG</button>
+        <label style="color:#cfe8ff;margin-left:8px;font-size:13px;">反转:</label>
+        <input id="pfReversal" type="number" step="1" min="1" value="1" style="width:54px;padding:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:#cfe8ff;margin-left:6px;font-size:13px;">
+        <button id="applyPf" class="btn ghost">应用P&F</button>
+        <button id="autoAdjust" class="btn ghost">自动调整</button>
+        <button id="resetZoom" class="btn ghost">重置缩放</button>
+      </div>
+    </header>
+
+    <div id="chart"></div>
+    <!-- P&F 图表容器 -->
+    <!-- 主图表容器 -->
+    <div style="display:flex;flex-direction:column;flex:1;gap:8px;">
+      <!-- P&F 图表容器 -->
+      <div id="pfChart" style="flex:3;min-height:300px;background:#081226;border-radius:8px;overflow:hidden;position:relative;"></div>
+      
+      <!-- 量能图表容器 -->
+      <div id="volumeChart" style="flex:1;min-height:100px;background:#081226;border-radius:8px;overflow:hidden;position:relative;"></div>
+    </div>
+    
+    <!-- P&F 信息面板 -->
+    <div id="pfInfo" style="display:flex;gap:16px;align-items:center;color:rgba(255,255,255,0.7);font-size:13px;padding:8px 0;">
+      <div>当前箱体: <span id="currentBoxSize" style="color:#cfe8ff;">自动计算</span></div>
+      <div>价格范围: <span id="priceRange" style="color:#cfe8ff;">-</span></div>
+      <div>列数: <span id="columnCount" style="color:#cfe8ff;">-</span></div>
+    </div>
+  </div>
+
+  <script>
+    // 生成交易时间（09:30-11:29, 13:00-15:00）
+    function generateTradingTimes() {
+      const times = [];
+      for (let h = 9; h <= 11; h++) {
+        for (let m = 0; m < 60; m++) {
+          if (h === 9 && m < 30) continue;
+          if (h === 11 && m >= 30) break;
+          times.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+        }
+      }
+      for (let h = 13; h < 15; h++) {
+        for (let m = 0; m < 60; m++) {
+          times.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+        }
+      }
+      return times;
+    }
+
+    const times = generateTradingTimes();
+    // 主图已移除，P&F 使用独立容器 `pfChart`
+
+    // 创建示例点数据（价格）
+    function createSampleData(base = 12.5) {
+      // 在交易时间段内生成随机价格点，部分时间点无数据 (null)
+      const data = times.map((t, i) => {
+        // 模拟盘中只有部分时间点有成交
+        if (Math.random() < 0.65) {
+          const noise = (Math.random() - 0.5) * 0.5; // +-0.25
+          const trend = Math.sin(i / 20) * 0.3;
+          const price = +(base + trend + noise).toFixed(2);
+          return [t, price];
+        } else {
+          return [t, null]; // 无数据点
+        }
+      });
+      return data;
+    }
+
+    // 更新图表
+    function setOption(data) {
+      const flattened = data.filter(d => d[1] !== null).map(d => d[1]);
+      const maxVal = flattened.length ? Math.max(...flattened) : null;
+      const minVal = flattened.length ? Math.min(...flattened) : null;
+      const avgVal = flattened.length ? (flattened.reduce((a,b)=>a+b,0)/flattened.length) : null;
+
+      const option = {
+        backgroundColor: 'transparent',
+        tooltip: {
+          trigger: 'item',
+          axisPointer: { type: 'line' },
+          formatter: function(params) {
+            if (!params || !params.value) return '';
+            const time = params.value[0];
+            const price = params.value[1];
+            return `<div style="font-weight:700;margin-bottom:6px;">${time}</div>
+                    <div>价格: <span style="color:#fff;font-weight:600;">${price.toFixed(2)}</span></div>`;
+          },
+          backgroundColor: 'rgba(8,12,20,0.9)',
+          textStyle: { color: '#e6eef8' }
+        },
+        grid: { left: 60, right: 40, top: 30, bottom: 40 },
+        xAxis: {
+          type: 'category',
+          data: times,
+          axisLabel: {
+            color: 'rgba(255,255,255,0.6)',
+            formatter: function (val, idx) {
+              // 仅显示 30 分钟或整点
+              return (val.endsWith(':00') || val.endsWith(':30')) ? val : '';
+            }
+          },
+          axisLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } },
+          splitLine: { show: false }
+        },
+        yAxis: {
+          type: 'value',
+          axisLabel: { color: 'rgba(255,255,255,0.6)' },
+          axisLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } },
+          splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)', type: 'dashed' } }
+        },
+        series: [
+          {
+            name: '价格点',
+            type: 'scatter',
+            symbolSize: function (val) {
+              // 大于均值的点稍大
+              if (!val || val[1] === null || avgVal === null) return 6;
+              return val[1] > avgVal ? 8 : 6;
+            },
+            itemStyle: {
+              color: function(params) {
+                const val = params.value && params.value[1];
+                if (val == null) return 'transparent';
+                if (avgVal != null) {
+                  return val >= avgVal ? '#ff6b6b' : '#22d3a6';
+                }
+                return '#4a9eff';
+              },
+              borderWidth: 0
+            },
+            data: data,
+            emphasis: { scale: true, scaleSize: 6 }
+          },
+          // 用折线表现趋势并隐藏点（便于观察整体走势）
+          {
+            name: '走势',
+            type: 'line',
+            smooth: true,
+            showSymbol: false,
+            lineStyle: { color: '#4a9eff', width: 2 },
+            itemStyle: { color: '#4a9eff' },
+            data: data.map(d => (d[1] === null ? null : d[1])),
+            xAxisIndex: 0,
+            yAxisIndex: 0
+          },
+          // 标记最大最小点
+          {
+            name: 'maxmin',
+            type: 'scatter',
+            data: data.filter(d => d[1] !== null),
+            symbolSize: 10,
+            itemStyle: { color: '#ffd166' },
+            markPoint: {
+              data: [
+                { type: 'max', name: '最高' },
+                { type: 'min', name: '最低' }
+              ],
+              label: { color: '#081226' },
+              itemStyle: { color: '#ffd166' }
+            },
+            tooltip: { show: false }
+          }
+        ]
+      };
+
+      // 主图不再渲染，直接渲染 P&F 图
+      try { renderPFChart(data, avgVal); } catch (e) { console.error('渲染P&F出错', e); }
+    }
+
+    // 初始化 — 改为使用真实 API 数据
+    let currentData = [];
+    let currentVolumeData = [];
+    // 从 URL 获取股票代码，优先查询 ?code=000001 格式
+    function getStockFromURL() {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get('code') || params.get('stock') || '000001';
+      return code;
+    }
+
+    async function fetchTrendData(stockCode, isIncremental = true) {
+      if (!stockCode) stockCode = getStockFromURL();
+      let xgbCode = '';
+      if (stockCode.substr(0,1) === '6') xgbCode = stockCode + '.SS';
+      else xgbCode = stockCode + '.SZ';
+      const url = "https://api-ddc-wscn.xuangubao.com.cn/market/trend?fields=tick_at,close_px,avg_px,turnover_volume,turnover_value,open_px,high_px,low_px,px_change,px_change_rate&prod_code=" + xgbCode;
+      try {
+        const resp = await fetch(url, {cache: 'no-store'});
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const data = await resp.json();
+        if (data && data.code === 20000 && data.data && data.data.candle && data.data.candle[xgbCode]) {
+          const stockData = data.data.candle[xgbCode];
+          const lines = stockData.lines || [];
+          // 构建 [time, close] 数组
+          const pf = lines.map(l => {
+            const ts = l[0];
+            const date = new Date(ts * 1000);
+            const time = String(date.getHours()).padStart(2,'0') + ':' + String(date.getMinutes()).padStart(2,'0');
+            return [time, Number(l[1])];
+          }).filter(d => !isNaN(d[1]));
+          
+          // 构建量能数据 [time, volume]
+          const volumeData = lines.map(l => {
+            const ts = l[0];
+            const date = new Date(ts * 1000);
+            const time = String(date.getHours()).padStart(2,'0') + ':' + String(date.getMinutes()).padStart(2,'0');
+            return [time, Number(l[3])]; // 第4个字段是成交量
+          }).filter(d => !isNaN(d[1]));
+          
+          if (pf.length === 0) {
+            console.warn('接口返回但没有分时数据，使用示例数据代替');
+            currentData = createSampleData(12.5);
+            currentVolumeData = createSampleVolumeData();
+            renderPFChart(currentData, 12.5, true);
+            renderVolumeChart(currentVolumeData);
+            return;
+          }
+          
+          if (isIncremental && currentData.length > 0) {
+            // 尝试增量更新
+            const hasNewData = incrementalUpdateData(pf);
+            const hasNewVolumeData = incrementalUpdateVolumeData(volumeData);
+            if (hasNewData || hasNewVolumeData) {
+              // 静默更新图表，不重新计算箱体，保持比例稳定
+              const validPrices = currentData.filter(d => d[1] !== null).map(d => d[1]);
+              const avg = validPrices.length ? (validPrices.reduce((a,b)=>a+b,0)/validPrices.length) : null;
+              // 确保有足够的数据生成P&F图表
+              if (validPrices.length > 1) {
+                renderPFChart(currentData, avg, false); // 不重新自动调整，保持箱体比例
+                renderVolumeChart(currentVolumeData);
+              }
+              return;
+            }
+          }
+          
+          // 全量更新或首次加载
+          currentData = pf;
+          currentVolumeData = volumeData;
+          const validPrices = currentData.filter(d => d[1] !== null).map(d => d[1]);
+          const avg = validPrices.length ? (validPrices.reduce((a,b)=>a+b,0)/validPrices.length) : null;
+          renderPFChart(currentData, avg, !isIncremental); // 首次加载或手动刷新时自动调整
+          renderVolumeChart(currentVolumeData);
+          
+        } else {
+          console.warn('选股宝 API 返回无效数据，使用示例数据');
+          currentData = createSampleData(12.5);
+          currentVolumeData = createSampleVolumeData();
+          const validPrices = currentData.filter(d => d[1] !== null).map(d => d[1]);
+          const avg = validPrices.length ? (validPrices.reduce((a,b)=>a+b,0)/validPrices.length) : null;
+          renderPFChart(currentData, avg, true);
+          renderVolumeChart(currentVolumeData);
+        }
+      } catch (e) {
+        console.error('获取分时 API 失败:', e);
+        // 失败时回退到示例数据
+        currentData = createSampleData(12.5);
+        currentVolumeData = createSampleVolumeData();
+        const validPrices = currentData.filter(d => d[1] !== null).map(d => d[1]);
+        const avg = validPrices.length ? (validPrices.reduce((a,b)=>a+b,0)/validPrices.length) : null;
+        renderPFChart(currentData, avg, true);
+        renderVolumeChart(currentVolumeData);
+      }
+    }
+
+    // 创建示例量能数据
+    function createSampleVolumeData() {
+      const data = times.map((t, i) => {
+        // 模拟盘中量能变化
+        if (Math.random() < 0.7) {
+          const baseVolume = 10000;
+          const noise = (Math.random() - 0.5) * 0.8; // +-40%
+          const trend = Math.sin(i / 15) * 0.5;
+          const volume = Math.round(baseVolume * (1 + trend + noise));
+          return [t, volume];
+        } else {
+          return [t, null];
+        }
+      });
+      return data;
+    }
+
+    // 增量更新量能数据函数
+    function incrementalUpdateVolumeData(newVolumeData) {
+      if (!currentVolumeData.length) {
+        currentVolumeData = newVolumeData;
+        return true;
+      }
+      
+      // 找到新数据中比当前数据更新的部分
+      const lastTime = currentVolumeData[currentVolumeData.length - 1][0];
+      const newDataIndex = newVolumeData.findIndex(item => item[0] === lastTime);
+      
+      if (newDataIndex === -1) {
+        // 没有找到匹配的时间点，可能是数据格式变化，使用全量更新
+        currentVolumeData = newVolumeData;
+        return true;
+      }
+      
+      // 只添加新的数据点
+      const additionalData = newVolumeData.slice(newDataIndex + 1);
+      if (additionalData.length > 0) {
+        currentVolumeData = [...currentVolumeData, ...additionalData];
+        return true;
+      }
+      
+      return false; // 没有新数据
+    }
+
+    // 立即获取并周期刷新（每3秒）
+    const stockCode = getStockFromURL();
+    fetchTrendData(stockCode);
+    const pfInterval = setInterval(()=>fetchTrendData(stockCode), 3000);
+
+    // 增量更新数据函数
+    function incrementalUpdateData(newData) {
+      if (!currentData.length) {
+        currentData = newData;
+        return true;
+      }
+      
+      // 找到新数据中比当前数据更新的部分
+      const lastTime = currentData[currentData.length - 1][0];
+      const newDataIndex = newData.findIndex(item => item[0] === lastTime);
+      
+      if (newDataIndex === -1) {
+        // 没有找到匹配的时间点，可能是数据格式变化，使用全量更新
+        currentData = newData;
+        return true;
+      }
+      
+      // 只添加新的数据点
+      const additionalData = newData.slice(newDataIndex + 1);
+      if (additionalData.length > 0) {
+        currentData = [...currentData, ...additionalData];
+        return true;
+      }
+      
+      return false; // 没有新数据
+    }
+
+
+    document.getElementById('download').addEventListener('click', function() {
+      const pfDom = document.getElementById('pfChart');
+      const pfInst = echarts.getInstanceByDom(pfDom);
+      if (pfInst) {
+        const url = pfInst.getDataURL({ pixelRatio: 2, backgroundColor: '#081226' });
+        const a = document.createElement('a');
+        a.href = url; a.download = 'pf-chart.png'; document.body.appendChild(a); a.click(); a.remove();
+      } else {
+        alert('P&F 图尚未准备好，无法导出');
+      }
+    });
+
+    // 自动调整按钮事件
+    document.getElementById('autoAdjust').addEventListener('click', function() {
+      try {
+        const validPrices = currentData.filter(d => d[1] !== null).map(d => d[1]);
+        const avg = validPrices.length ? (validPrices.reduce((a,b)=>a+b,0)/validPrices.length) : null;
+        renderPFChart(currentData, avg, true);
+      } catch(e) { console.error(e); }
+    });
+
+    // 自适应（调整 P&F 图）
+    window.addEventListener('resize', function(){ const pf = echarts.getInstanceByDom(document.getElementById('pfChart')); if(pf) pf.resize(); });
+
+    // 自动计算箱体大小的函数
+    function calculateOptimalBoxSize(data, containerWidth, containerHeight) {
+      const validPrices = data.filter(d => d[1] !== null).map(d => d[1]);
+      if (validPrices.length === 0) return 0.01;
+      
+      const minPrice = Math.min(...validPrices);
+      const maxPrice = Math.max(...validPrices);
+      const priceRange = maxPrice - minPrice;
+      
+      // 基于价格范围自动计算合适的箱体大小
+      let optimalBoxSize;
+      
+      if (priceRange <= 0.5) {
+        optimalBoxSize = 0.01; // 小范围价格使用小箱体
+      } else if (priceRange <= 2) {
+        optimalBoxSize = 0.02;
+      } else if (priceRange <= 5) {
+        optimalBoxSize = 0.05;
+      } else if (priceRange <= 10) {
+        optimalBoxSize = 0.1;
+      } else if (priceRange <= 20) {
+        optimalBoxSize = 0.2;
+      } else if (priceRange <= 50) {
+        optimalBoxSize = 0.5;
+      } else {
+        optimalBoxSize = 1.0; // 大范围价格使用大箱体
+      }
+      
+      // 确保箱体大小不会导致图表过于拥挤
+      const estimatedColumns = Math.ceil(priceRange / optimalBoxSize) * 2; // 估计列数
+      const maxColumns = Math.floor(containerWidth / 30); // 每列至少30像素宽度
+      
+      if (estimatedColumns > maxColumns) {
+        // 如果列数过多，调整箱体大小
+        optimalBoxSize = priceRange / (maxColumns / 2);
+        // 标准化到常见的箱体大小
+        if (optimalBoxSize < 0.01) optimalBoxSize = 0.01;
+        else if (optimalBoxSize < 0.02) optimalBoxSize = 0.02;
+        else if (optimalBoxSize < 0.05) optimalBoxSize = 0.05;
+        else if (optimalBoxSize < 0.1) optimalBoxSize = 0.1;
+        else if (optimalBoxSize < 0.2) optimalBoxSize = 0.2;
+        else if (optimalBoxSize < 0.5) optimalBoxSize = 0.5;
+        else optimalBoxSize = Math.ceil(optimalBoxSize);
+      }
+      
+      return Number(optimalBoxSize.toFixed(4));
+    }
+
+    // --- Point & Figure (P&F) functions ---
+    function buildPointAndFigure(data, boxSize, reversal) {
+      // data: [[time, price], ...]
+      const prices = data.filter(d => d[1] !== null).map(d => Number(d[1]));
+      if (!prices.length) return [];
+      const cols = [];
+      let lastPrice = prices[0];
+      let currentType = null; // 'X' or 'O'
+      let lastExtreme = lastPrice;
+      for (let i = 1; i < prices.length; i++) {
+        const p = prices[i];
+        if (currentType === null) {
+          if (p >= lastPrice + boxSize) {
+            currentType = 'X';
+            const startBox = Math.floor(lastPrice / boxSize);
+            const endBox = Math.floor(p / boxSize);
+            const boxes = [];
+            for (let b = startBox + 1; b <= endBox; b++) boxes.push(b);
+            cols.push({ type: 'X', boxes });
+            lastExtreme = p;
+          } else if (p <= lastPrice - boxSize) {
+            currentType = 'O';
+            const startBox = Math.floor(lastPrice / boxSize);
+            const endBox = Math.floor(p / boxSize);
+            const boxes = [];
+            for (let b = startBox - 1; b >= endBox; b--) boxes.push(b);
+            cols.push({ type: 'O', boxes });
+            lastExtreme = p;
+          }
+        } else if (currentType === 'X') {
+          if (p >= lastExtreme + boxSize) {
+            const startBox = Math.floor(lastExtreme / boxSize);
+            const endBox = Math.floor(p / boxSize);
+            for (let b = startBox + 1; b <= endBox; b++) {
+              cols[cols.length - 1].boxes.push(b);
+            }
+            lastExtreme = p;
+          } else if (p <= lastExtreme - reversal * boxSize) {
+            currentType = 'O';
+            const startBox = Math.floor(lastExtreme / boxSize);
+            const endBox = Math.floor(p / boxSize);
+            const boxes = [];
+            for (let b = startBox - 1; b >= endBox; b--) boxes.push(b);
+            cols.push({ type: 'O', boxes });
+            lastExtreme = p;
+          }
+        } else if (currentType === 'O') {
+          if (p <= lastExtreme - boxSize) {
+            const startBox = Math.floor(lastExtreme / boxSize);
+            const endBox = Math.floor(p / boxSize);
+            for (let b = startBox - 1; b >= endBox; b--) {
+              cols[cols.length - 1].boxes.push(b);
+            }
+            lastExtreme = p;
+          } else if (p >= lastExtreme + reversal * boxSize) {
+            currentType = 'X';
+            const startBox = Math.floor(lastExtreme / boxSize);
+            const endBox = Math.floor(p / boxSize);
+            const boxes = [];
+            for (let b = startBox + 1; b <= endBox; b++) boxes.push(b);
+            cols.push({ type: 'X', boxes });
+            lastExtreme = p;
+          }
+        }
+        lastPrice = p;
+      }
+      return cols;
+    }
+
+    let currentPFChart = null;
+    let currentBoxSize = null;
+    
+    function renderPFChart(data, priceBase, autoAdjust = false) {
+      const pfDom = document.getElementById('pfChart');
+      if (!pfDom) return;
+      if (pfDom.offsetWidth === 0 || pfDom.offsetHeight === 0) return;
+      
+      // 检查是否有有效数据
+      const validPrices = data.filter(d => d[1] !== null).map(d => d[1]);
+      if (validPrices.length < 2) {
+        pfDom.innerHTML = '<div style="color:#cfe8ff;padding:16px;text-align:center;">数据不足，无法生成P&F图表</div>';
+        return;
+      }
+      
+      // 只在需要时重新创建图表实例
+      if (!currentPFChart || autoAdjust) {
+        if (currentPFChart) currentPFChart.dispose();
+        currentPFChart = echarts.init(pfDom);
+      }
+
+      const reversalInput = document.getElementById('pfReversal');
+      const reversal = reversalInput ? parseInt(reversalInput.value) : 1;
+      
+      // 保持箱体大小稳定，除非强制重新计算
+      let boxSize;
+      if (autoAdjust || !currentBoxSize) {
+        // 自动计算箱体大小
+        boxSize = calculateOptimalBoxSize(data, pfDom.offsetWidth, pfDom.offsetHeight);
+        currentBoxSize = boxSize; // 保存当前箱体大小
+      } else {
+        // 使用之前计算的箱体大小，保持比例稳定
+        boxSize = currentBoxSize;
+      }
+
+      let cols = buildPointAndFigure(data, boxSize, reversal);
+      // 如果没有生成列，尝试降级的箱体大小（更小百分比或最小价格步长）
+      if (!cols || cols.length === 0) {
+        console.warn('初始箱体未生成 P&F 列，尝试降级箱体');
+        const trySizes = [];
+        try {
+          // 基于价格的更小百分比尝试
+          trySizes.push(Number((priceBase * 0.001).toFixed(4))); // 0.1%
+          trySizes.push(0.01); // 固定 0.01 元
+          trySizes.push(0.005);
+        } catch (e) {}
+        for (let s of trySizes) {
+          if (!s || s <= 0) continue;
+          cols = buildPointAndFigure(data, s, reversal);
+          if (cols && cols.length > 0) {
+            console.info('降级箱体成功，使用箱体 =', s);
+            // 更新提示到 DOM 上
+            const existingMsg = pfDom.querySelector('div[style*="position:absolute"]');
+            if (!existingMsg) {
+              pfDom.innerHTML = '<div style="position:absolute;left:12px;top:12px;color:#ffd966;z-index:10001;padding:6px;background:rgba(0,0,0,0.4);border-radius:4px;font-size:12px;">P&F 使用箱体: ' + s + '</div>' + pfDom.innerHTML;
+            }
+            break;
+          }
+        }
+      }
+      if (!cols || cols.length === 0) {
+        pfChart.clear();
+        pfDom.innerHTML = '<div style="color:#cfe8ff;padding:16px;text-align:center;">P&F 数据不足（价格波动未超过箱体）</div>';
+        return;
+      }
+
+      let minBox = Infinity, maxBox = -Infinity;
+      cols.forEach(c => c.boxes.forEach(b => { minBox = Math.min(minBox, b); maxBox = Math.max(maxBox, b); }));
+      const minPrice = minBox * boxSize;
+      const maxPrice = (maxBox + 1) * boxSize;
+      
+      // 更新信息面板
+      const validPricesForInfo = data.filter(d => d[1] !== null).map(d => d[1]);
+      const actualMinPrice = Math.min(...validPricesForInfo);
+      const actualMaxPrice = Math.max(...validPricesForInfo);
+      
+      document.getElementById('currentBoxSize').textContent = boxSize.toFixed(4);
+      document.getElementById('priceRange').textContent = `${actualMinPrice.toFixed(2)} - ${actualMaxPrice.toFixed(2)}`;
+      document.getElementById('columnCount').textContent = cols.length;
+
+      const xData = cols.map((c, i) => (i + 1).toString());
+      const dataX = [];
+      const dataO = [];
+      cols.forEach((c, i) => {
+        c.boxes.forEach(b => {
+          const price = (b + 0.5) * boxSize;
+          if (c.type === 'X') dataX.push([i, price]); else dataO.push([i, price]);
+        });
+      });
+
+      const option = {
+        backgroundColor: 'transparent',
+        tooltip: { 
+          trigger: 'item',
+          formatter: function(params) { 
+            return '列: ' + (params.value[0]+1) + '<br/>价格: ' + params.value[1].toFixed(2); 
+          }
+        },
+        grid: { left: 40, right: 20, top: 12, bottom: 12 },
+        xAxis: { 
+          type: 'category', 
+          data: xData, 
+          axisLabel: { color: 'rgba(255,255,255,0.6)' }
+        },
+        yAxis: { 
+          type: 'value', 
+          min: minPrice, 
+          max: maxPrice, 
+          interval: boxSize, 
+          axisLabel: { color: 'rgba(255,255,255,0.6)' },
+          splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)', type: 'dashed' } }
+        },
+        series: [
+          { name: 'X', type: 'scatter', data: dataX, symbol: 'rect', symbolSize: Math.min(28, (pfDom.offsetWidth / Math.max(10, xData.length)) - 6), itemStyle: { color: '#ff6b6b' }, label: { show: true, formatter: 'X', color: '#081226', fontWeight: '700' } },
+          { name: 'O', type: 'scatter', data: dataO, symbol: 'rect', symbolSize: Math.min(28, (pfDom.offsetWidth / Math.max(10, xData.length)) - 6), itemStyle: { color: '#22d3a6' }, label: { show: true, formatter: 'O', color: '#081226', fontWeight: '700' } }
+        ],
+        // 启用ECharts内置缩放功能 - 整个画布缩放，允许无限缩放
+        dataZoom: [
+          {
+            type: 'inside',
+            xAxisIndex: 0,
+            start: 0,
+            end: 100,
+            zoomOnMouseWheel: true,
+            moveOnMouseMove: true,
+            moveOnMouseWheel: false,
+            minValueSpan: 1, // 最小显示1个数据点
+            maxValueSpan: xData.length * 100 // 允许放大到100倍数据范围
+          },
+          {
+            type: 'inside',
+            yAxisIndex: 0,
+            start: 0,
+            end: 100,
+            zoomOnMouseWheel: true,
+            moveOnMouseMove: true,
+            moveOnMouseWheel: false,
+            minValueSpan: 0.0001, // 最小显示0.0001的价格范围
+            maxValueSpan: (maxPrice - minPrice) * 100 // 允许放大到100倍价格范围
+          }
+        ]
+      };
+      
+      
+      // 使用 setOption 而不是重新创建图表，避免闪烁
+      currentPFChart.setOption(option, { notMerge: true });
+      
+      window.addEventListener('resize', function(){ try{ currentPFChart.resize(); }catch(e){} });
+    }
+
+    // Apply button - 强制重新计算
+    document.getElementById('applyPf').addEventListener('click', function(){
+      try {
+        const validPrices = currentData.filter(d => d[1] !== null).map(d => d[1]);
+        const avg = validPrices.length ? (validPrices.reduce((a,b)=>a+b,0)/validPrices.length) : null;
+        renderPFChart(currentData, avg, true); // 强制重新计算
+      } catch(e) { console.error(e); }
+    });
+
+    // 重置缩放按钮事件
+    document.getElementById('resetZoom').addEventListener('click', function(){
+      resetZoom();
+    });
+
+    // 自动调整按钮事件
+    document.getElementById('autoAdjust').addEventListener('click', function(){
+      try {
+        const validPrices = currentData.filter(d => d[1] !== null).map(d => d[1]);
+        const avg = validPrices.length ? (validPrices.reduce((a,b)=>a+b,0)/validPrices.length) : null;
+        renderPFChart(currentData, avg, true);
+      } catch(e) { console.error(e); }
+    });
+
+    // 重置缩放功能
+    function resetZoom() {
+      if (currentPFChart) {
+        currentPFChart.dispatchAction({
+          type: 'dataZoom',
+          start: 0,
+          end: 100,
+          xAxisIndex: 0
+        });
+        currentPFChart.dispatchAction({
+          type: 'dataZoom',
+          start: 0,
+          end: 100,
+          yAxisIndex: 0
+        });
+      }
+    }
+
+    // 量能图表渲染函数
+    let currentVolumeChart = null;
+    function renderVolumeChart(volumeData) {
+      const volumeDom = document.getElementById('volumeChart');
+      if (!volumeDom) return;
+      if (volumeDom.offsetWidth === 0 || volumeDom.offsetHeight === 0) return;
+      
+      // 检查是否有有效数据
+      const validVolumes = volumeData.filter(d => d[1] !== null).map(d => d[1]);
+      if (validVolumes.length < 2) {
+        volumeDom.innerHTML = '<div style="color:#cfe8ff;padding:8px;text-align:center;font-size:12px;">量能数据不足</div>';
+        return;
+      }
+      
+      // 只在需要时重新创建图表实例
+      if (!currentVolumeChart) {
+        currentVolumeChart = echarts.init(volumeDom);
+      }
+
+      // 计算量能数据
+      const times = volumeData.map(d => d[0]);
+      const volumes = volumeData.map(d => d[1] || 0);
+      const maxVolume = Math.max(...validVolumes);
+      
+      const option = {
+        backgroundColor: 'transparent',
+        tooltip: {
+          trigger: 'axis',
+          axisPointer: { type: 'line' },
+          formatter: function(params) {
+            if (!params || !params[0]) return '';
+            const time = params[0].axisValue;
+            const volume = params[0].data;
+            return `<div style="font-weight:700;margin-bottom:6px;">${time}</div>
+                    <div>成交量: <span style="color:#fff;font-weight:600;">${volume.toLocaleString()}</span></div>`;
+          },
+          backgroundColor: 'rgba(8,12,20,0.9)',
+          textStyle: { color: '#e6eef8' }
+        },
+        grid: { left: 40, right: 20, top: 8, bottom: 20 },
+        xAxis: {
+          type: 'category',
+          data: times,
+          axisLabel: { 
+            color: 'rgba(255,255,255,0.6)',
+            fontSize: 10,
+            formatter: function (val, idx) {
+              // 仅显示整点时间
+              return val.endsWith(':00') ? val : '';
+            }
+          },
+          axisLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } },
+          splitLine: { show: false }
+        },
+        yAxis: {
+          type: 'value',
+          axisLabel: { 
+            color: 'rgba(255,255,255,0.6)',
+            fontSize: 10,
+            formatter: function(value) {
+              if (value >= 10000) return (value / 10000).toFixed(1) + '万';
+              return value;
+            }
+          },
+          axisLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } },
+          splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)', type: 'dashed' } }
+        },
+        series: [
+          {
+            name: '成交量',
+            type: 'bar',
+            data: volumes,
+            itemStyle: {
+              color: function(params) {
+                const index = params.dataIndex;
+                if (index > 0) {
+                  const currentPrice = currentData[index] ? currentData[index][1] : null;
+                  const prevPrice = currentData[index - 1] ? currentData[index - 1][1] : null;
+                  if (currentPrice !== null && prevPrice !== null) {
+                    return currentPrice >= prevPrice ? '#ff6b6b' : '#22d3a6';
+                  }
+                }
+                return '#4a9eff';
+              }
+            },
+            barWidth: '60%',
+            emphasis: {
+              itemStyle: {
+                shadowBlur: 10,
+                shadowColor: 'rgba(255,255,255,0.3)'
+              }
+            }
+          }
+        ],
+        // 启用ECharts内置缩放功能 - 与P&F图表联动
+        dataZoom: [
+          {
+            type: 'inside',
+            xAxisIndex: 0,
+            start: 0,
+            end: 100,
+            zoomOnMouseWheel: false, // 不在量能图表上缩放
+            moveOnMouseMove: true,
+            moveOnMouseWheel: false
+          }
+        ]
+      };
+      
+      // 使用 setOption 而不是重新创建图表，避免闪烁
+      currentVolumeChart.setOption(option, { notMerge: true });
+      
+      // 监听P&F图表的缩放事件，同步量能图表
+      if (currentPFChart) {
+        currentPFChart.on('dataZoom', function(params) {
+          if (currentVolumeChart && params.batch && params.batch[0]) {
+            const zoomInfo = params.batch[0];
+            currentVolumeChart.dispatchAction({
+              type: 'dataZoom',
+              start: zoomInfo.start,
+              end: zoomInfo.end,
+              xAxisIndex: 0
+            });
+          }
+        });
+      }
+      
+      window.addEventListener('resize', function(){ try{ currentVolumeChart.resize(); }catch(e){} });
+    }
+
+    // 初始化时自动调整
+    setTimeout(() => {
+      if (currentData.length > 0) {
+        const validPrices = currentData.filter(d => d[1] !== null).map(d => d[1]);
+        const avg = validPrices.length ? (validPrices.reduce((a,b)=>a+b,0)/validPrices.length) : null;
+        renderPFChart(currentData, avg, true);
+        if (currentVolumeData.length > 0) {
+          renderVolumeChart(currentVolumeData);
+        }
+      }
+    }, 1500);
+  </script>
+</body>
+</html>

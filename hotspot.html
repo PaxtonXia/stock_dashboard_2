@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>最强风口</title>
+    <link rel="stylesheet" href="css/font-awesome/all.min.css">
+    <link rel="stylesheet" href="css/main.css">
+    <!-- Modal styles -->
+    <link rel="stylesheet" href="css/base.css">
+    <!-- 引入ECharts库 -->
+    <script src="js/echarts.js"></script>
+    <!-- 只引入必要的JS文件 -->
+    <script src="js/jquery.min.js"></script>
+    <script src="js/hotspot.js"></script>
+    <script src="js/utils.js"></script>
+</head>
+<body>
+    <!-- Modal HTML -->
+    <div id="stockModal" class="modal-overlay">
+        <div class="modal-content">
+            <span class="modal-close">&times;</span>
+            <iframe id="stockModalFrame" class="modal-iframe"></iframe>
+        </div>
+    </div>
+    <div class="brand-bar">
+        <div class="brand-logo"><i class="fas fa-chart-line"></i></div>
+        <div>
+            <div class="brand-title">最强风口</div>
+            <div class="brand-sub">实时追踪市场热点板块和概念</div>
+        </div>
+        <div id="current-time" style="margin-left: auto; padding-right: 20px; font-size: 14px; color: #d0d0d0;"></div>
+    </div>
+    
+    <div class="dashboard" style="justify-content: center;">
+        <!-- 最强风口板块卡片网格 -->
+        <div class="card hotspot-card">
+            <div class="card-title"><i class="fas fa-fire"></i> 最强风口 - 板块走势
+                <i class="fas fa-external-link-alt" title="风格主题趋势" style="margin-left:8px; color:#ff9800; cursor:pointer; font-size:15px; vertical-align:middle;" onclick="openStockModal('theme-trend.html')"></i>
+            </div>
+            <div class="hotspot-container" id="hotspotContainer">
+                <!-- 板块卡片网格 -->
+                <div class="plate-cards-grid" id="plateCardsGrid">
+                    <!-- 动态生成板块卡片 -->
+                </div>
+                <!-- 加载和错误提示 -->
+                <div id="loading-hotspot">加载中...</div>
+                <div id="error-hotspot"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Update current time with full date and market status
+        function updateCurrentTime() {
+            const timeElement = document.getElementById('current-time');
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = (now.getMonth() + 1).toString().padStart(2, '0');
+            const day = now.getDate().toString().padStart(2, '0');
+            const hours = now.getHours().toString().padStart(2, '0');
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            const seconds = now.getSeconds().toString().padStart(2, '0');
+            
+            // Check if it's a trading day (Monday to Friday)
+            const isTradingDay = now.getDay() >= 1 && now.getDay() <= 5;
+            
+            // Check if it's trading hours (9:30-11:30 or 13:00-15:00)
+            const currentTime = `${hours}:${minutes}`;
+            const isMorningTrading = currentTime >= '09:30' && currentTime <= '11:30';
+            const isAfternoonTrading = currentTime >= '13:00' && currentTime <= '15:00';
+            const isTradingHours = isMorningTrading || isAfternoonTrading;
+            
+            // Determine market status
+            let marketStatus = '';
+            if (!isTradingDay) {
+                marketStatus = ' (休市中)';
+            } else if (isTradingHours) {
+                marketStatus = ' (交易中)';
+            } else {
+                marketStatus = ' (非交易时间)';
+            }
+            
+            timeElement.textContent = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}${marketStatus}`;
+        }
+        
+        // Update time immediately and every second
+        updateCurrentTime();
+        setInterval(updateCurrentTime, 1000);
+
+        // Modal functions
+        function openStockModal(url) {
+            document.getElementById('stockModalFrame').src = url;
+            document.getElementById('stockModal').style.display = 'block';
+        }
+        
+        function closeStockModal() {
+            document.getElementById('stockModal').style.display = 'none';
+            document.getElementById('stockModalFrame').src = '';
+        }
+        
+        // Close modal when clicking X or outside
+        document.querySelector('.modal-close').addEventListener('click', closeStockModal);
+        document.getElementById('stockModal').addEventListener('click', function(e) {
+            if (e.target === this) closeStockModal();
+        });
+        
+        // 复制股票代码到剪贴板
+        function copyStockCode(code, name) {
+            // 阻止事件冒泡，避免触发股票项的点击事件
+            event.stopPropagation();
+            
+            // 创建临时textarea元素
+            const textarea = document.createElement('textarea');
+            textarea.value = code;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            
+            try {
+                // 执行复制命令
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    // 复制成功，显示提示
+                    showCopySuccess(name, code);
+                } else {
+                    // 复制失败，尝试使用新的Clipboard API
+                    if (navigator.clipboard) {
+                        navigator.clipboard.writeText(code).then(() => {
+                            showCopySuccess(name, code);
+                        }).catch(() => {
+                            showCopyError();
+                        });
+                    } else {
+                        showCopyError();
+                    }
+                }
+            } catch (err) {
+                // 复制失败，尝试使用新的Clipboard API
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(code).then(() => {
+                        showCopySuccess(name, code);
+                    }).catch(() => {
+                        showCopyError();
+                    });
+                } else {
+                    showCopyError();
+                }
+            } finally {
+                // 清理临时元素
+                document.body.removeChild(textarea);
+            }
+        }
+        
+        // 智能复制股票代码
+        function copyStocks(plateId, plateName) {
+            // 阻止事件冒泡
+            event.stopPropagation();
+            
+            // 检查是否勾选了过滤涨停
+            const checkbox = document.querySelector(`[data-plate-id="${plateId}"] .filter-checkbox`);
+            const isFilterLimitUp = checkbox.checked;
+            
+            // 查找该板块下的股票
+            const stockItems = document.querySelectorAll(`[data-plate-id="${plateId}"] .plate-stock-item`);
+            const stockCodes = [];
+            
+            stockItems.forEach(item => {
+                // 如果勾选了过滤涨停，只复制未涨停的股票
+                if (isFilterLimitUp) {
+                    const isLimitUp = item.getAttribute('data-is-limit-up') === 'true';
+                    if (!isLimitUp) {
+                        const codeElement = item.querySelector('.plate-stock-code');
+                        if (codeElement) {
+                            stockCodes.push(codeElement.textContent.trim());
+                        }
+                    }
+                } else {
+                    // 如果没有勾选过滤，复制所有股票
+                    const codeElement = item.querySelector('.plate-stock-code');
+                    if (codeElement) {
+                        stockCodes.push(codeElement.textContent.trim());
+                    }
+                }
+            });
+            
+            if (stockCodes.length === 0) {
+                const errorMsg = isFilterLimitUp ? '没有找到未涨停的股票' : '没有找到相关股票';
+                showCopyError(errorMsg);
+                return;
+            }
+            
+            // 将股票代码用逗号分隔
+            const codesText = stockCodes.join(',');
+            
+            // 创建临时textarea元素
+            const textarea = document.createElement('textarea');
+            textarea.value = codesText;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            
+            try {
+                // 执行复制命令
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    // 复制成功，显示提示
+                    const successMsg = isFilterLimitUp ? `${stockCodes.length}只未涨停股票` : `${stockCodes.length}只股票`;
+                    showCopySuccess(plateName, successMsg);
+                } else {
+                    // 复制失败，尝试使用新的Clipboard API
+                    if (navigator.clipboard) {
+                        navigator.clipboard.writeText(codesText).then(() => {
+                            const successMsg = isFilterLimitUp ? `${stockCodes.length}只未涨停股票` : `${stockCodes.length}只股票`;
+                            showCopySuccess(plateName, successMsg);
+                        }).catch(() => {
+                            showCopyError();
+                        });
+                    } else {
+                        showCopyError();
+                    }
+                }
+            } catch (err) {
+                // 复制失败，尝试使用新的Clipboard API
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(codesText).then(() => {
+                        const successMsg = isFilterLimitUp ? `${stockCodes.length}只未涨停股票` : `${stockCodes.length}只股票`;
+                        showCopySuccess(plateName, successMsg);
+                    }).catch(() => {
+                        showCopyError();
+                    });
+                } else {
+                    showCopyError();
+                }
+            } finally {
+                // 清理临时元素
+                document.body.removeChild(textarea);
+            }
+        }
+        
+        // 显示复制成功提示
+        function showCopySuccess(name, code) {
+            // 创建提示元素
+            const toast = document.createElement('div');
+            toast.textContent = `已复制 ${name} (${code})`;
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #4CAF50;
+                color: white;
+                padding: 12px 20px;
+                border-radius: 4px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                z-index: 10000;
+                font-size: 14px;
+                animation: slideIn 0.3s ease-out;
+            `;
+            
+            // 添加动画样式
+            if (!document.getElementById('toast-animations')) {
+                const style = document.createElement('style');
+                style.id = 'toast-animations';
+                style.textContent = `
+                    @keyframes slideIn {
+                        from {
+                            transform: translateX(100%);
+                            opacity: 0;
+                        }
+                        to {
+                            transform: translateX(0);
+                            opacity: 1;
+                        }
+                    }
+                    @keyframes slideOut {
+                        from {
+                            transform: translateX(0);
+                            opacity: 1;
+                        }
+                        to {
+                            transform: translateX(100%);
+                            opacity: 0;
+                        }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            document.body.appendChild(toast);
+            
+            // 3秒后自动移除
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease-out';
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        document.body.removeChild(toast);
+                    }
+                }, 300);
+            }, 3000);
+        }
+        
+        // 显示复制失败提示
+        function showCopyError() {
+            const toast = document.createElement('div');
+            toast.textContent = '复制失败，请手动复制';
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #f44336;
+                color: white;
+                padding: 12px 20px;
+                border-radius: 4px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                z-index: 10000;
+                font-size: 14px;
+                animation: slideIn 0.3s ease-out;
+            `;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease-out';
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        document.body.removeChild(toast);
+                    }
+                }, 300);
+            }, 3000);
+        }
+    </script>
+
+    <style>
+/* 修改最强风口卡片样式 */
+        .hotspot-card {
+            min-height: 725px;  /* 最小高度725px，允许自适应扩展 */
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 18px;
+        }
+
+.hotspot-container {
+    flex: 1;
+    overflow-y: auto;  /* 添加垂直滚动条 */
+    padding: 12px;
+    margin: 8px 0;
+}
+
+/* 板块卡片网格布局 */
+.plate-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    padding: 8px;
+}
+
+/* 单个板块卡片样式 */
+.plate-card {
+    background: #252538;
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s, box-shadow 0.2s;
+    display: flex;
+    flex-direction: column;
+    min-height: 280px;
+}
+
+.plate-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* 板块卡片头部 */
+.plate-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.plate-card-title {
+    font-size: 16px;
+    font-weight: bold;
+    color: #e0e0e0;
+    flex: 1;
+}
+
+.plate-card-change {
+    font-size: 14px;
+    font-weight: bold;
+    padding: 4px 8px;
+    border-radius: 4px;
+    margin-left: 8px;
+}
+
+.plate-card-change.positive {
+    color: #ff5252;
+    background: rgba(255, 82, 82, 0.1);
+}
+
+.plate-card-change.negative {
+    color: #22e090;
+    background: rgba(34, 224, 144, 0.1);
+}
+
+/* 板块描述 */
+.plate-card-desc {
+    color: #aaa;
+    font-size: 12px;
+    line-height: 1.4;
+    margin-bottom: 12px;
+    flex-shrink: 0;
+}
+
+/* 走势图容器 */
+.plate-chart-container {
+    flex: 1;
+    min-height: 180px;
+    position: relative;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+    padding: 8px;
+    margin-bottom: 12px;
+}
+
+.plate-chart {
+    width: 100%;
+    height: 100%;
+}
+
+/* 加载状态 */
+.plate-card-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #aaa;
+    font-size: 12px;
+}
+
+/* 连接线容器 */
+.plate-connection {
+    position: relative;
+    padding: 8px 0;
+    margin: 8px 0;
+}
+
+.plate-connection::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 20px;
+    right: 20px;
+    height: 1px;
+    background: linear-gradient(90deg, 
+        transparent 0%, 
+        rgba(255, 255, 255, 0.2) 20%, 
+        rgba(255, 255, 255, 0.3) 50%, 
+        rgba(255, 255, 255, 0.2) 80%, 
+        transparent 100%);
+}
+
+/* 股票列表标题 */
+.plate-stocks-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: #aaa;
+    margin-bottom: 8px;
+    padding-left: 4px;
+}
+
+.plate-stocks-title-left {
+    display: flex;
+    align-items: center;
+}
+
+.plate-stocks-title-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* 过滤涨停复选框 */
+.filter-limit-up {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 11px;
+    color: #aaa;
+    transition: color 0.2s ease;
+}
+
+.filter-limit-up:hover {
+    color: #4a9eff;
+}
+
+.filter-checkbox {
+    margin: 0;
+    cursor: pointer;
+    width: 14px;
+    height: 14px;
+}
+
+.filter-text {
+    white-space: nowrap;
+}
+
+/* 股票列表 */
+.plate-stocks-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 120px;
+    max-height: 120px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+/* 空股票占位项 */
+.plate-stock-placeholder {
+    visibility: hidden;
+    height: 0;
+    padding: 0;
+    margin: 0;
+}
+
+/* 股票列表滚动条 */
+.plate-stocks-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.plate-stocks-list::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 2px;
+}
+
+.plate-stocks-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+}
+
+.plate-stocks-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* 单个股票项 */
+.plate-stock-item {
+    display: flex;
+    align-items: center;
+    padding: 6px 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    position: relative;
+    gap: 8px;
+}
+
+.plate-stock-item::before {
+    content: '';
+    position: absolute;
+    left: -8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.6);
+}
+
+.plate-stock-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateX(4px);
+}
+
+.plate-stock-item:hover::before {
+    background: #4a9eff;
+    width: 4px;
+    height: 4px;
+}
+
+/* 股票进度条 */
+.plate-stock-progress {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+    width: 100%;
+}
+
+.progress-bar {
+    flex: 1;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    transition: width 0.3s ease, background-color 0.3s ease;
+    border-radius: 2px;
+}
+
+.progress-text {
+    font-size: 9px;
+    color: #888;
+    min-width: 20px;
+    text-align: right;
+    font-weight: bold;
+}
+
+/* 股票信息 */
+.plate-stock-info {
+    display: flex;
+    align-items: center;
+    min-width: 90px;
+    max-width: 120px;
+}
+
+.plate-stock-name {
+    font-size: 12px;
+    font-weight: bold;
+    color: #e0e0e0;
+    margin-right: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.plate-stock-code {
+    font-size: 11px;
+    color: #888;
+    white-space: nowrap;
+}
+
+/* 股票中间区域 */
+.plate-stock-middle {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 80px;
+    max-width: 120px;
+    margin: 0 8px;
+}
+
+/* 股票进度条 */
+.plate-stock-progress {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+}
+
+.progress-bar {
+    flex: 1;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+    min-width: 40px;
+}
+
+.progress-fill {
+    height: 100%;
+    transition: width 0.3s ease, background-color 0.3s ease;
+    border-radius: 2px;
+}
+
+.progress-text {
+    font-size: 9px;
+    color: #888;
+    min-width: 20px;
+    text-align: right;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+/* 股票右侧容器 */
+.plate-stock-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 70px;
+    justify-content: flex-end;
+}
+
+/* 股票涨跌幅 */
+.plate-stock-change {
+    font-size: 12px;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+.plate-stock-change.positive {
+    color: #ff5252;
+    background: rgba(255, 82, 82, 0.1);
+}
+
+.plate-stock-change.negative {
+    color: #22e090;
+    background: rgba(34, 224, 144, 0.1);
+}
+
+/* 复制按钮样式 */
+.copy-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #aaa;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    min-height: 20px;
+}
+
+.copy-btn:hover {
+    background: rgba(74, 158, 255, 0.2);
+    border-color: #4a9eff;
+    color: #4a9eff;
+    transform: scale(1.05);
+}
+
+.copy-btn:active {
+    transform: scale(0.95);
+}
+
+.copy-btn i {
+    font-size: 10px;
+}
+
+/* 复制按钮样式（板块级别） */
+.copy-btn {
+    background: rgba(74, 158, 255, 0.15);
+    border: 1px solid rgba(74, 158, 255, 0.3);
+    color: #4a9eff;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.copy-btn:hover {
+    background: rgba(74, 158, 255, 0.25);
+    border-color: #4a9eff;
+    transform: translateY(-1px);
+}
+
+.copy-btn:active {
+    transform: translateY(0);
+}
+
+.copy-btn i {
+    font-size: 10px;
+}
+
+/* 涨停股票特殊样式 */
+.plate-stock-item.limit-up {
+    background: rgba(255, 82, 82, 0.15);
+    border-left: 3px solid #ff5252;
+}
+
+.plate-stock-item.limit-up:hover {
+    background: rgba(255, 82, 82, 0.25);
+    transform: translateX(4px);
+}
+
+.plate-stock-item.limit-up::before {
+    background: #ff5252;
+    width: 4px;
+    height: 4px;
+    left: -10px;
+}
+
+.plate-stock-item.limit-up .plate-stock-change {
+    background: rgba(255, 82, 82, 0.2);
+    color: #ff3333;
+    font-weight: bold;
+}
+
+/* 响应式调整 */
+@media screen and (max-width: 768px) {
+    .plate-cards-grid {
+        grid-template-columns: 1fr;
+    }
+}
+    </style>
+</body>
+</html>
+    background: rgba(76, 175, 80, 0.25);
+.plate-stock-item.limit-up:hover {

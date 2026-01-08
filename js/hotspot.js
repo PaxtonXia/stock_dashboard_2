@@ -289,9 +289,14 @@ class HotspotManager {
         const nonLimitUpCount = totalCount - limitUpCount;
         
         // 生成股票列表HTML
-        const stockItems = stocks.map(stock => `
+        const stockItems = stocks.map(stock => {
+            // 处理股票说明，如果过长则截断
+            const description = stock.description || '暂无说明';
+            const shortDesc = description.length > 50 ? description.substring(0, 50) + '...' : description;
+            
+            return `
             <div class="plate-stock-item ${stock.isLimitUp ? 'limit-up' : ''}" data-is-limit-up="${stock.isLimitUp}">
-                <div class="plate-stock-info" onclick="openStockModal('${stock.url}')">
+                <div class="plate-stock-info" onclick="openStockModal('${stock.url}')" data-tooltip="${description}">
                     <span class="plate-stock-name">${stock.name}</span>
                     <span class="plate-stock-code">${stock.code}</span>
                 </div>
@@ -312,7 +317,8 @@ class HotspotManager {
                     </button>
                 </div>
             </div>
-        `).join('');
+            `;
+        }).join('');
         
         // 添加空占位项，确保至少有5个项（实际股票+占位符）
         const placeholderCount = Math.max(0, 5 - stocks.length);

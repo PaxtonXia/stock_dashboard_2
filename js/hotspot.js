@@ -151,8 +151,15 @@ class HotspotManager {
             return [];
         }
         
-        // 返回所有板块数据
-        return apiData.data.items.map(plate => {
+        // 过滤掉"其他"和"ST股"板块
+        const filteredPlates = apiData.data.items.filter(plate => {
+            const plateName = plate.name || '';
+            // 过滤掉包含"其他"或"ST"的板块
+            return !plateName.includes('其他') && !plateName.includes('ST');
+        });
+        
+        // 返回过滤后的板块数据
+        return filteredPlates.map(plate => {
             // 尝试多种可能的ID字段
             const plateId = plate.id || plate.plate_id || plate.uid;
             const stocks = this.hotspotStocksData.stocks[plateId] || [];
@@ -214,7 +221,7 @@ class HotspotManager {
         } else if (increase > 0) {
             return `${plate.name || '该板块'}小幅上涨，市场情绪平稳，资金小幅流入`;
         } else {
-            return `${plate.name || '该板块'}走势平淡，等待市场方向选择`;
+            return `${plate.name }`;
         }
     }
 
@@ -277,10 +284,15 @@ class HotspotManager {
     }
 
     // 渲染单个板块卡片
-    renderPlateCard(plate) {
+    renderPlateCard(plate, isMainLine = false) {
         const cardElement = document.createElement('div');
         cardElement.className = 'plate-card';
         cardElement.setAttribute('data-plate-id', plate.id);
+        
+        // 如果标记为主线，添加特殊样式
+        if (isMainLine) {
+            cardElement.classList.add('main-line-card');
+        }
         
         // 统计涨停股票数量
         const stocks = plate.stocks || [];
@@ -324,6 +336,9 @@ class HotspotManager {
         const placeholderCount = Math.max(0, 5 - stocks.length);
         const placeholders = Array(placeholderCount).fill('<div class="plate-stock-placeholder"></div>').join('');
         
+        // 主线标记
+        const mainLineBadge = isMainLine ? '<div class="main-line-badge">主线</div>' : '';
+        
         const stocksHtml = `
             <div class="plate-connection"></div>
             <div class="plate-stocks-title">
@@ -349,7 +364,7 @@ class HotspotManager {
         
         cardElement.innerHTML = `
             <div class="plate-card-header">
-                <div class="plate-card-title">${plate.name}</div>
+                <div class="plate-card-title">${plate.name}${mainLineBadge}</div>
                 <div class="plate-card-change ${plate.increase >= 0 ? 'positive' : 'negative'}">
                     ${plate.increase >= 0 ? '+' : ''}${plate.increase.toFixed(2)}%
                 </div>
@@ -542,16 +557,20 @@ class HotspotManager {
             return;
         }
         
-        // 按涨幅倒序排序
-        platesData.sort((a, b) => b.increase - a.increase);
+        // 按涨停个股数量倒序排序（数量多的排在前面）
+        platesData.sort((a, b) => {
+            const aLimitUpCount = (a.stocks || []).filter(stock => stock.isLimitUp).length;
+            const bLimitUpCount = (b.stocks || []).filter(stock => stock.isLimitUp).length;
+            return bLimitUpCount - aLimitUpCount;
+        });
         
         // 隐藏错误和加载提示
         this.errorElement.style.display = 'none';
         this.loadingElement.style.display = 'none';
         
-        // 创建并添加所有板块卡片
-        platesData.forEach(plate => {
-            const cardElement = this.renderPlateCard(plate);
+        // 创建并添加所有板块卡片，前3个标记"主线"
+        platesData.forEach((plate, index) => {
+            const cardElement = this.renderPlateCard(plate, index < 3);
             this.plateCardsGrid.appendChild(cardElement);
             
             // 异步加载并渲染走势图

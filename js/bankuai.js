@@ -10,6 +10,7 @@ const TRADING_TIMES = {
     }
 };
 
+
 function isTradeTime() {
     const now = new Date();
     const time = now.getHours().toString().padStart(2, '0') + ':' + 

@@ -11,26 +11,6 @@ class HotspotManager {
         this.plateCharts = {};
     }
     
-    // 生成交易时间轴（9:30-11:30, 13:00-15:00）
-    generateTradingTimeAxis() {
-        const times = [];
-        // 上午
-        for (let h = 9; h <= 11; h++) {
-            for (let m = 0; m < 60; m++) {
-                if (h === 9 && m < 30) continue;
-                if (h === 11 && m >= 30) break;
-                times.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
-            }
-        }
-        // 下午
-        for (let h = 13; h < 15; h++) {
-            for (let m = 0; m < 60; m++) {
-                times.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
-            }
-        }
-        return times;
-    }
-    
     // 获取热点股票数据
     async fetchHotspotStocks() {
         try {
@@ -254,7 +234,7 @@ class HotspotManager {
             return null;
         }
         
-        const tradingTimes = this.generateTradingTimeAxis();
+        const tradingTimes = generateTradingTimeAxis();
         const baseValue = apiData.data.prev_close_idx || apiData.data.items[0]?.index || 1;
         const data = new Array(tradingTimes.length).fill(null);
         
@@ -315,7 +295,7 @@ class HotspotManager {
                 <div class="plate-stock-middle">
                     <div class="plate-stock-progress">
                         <div class="progress-bar">
-                            <div class="progress-fill" style="width: ${stock.limitProgress}%; background-color: ${stock.limitProgress >= 90 ? '#ff5252' : stock.limitProgress >= 70 ? '#ff9800' : '#4CAF50'};"></div>
+                            <div class="progress-fill" style="width: ${stock.limitProgress}%; background-color: ${stock.limitProgress >= 90 ? '#ef4444' : stock.limitProgress >= 70 ? '#f59f00' : '#2fb344'};"></div>
                         </div>
                         <div class="progress-text">${stock.limitProgress.toFixed(0)}%</div>
                     </div>
@@ -433,7 +413,7 @@ class HotspotManager {
         const chart = echarts.init(chartContainer);
         this.plateCharts[plate.id] = chart;
         
-        const color = plate.increase >= 0 ? '#ff5252' : '#22e090';
+        const color = plate.increase >= 0 ? '#ef4444' : '#34d058';
         
         const option = {
             title: { show: false },
@@ -449,7 +429,7 @@ class HotspotManager {
                     params.forEach(param => {
                         if (param.value !== null && param.value !== undefined) {
                             const value = parseFloat(param.value).toFixed(2);
-                            result += `<div style="color: ${value >= 0 ? '#ff3333' : '#00ff00'}; margin-left: 12px;">
+                            result += `<div style="color: ${value >= 0 ? '#ef4444' : '#34d058'}; margin-left: 12px;">
                                 ${value >= 0 ? '+' : ''}${value}%
                             </div>`;
                         }
@@ -595,7 +575,7 @@ class HotspotManager {
         } catch (error) {
             console.error('渲染数据失败:', error);
             this.loadingElement.style.display = 'none';
-            this.errorElement.innerHTML = '<div style="color: #ff5252; text-align: center; padding: 20px;">加载失败，请稍后重试</div>';
+            this.errorElement.innerHTML = '<div style="color: #ef4444; text-align: center; padding: 20px;">加载失败，请稍后重试</div>';
             this.errorElement.style.display = 'block';
         }
     }
@@ -610,7 +590,22 @@ class HotspotManager {
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
+    // 通用 UI 初始化
+    updateCurrentTime('current-time');
+    setInterval(() => updateCurrentTime('current-time'), 1000);
+    initModal();
+    initTooltips();
+
+    // 外部链接点击
+    const trendLink = document.querySelector('.theme-trend-link');
+    if (trendLink) {
+        trendLink.addEventListener('click', function() {
+            const url = this.getAttribute('data-url');
+            if (url) openStockModal(url);
+        });
+    }
+
+    // 板块数据初始化
     const hotspotManager = new HotspotManager();
     hotspotManager.init();
 });
-    hotspotManager.init();

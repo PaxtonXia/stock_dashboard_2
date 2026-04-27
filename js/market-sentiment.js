@@ -3,6 +3,9 @@
 // 初始化所有ECharts实例
 let bar, line1, line2, line3, line4, marketTempGauge, marketTempLineChart;
 
+// 股吧情绪相关实例
+let gubaSentimentGauge, gubaSentimentChart;
+
 // 初始化函数
 function initMarketSentimentCharts() {
     bar = echarts.init(document.getElementById('bar'));
@@ -12,6 +15,134 @@ function initMarketSentimentCharts() {
     line4 = echarts.init(document.getElementById('line4'));
     marketTempGauge = echarts.init(document.getElementById('marketTempGauge'));
     marketTempLineChart = echarts.init(document.getElementById('marketTempLineChart'));
+    
+    // 股吧情绪初始化
+    gubaSentimentGauge = echarts.init(document.getElementById('gubaSentimentGauge'));
+    gubaSentimentChart = echarts.init(document.getElementById('gubaSentimentChart'));
+}
+
+// ==================== 股吧情绪 ====================
+function fetchGubaSentiment() {
+    const url = 'https://gbapi.eastmoney.com/data/api/Data/GetIndexData?product=guba&version=9005000&plat=ipad&deviceid=1&callback=__jp0';
+    const script = document.createElement('script');
+    script.src = url;
+    document.body.appendChild(script);
+
+    window.__jp0 = function(data) {
+        try {
+            if (data && data.re && Array.isArray(data.re)) {
+                updateGubaChart(data.re);
+                updateGubaAdvice(data.re[0].value);
+            } else {
+                console.error('Invalid data format:', data);
+            }
+        } catch (e) {
+            console.error('Error processing data:', e);
+        } finally {
+            document.body.removeChild(script);
+        }
+    };
+}
+
+function updateGubaChart(data) {
+    const recentData = data.slice(0, 30).reverse();
+    const times = recentData.map(item => {
+        const d = new Date(item.time);
+        return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+    });
+    const values = recentData.map(item => {
+        const val = parseFloat(item.value) * 100;
+        return isNaN(val) ? null : val;
+    });
+    const currentValue = values[values.length - 1] || 0;
+
+    // 更新卡片数值
+    const gubaValueEl = document.querySelector('.sentiment-col:last-child .sentiment-label .card-value');
+    if (gubaValueEl) {
+        gubaValueEl.textContent = `${currentValue.toFixed(1)}%`;
+    }
+
+    // 仪表盘
+    gubaSentimentGauge.setOption({
+        series: [{
+            type: 'gauge',
+            startAngle: 180, endAngle: 0,
+            min: 0, max: 100, splitNumber: 4,
+            axisLine: { lineStyle: { width: 8, color: [[0.4, '#34d058'], [0.6, '#f59f00'], [1, '#ef4444']] } },
+            pointer: { show: true },
+            progress: { show: false },
+            axisTick: { show: false }, splitLine: { show: false }, axisLabel: { show: false },
+            detail: { show: true, formatter: v => v.toFixed(1) + '%', fontSize: 18, offsetCenter: ['0%', '80%'], color: 'auto' },
+            data: [{ value: currentValue }]
+        }],
+        textStyle: { color: '#ffffff' }
+    });
+
+    // 趋势线
+    gubaSentimentChart.setOption({
+        grid: { left: 5, right: 5, top: 5, bottom: 5, containLabel: true },
+        xAxis: {
+            type: 'category', data: times,
+            axisLine: { lineStyle: { color: '#666' } },
+            axisLabel: { color: '#d0d0d0', fontSize: 10, formatter: v => v.substring(0,5) },
+            splitLine: { show: true, lineStyle: { type: 'dashed', color: 'rgba(255,255,255,0.1)' } }
+        },
+        yAxis: { type: 'value', show: false, scale: true },
+        series: [{
+            name: '股吧情绪', type: 'line', data: values,
+            smooth: true, showSymbol: false,
+            lineStyle: { color: '#3b82f6', width: 1.5 },
+            areaStyle: { color: 'rgba(59, 130, 246, 0.12)' }
+        }],
+        tooltip: {
+            trigger: 'axis',
+            backgroundColor: 'rgba(20,20,40,0.95)', borderColor: '#3a3a5a', textStyle: { color: '#fff' },
+            formatter: params => {
+                const v = params[0].value;
+                return `${times[params[0].dataIndex]}\n情绪: ${typeof v === 'number' && !isNaN(v) ? v.toFixed(2) : '--'}%`;
+            }
+        }
+    });
+}
+
+function updateGubaAdvice(value) {
+    const pct = value * 100;
+    const typeEl = document.getElementById('gubaAdviceType');
+    const contentEl = document.getElementById('gubaAdviceContent');
+    if (pct > 70) {
+        typeEl.textContent = '积极'; typeEl.style.color = 'var(--c-fall-bright)';
+        contentEl.textContent = '股吧情绪高涨，投资者乐观情绪较强，可考虑适当参与热门话题个股';
+    } else if (pct > 50) {
+        typeEl.textContent = '中性'; typeEl.style.color = 'var(--c-warn-bright)';
+        contentEl.textContent = '股吧情绪平稳，投资者观望情绪较浓，建议谨慎操作';
+    } else {
+        typeEl.textContent = '谨慎'; typeEl.style.color = 'var(--c-rise-bright)';
+        contentEl.textContent = '股吧情绪低迷，投资者悲观情绪较重，建议控制仓位等待机会';
+    }
+}
+
+// ==================== 浮动资金流 ====================
+function updateFloatingFundFlow(data) {
+    const sorted = [...data].sort((a, b) => b['主力净流入_亿'] - a['主力净流入_亿']);
+    const topInflows = sorted.filter(i => i['主力净流入_亿'] > 0).slice(0, 5);
+    const topOutflows = sorted.filter(i => i['主力净流入_亿'] < 0)
+                             .sort((a, b) => a['主力净流入_亿'] - b['主力净流入_亿']).slice(0, 5);
+
+    document.getElementById('topInflowsList').innerHTML = topInflows.map(item => `
+        <div class="floating-fund-flow-item">
+            <span class="floating-fund-flow-name" onclick="openStockModal('bankuai.html?blockCode=${encodeURIComponent(item['板块代码'] || '')}')">${item['板块名称']}</span>
+            <span class="floating-fund-flow-value positive">+${item['主力净流入_亿'].toFixed(2)}亿</span>
+        </div>
+    `).join('');
+
+    document.getElementById('topOutflowsList').innerHTML = topOutflows.length > 0
+        ? topOutflows.map(item => `
+            <div class="floating-fund-flow-item">
+                <span class="floating-fund-flow-name" onclick="openStockModal('bankuai.html?blockCode=${encodeURIComponent(item['板块代码'] || '')}')">${item['板块名称']}</span>
+                <span class="floating-fund-flow-value negative">${item['主力净流入_亿'].toFixed(2)}亿</span>
+            </div>
+        `).join('')
+        : '<div class="floating-fund-flow-item" style="color:var(--c-text-muted);justify-content:center;">暂无净流出板块</div>';
 }
 
 // 拉取数据并渲染 ECharts
@@ -28,43 +159,36 @@ async function fetchMarketSentiment() {
         const marketTemp = last.market_temperature;
         const marketTempElement = document.querySelector('.sentiment-col:first-child .sentiment-label .card-value');
         if (marketTempElement) {
-            // 数值精确到小数点后2位
             marketTempElement.textContent = marketTemp.toFixed(2) + '%';
             
-            // 更新操作建议
             const adviceType = document.getElementById('adviceType');
             const adviceContent = document.getElementById('adviceContent');
             
             if (adviceType && adviceContent) {
                 if (marketTemp < 20) {
                     adviceType.textContent = '谨慎观望';
-                    adviceType.style.color = '#22e090';
+                    adviceType.style.color = '#34d058';
                     adviceContent.textContent = '市场热度低迷，交投不活跃，建议以观望为主，控制仓位，等待市场企稳信号。';
                 } else if (marketTemp >= 20 && marketTemp < 40) {
                     adviceType.textContent = '轻仓试探';
-                    adviceType.style.color = '#ffcc00';
+                    adviceType.style.color = '#f59f00';
                     adviceContent.textContent = '市场热度温和，可轻仓参与，关注强势板块，设置止损位，控制风险。';
                 } else if (marketTemp >= 40 && marketTemp < 60) {
                     adviceType.textContent = '积极参与';
-                    adviceType.style.color = '#ff9900';
+                    adviceType.style.color = '#f59f00';
                     adviceContent.textContent = '市场热度适中，可适当加仓，跟踪市场热点，注意个股基本面，波段操作为宜。';
                 } else if (marketTemp >= 60 && marketTemp < 80) {
                     adviceType.textContent = '波段操作';
-                    adviceType.style.color = '#ff5252';
+                    adviceType.style.color = '#ef4444';
                     adviceContent.textContent = '市场热度较高，短线机会增多，可适度参与，但需注意高位风险，及时止盈。';
                 } else {
                     adviceType.textContent = '注意风险';
                     adviceType.style.color = '#ff0000';
                     adviceContent.textContent = '市场热度过高，存在泡沫风险，建议降低仓位，落袋为安，规避风险。';
                 }
-            } else {
-                console.error('Advice elements not found');
             }
-        } else {
-            console.error('Market temperature element not found');
         }
         
-        // 更新仪表盘数据
         marketTempGauge.setOption({
             series: [{
                 type: 'gauge',
@@ -76,21 +200,21 @@ async function fetchMarketSentiment() {
                 axisLine: {
                     lineStyle: {
                         width: 8,
-                        color: [[0.4, '#22e090'], [0.6, '#ffcc00'], [1, '#ff5252']]
+                        color: [[0.4, '#34d058'], [0.6, '#f59f00'], [1, '#ef4444']]
                     }
                 },
-                pointer: { show: true }, // 显示指针
+                pointer: { show: true },
                 progress: { show: false },
                 axisTick: { show: false },
                 splitLine: { show: false },
                 axisLabel: { show: false },
                 detail: { 
-                    show: true, // 显示数值
+                    show: true,
                     formatter: function (value) {
                         return value.toFixed(2) + '%';
                     },
-                    fontSize: 20, // 增大字体大小
-                    offsetCenter: ['0%', '80%'], // 调整位置
+                    fontSize: 20,
+                    offsetCenter: ['0%', '80%'],
                     color: 'auto'
                 },
                 data: [{ value: marketTemp }]
@@ -98,11 +222,8 @@ async function fetchMarketSentiment() {
             textStyle: { color: '#ffffff' }
         });
 
-        // 生成固定时间轴
         let timeAxis = generateTradingTimeAxis();
-        // 用null填充
         const fixedData = new Array(timeAxis.length).fill(null);
-        // 将历史数据填入对应时间点
         arr.forEach(d => {
             const t = formatTimeHM(d.timestamp);
             const idx = timeAxis.indexOf(t);
@@ -125,8 +246,8 @@ async function fetchMarketSentiment() {
                 data: fixedData,
                 smooth: true,
                 showSymbol: false,
-                lineStyle: { color: '#3388ff', width: 1.5 },
-                areaStyle: { color: 'rgba(51, 136, 255, 0.15)' }
+                lineStyle: { color: '#3b82f6', width: 1.5 },
+                areaStyle: { color: 'rgba(59, 130, 246, 0.15)' }
             }],
             tooltip: {
                 trigger: 'axis',
@@ -150,45 +271,41 @@ async function fetchMarketSentiment() {
                 const values = [];
                 const colors = [];
                 
-                // Negative changes (left side)
                 for (let i = -20; i < 0; i++) {
                     if (dist[i] > 0) {
                         categories.push(i + '%');
                         values.push(dist[i]);
-                        colors.push('#1ecb7b');
+                        colors.push('#34d058');
                     }
                 }
                 
-                // Zero change
                 categories.push('0%');
                 values.push(dist[0]);
                 colors.push('#888888');
                 
-                // Positive changes (right side)
                 for (let i = 1; i <= 20; i++) {
                     if (dist[i] > 0) {
                         categories.push(i + '%');
                         values.push(dist[i]);
-                        colors.push('#ff4c4c');
+                        colors.push('#ef4444');
                     }
                 }
                 
-                // Special cases (limit up/down)
                 categories.push('涨停');
                 values.push(dist.limit_up_count);
-                colors.push('#00aa00');
+                colors.push('#22c55e');
                 
                 categories.push('ST涨停');
                 values.push(dist.st_limit_up_count);
-                colors.push('#66ff66');
+                colors.push('#86efac');
                 
                 categories.push('跌停');
                 values.push(dist.limit_down_count);
-                colors.push('#ff0000');
+                colors.push('#dc2626');
                 
                 categories.push('ST跌停');
                 values.push(dist.st_limit_down_count);
-                colors.push('#ff6666');
+                colors.push('#fca5a5');
                 
                 bar.setOption({
                     grid: { left: 40, right: 40, top: 20, bottom: 30 },
@@ -253,11 +370,9 @@ async function fetchMarketSentiment() {
         }
 
         // 3. 涨跌停对比
-        // 生成固定时间轴
         timeAxis = generateTradingTimeAxis();
         const upArr = new Array(timeAxis.length).fill(null);
         const downArr = new Array(timeAxis.length).fill(null);
-        // 填充历史数据
         arr.forEach(d => {
             const t = formatTimeHM(d.timestamp);
             const idx = timeAxis.indexOf(t);
@@ -266,7 +381,6 @@ async function fetchMarketSentiment() {
                 downArr[idx] = d.limit_down_count;
             }
         });
-        // 取最后一个非null的涨跌停数
         let lastUp = '--', lastDown = '--';
         for (let i = upArr.length - 1; i >= 0; i--) {
             if (typeof upArr[i] === 'number' && typeof downArr[i] === 'number') {
@@ -275,13 +389,12 @@ async function fetchMarketSentiment() {
                 break;
             }
         }
-        // 涨跌停数量更新到涨跌对比卡片
         const limitUpDownEl = document.getElementById('limitUpDownCount');
         if (limitUpDownEl) {
             limitUpDownEl.textContent = lastUp + '/' + lastDown;
         }
         line1.setOption({
-            animation: false, // Disable animation for better performance
+            animation: false,
             grid: { left: 0, right: 0, top: 26, bottom: 24, containLabel: true },
             yAxis: { show: false,
                 splitLine: {
@@ -301,7 +414,7 @@ async function fetchMarketSentiment() {
                     fontSize: 10,
                     color: '#ffffff',
                     formatter: function(value) {
-                        return value.substring(0,5); // 显示HH:MM
+                        return value.substring(0,5);
                     }
                 },
                 splitLine: {
@@ -315,17 +428,17 @@ async function fetchMarketSentiment() {
             series: [{
                 type: 'line',
                 data: upArr,
-                lineStyle: { color: '#ff5252', width: 1.5 },
+                lineStyle: { color: '#ef4444', width: 1.5 },
                 symbol: 'none',
-                areaStyle: { color: 'rgba(255, 82, 82, 0.15)' },
+                areaStyle: { color: 'rgba(239, 68, 68, 0.15)' },
                 smooth: true,
                 showSymbol: false
             }, {
                 type: 'line',
                 data: downArr,
-                lineStyle: { color: '#22e090', width: 1.5 },
+                lineStyle: { color: '#34d058', width: 1.5 },
                 symbol: 'none',
-                areaStyle: { color: 'rgba(34, 224, 144, 0.15)' },
+                areaStyle: { color: 'rgba(52, 208, 88, 0.15)' },
                 smooth: true,
                 showSymbol: false
             }],
@@ -342,7 +455,6 @@ async function fetchMarketSentiment() {
         });
 
         // 4. 涨跌家数对比
-        // 生成固定时间轴数据
         const riseArr = new Array(timeAxis.length).fill(null);
         const fallArr = new Array(timeAxis.length).fill(null);
         arr.forEach(d => {
@@ -353,7 +465,6 @@ async function fetchMarketSentiment() {
                 fallArr[idx] = d.fall_count;
             }
         });
-        // 取最后一个非null的涨跌家数
         let lastRise = '--', lastFall = '--';
         for (let i = riseArr.length - 1; i >= 0; i--) {
             if (typeof riseArr[i] === 'number' && typeof fallArr[i] === 'number') {
@@ -362,13 +473,11 @@ async function fetchMarketSentiment() {
                 break;
             }
         }
-        // 涨跌家数更新到涨跌对比卡片
         const riseFallEl = document.getElementById('riseFallCount');
         if (riseFallEl) {
             riseFallEl.textContent = lastRise + ':' + lastFall;
         }
 
-        // 设置涨跌家数对比图表
         line2.setOption({
             grid: { left: 0, right: 0, top: 26, bottom: 24, containLabel: true },
             xAxis: { 
@@ -408,9 +517,9 @@ async function fetchMarketSentiment() {
                 {
                     type: 'line',
                     data: riseArr,
-                    lineStyle: { color: '#ff5252', width: 1.5 },
+                    lineStyle: { color: '#ef4444', width: 1.5 },
                     symbol: 'none',
-                    areaStyle: { color: 'rgba(255, 76, 76, 0.08)' },
+                    areaStyle: { color: 'rgba(239, 68, 68, 0.08)' },
                     smooth: true,
                     showSymbol: false,
                     connectNulls: true
@@ -418,9 +527,9 @@ async function fetchMarketSentiment() {
                 {
                     type: 'line',
                     data: fallArr,
-                    lineStyle: { color: '#1ecb7b', width: 1 },
+                    lineStyle: { color: '#34d058', width: 1 },
                     symbol: 'none',
-                    areaStyle: { color: 'rgba(30, 203, 123, 0.08)' },
+                    areaStyle: { color: 'rgba(52, 208, 88, 0.08)' },
                     smooth: true,
                     showSymbol: false,
                     connectNulls: true
@@ -439,7 +548,6 @@ async function fetchMarketSentiment() {
         });
 
         // 5. 封板未遂
-        // 生成固定时间轴数据
         const brokenArr = new Array(timeAxis.length).fill(null);
         const limitUpArrForBroken = new Array(timeAxis.length).fill(null);
         arr.forEach(d => {
@@ -450,7 +558,6 @@ async function fetchMarketSentiment() {
                 limitUpArrForBroken[idx] = d.limit_up_count;
             }
         });
-        // 取最后一个非null的封板未遂和炸板率
         let lastBroken = '--', lastLimitUp = '--', lastRatio = '--';
         for (let i = brokenArr.length - 1; i >= 0; i--) {
             if (typeof brokenArr[i] === 'number' && typeof limitUpArrForBroken[i] === 'number' && limitUpArrForBroken[i] !== 0) {
@@ -460,13 +567,11 @@ async function fetchMarketSentiment() {
                 break;
             }
         }
-        // 炸板率更新到涨停分析卡片
         const brokenRateEl = document.getElementById('brokenRate');
         if (brokenRateEl) {
             brokenRateEl.textContent = lastRatio + '%';
         }
 
-        // 设置封板未遂图表
         line3.setOption({
             grid: { left: 0, right: 0, top: 26, bottom: 24, containLabel: true },
             xAxis: { 
@@ -502,9 +607,9 @@ async function fetchMarketSentiment() {
             series: [{
                 type: 'line',
                 data: brokenArr,
-                lineStyle: { color: '#3388ff', width: 1.5 },
+                lineStyle: { color: '#3b82f6', width: 1.5 },
                 symbol: 'none',
-                areaStyle: { color: 'rgba(51, 136, 255, 0.15)' },
+                areaStyle: { color: 'rgba(59, 130, 246, 0.15)' },
                 smooth: true,
                 showSymbol: false,
                 connectNulls: true
@@ -535,7 +640,6 @@ async function fetchMarketSentiment() {
             }
         });
         const lastValue = yArr.filter(v => typeof v === 'number' && !isNaN(v)).slice(-1)[0] || 0;
-        // 昨日涨停更新到涨停分析卡片
         const yesterdayLimitEl = document.getElementById('yesterdayLimit');
         if (yesterdayLimitEl) {
             yesterdayLimitEl.textContent = lastValue.toFixed(2) + '%';
@@ -575,9 +679,9 @@ async function fetchMarketSentiment() {
             series: [{
                 type: 'line',
                 data: yArr,
-                lineStyle: { color: lastValue >= 0 ? '#22e090' : '#ff5252', width: 1.5 },
+                lineStyle: { color: lastValue >= 0 ? '#34d058' : '#ef4444', width: 1.5 },
                 symbol: 'none',
-                areaStyle: { color: lastValue >= 0 ? 'rgba(34, 224, 144, 0.15)' : 'rgba(255, 82, 82, 0.15)' },
+                areaStyle: { color: lastValue >= 0 ? 'rgba(52, 208, 88, 0.15)' : 'rgba(239, 68, 68, 0.15)' },
                 smooth: true,
                 showSymbol: false
             }],
@@ -593,3 +697,31 @@ async function fetchMarketSentiment() {
         });
     } catch(e) { console.error('市场情绪接口异常',e); }
 }
+
+// 初始化调用
+fetchGubaSentiment();
+setInterval(fetchGubaSentiment, 60000);
+
+// 初始示例数据
+updateFloatingFundFlow([
+    {"板块名称":"电子元件","板块代码":"BK0451","主力净流入_亿":12.5},
+    {"板块名称":"医药制造","板块代码":"BK0465","主力净流入_亿":8.7},
+    {"板块名称":"银行","板块代码":"BK0475","主力净流入_亿":-3.2},
+    {"板块名称":"房地产","板块代码":"BK0451","主力净流入_亿":-5.8},
+    {"板块名称":"汽车制造","板块代码":"BK0481","主力净流入_亿":6.3},
+    {"板块名称":"钢铁","板块代码":"BK0479","主力净流入_亿":-2.1},
+    {"板块名称":"煤炭","板块代码":"BK0437","主力净流入_亿":3.9},
+    {"板块名称":"食品饮料","板块代码":"BK0438","主力净流入_亿":7.2},
+    {"板块名称":"计算机","板块代码":"BK0459","主力净流入_亿":9.8},
+    {"板块名称":"通信","板块代码":"BK0448","主力净流入_亿":5.4}
+]);
+
+// 浮动资金流关闭按钮
+document.getElementById('floatingFundFlowClose')?.addEventListener('click', function() {
+    document.getElementById('floatingFundFlow').style.display = 'none';
+});
+
+// 窗口大小变化时重新调整图表
+window.addEventListener('resize', function() {
+    gubaSentimentChart?.resize();
+});

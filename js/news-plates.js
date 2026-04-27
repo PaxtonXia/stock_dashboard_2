@@ -264,9 +264,10 @@ function processHotspotStocksData(response) {
 }
 
 function renderHotspotPlates(plateData) {
-    var container = document.getElementById('hotspotContainer'); // Updated container ID
-    $('#loading-hotspot').hide(); // Updated loading ID
-    $('#error-hotspot').hide(); // Updated error ID
+    var container = document.getElementById('hotspotContainer');
+    if (!container) return; // 卡片已删除，跳过渲染
+    $('#loading-hotspot').hide();
+    $('#error-hotspot').hide();
     
     if (!plateData || !plateData.items || plateData.items.length === 0) {
         container.innerHTML = '<div style="color: yellow; padding: 20px; text-align: center;">暂无数据</div>';
@@ -321,6 +322,7 @@ function renderHotspotPlates(plateData) {
 }
 
 function fetchHotspotData() {
+    if (!document.getElementById('hotspotContainer')) return; // 卡片已删除，跳过请求
      $('#loading-hotspot').show(); // Updated loading ID
     $('#error-hotspot').hide(); // Updated error ID
     

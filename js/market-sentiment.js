@@ -26,7 +26,7 @@ async function fetchMarketSentiment() {
 
         // 1. 市场真实热度
         const marketTemp = last.market_temperature;
-        const marketTempElement = document.querySelector('.dashboard-side .card:nth-child(1) .card-title-row .card-value');
+        const marketTempElement = document.querySelector('.sentiment-col:first-child .sentiment-label .card-value');
         if (marketTempElement) {
             // 数值精确到小数点后2位
             marketTempElement.textContent = marketTemp.toFixed(2) + '%';
@@ -87,7 +87,7 @@ async function fetchMarketSentiment() {
                 detail: { 
                     show: true, // 显示数值
                     formatter: function (value) {
-                        return value.toFixed(2) + '%热度'; // 格式化数值，保留两位小数
+                        return value.toFixed(2) + '%';
                     },
                     fontSize: 20, // 增大字体大小
                     offsetCenter: ['0%', '80%'], // 调整位置
@@ -275,30 +275,14 @@ async function fetchMarketSentiment() {
                 break;
             }
         }
-        // 涨跌停对比卡片现在是第5个子元素（因为新增了股吧情绪卡片）
-        const limitUpCard = document.querySelector('.dashboard-side .card:nth-child(5)');
-        if (limitUpCard) {
-            const titleRow = limitUpCard.querySelector('.card-title-row');
-            if (titleRow) {
-                const values = titleRow.querySelectorAll('.card-value');
-                if (values.length >= 2) {
-                    values[0].textContent = lastUp;
-                    values[0].className = 'card-value red';
-                    values[1].textContent = lastDown;
-                    values[1].className = 'card-value up';
-                    values[1].style.display = '';
-                } else {
-                    console.error('Not enough value elements in limit up card');
-                }
-            } else {
-                console.error('Title row not found in limit up card');
-            }
-        } else {
-            console.error('Limit up card not found');
+        // 涨跌停数量更新到涨跌对比卡片
+        const limitUpDownEl = document.getElementById('limitUpDownCount');
+        if (limitUpDownEl) {
+            limitUpDownEl.textContent = lastUp + '/' + lastDown;
         }
         line1.setOption({
             animation: false, // Disable animation for better performance
-            grid: { left: 0, right: 0, top: 8, bottom: 24, containLabel: true },
+            grid: { left: 0, right: 0, top: 26, bottom: 24, containLabel: true },
             yAxis: { show: false,
                 splitLine: {
                     show: true,
@@ -378,32 +362,15 @@ async function fetchMarketSentiment() {
                 break;
             }
         }
-        // 涨跌家数对比卡片现在是第4个子元素（因为新增了股吧情绪卡片）
-        const riseFallCard = document.querySelector('.dashboard-side .card:nth-child(4)');
-        if (riseFallCard) {
-            const titleRow = riseFallCard.querySelector('.card-title-row');
-            if (titleRow) {
-                const values = titleRow.querySelectorAll('.card-value');
-                if (values.length >= 1) {
-                    values[0].textContent = lastRise;
-                    values[0].className = 'card-value red';
-                    if (values.length >= 2) {
-                        values[1].textContent = lastFall;
-                        values[1].className = 'card-value up';
-                    } else {
-                        // Create second value element if it doesn't exist
-                        const fallValue = document.createElement('span');
-                        fallValue.className = 'card-value up';
-                        fallValue.textContent = lastFall;
-                        titleRow.appendChild(fallValue);
-                    }
-                }
-            }
+        // 涨跌家数更新到涨跌对比卡片
+        const riseFallEl = document.getElementById('riseFallCount');
+        if (riseFallEl) {
+            riseFallEl.textContent = lastRise + ':' + lastFall;
         }
 
         // 设置涨跌家数对比图表
         line2.setOption({
-            grid: { left: 0, right: 0, top: 8, bottom: 24, containLabel: true },
+            grid: { left: 0, right: 0, top: 26, bottom: 24, containLabel: true },
             xAxis: { 
                 show: true,
                 type: 'category',
@@ -493,17 +460,15 @@ async function fetchMarketSentiment() {
                 break;
             }
         }
-        // 封板未遂卡片现在是第6个子元素（因为新增了股吧情绪卡片）
-        const brokenRateElement = document.querySelector('.dashboard-side .card:nth-child(6) .card-title-row .card-value.gray');
-        if (brokenRateElement) {
-            brokenRateElement.textContent = `（炸板率${lastRatio}%）`;
-        } else {
-            console.error('Broken rate element not found');
+        // 炸板率更新到涨停分析卡片
+        const brokenRateEl = document.getElementById('brokenRate');
+        if (brokenRateEl) {
+            brokenRateEl.textContent = lastRatio + '%';
         }
 
         // 设置封板未遂图表
         line3.setOption({
-            grid: { left: 0, right: 0, top: 8, bottom: 24, containLabel: true },
+            grid: { left: 0, right: 0, top: 26, bottom: 24, containLabel: true },
             xAxis: { 
                 show: true,
                 type: 'category',
@@ -570,15 +535,13 @@ async function fetchMarketSentiment() {
             }
         });
         const lastValue = yArr.filter(v => typeof v === 'number' && !isNaN(v)).slice(-1)[0] || 0;
-        // 昨日涨停今日表现卡片现在是第7个子元素（因为新增了股吧情绪卡片）
-        const yesterdayLimitUpElement = document.querySelector('.dashboard-side .card:nth-child(7) .card-title-row .card-value.red');
-        if (yesterdayLimitUpElement) {
-            yesterdayLimitUpElement.textContent = lastValue.toFixed(2) + '%';
-        } else {
-            console.error('Yesterday limit up element not found');
+        // 昨日涨停更新到涨停分析卡片
+        const yesterdayLimitEl = document.getElementById('yesterdayLimit');
+        if (yesterdayLimitEl) {
+            yesterdayLimitEl.textContent = lastValue.toFixed(2) + '%';
         }
         line4.setOption({
-            grid: { left: 0, right: 0, top: 8, bottom: 24, containLabel: true },
+            grid: { left: 0, right: 0, top: 26, bottom: 24, containLabel: true },
             xAxis: { 
                 show: true,
                 type: 'category',

@@ -1,50 +1,97 @@
 // fund-flow.js - 资金流向相关功能
 
+// 全局 Chart 实例缓存，避免隐藏 canvas 上重复创建导致尺寸为 0
+window.fundFlowCharts = window.fundFlowCharts || {};
+
+// 通用字段列表
+const FUND_FLOW_FIELDS = 'f12,f14,f2,f3,f62,f184,f66,f69,f72,f75,f78,f81,f84,f87,f204,f205,f124,f1,f13';
+
+/**
+ * 构造东方财富板块 API 请求参数
+ * API 硬限单次返回 100 条，要同时拿到 top 流入和 top 流出必须分两次请求
+ * @param {string} fs - 板块筛选条件，如 'm:90+t:2'(行业) 或 'm:90+t:3'(概念)
+ * @param {string} po - 排序方向 '1'=降序(流入) '0'=升序(流出)
+ * @returns {URLSearchParams}
+ */
+function buildBoardParams(fs, po) {
+    return new URLSearchParams({
+        'pn': '1',
+        'pz': '100',
+        'po': po,
+        'np': '1',
+        'fltt': '2',
+        'invt': '2',
+        'fid': 'f62',
+        'fs': fs,
+        'fields': FUND_FLOW_FIELDS
+    });
+}
+
+/**
+ * 将东方财富 API 响应中的 diff 数组转换为标准格式
+ */
+function transformBoardData(apiData) {
+    if (apiData && apiData.data && apiData.data.diff) {
+        return apiData.data.diff.map(item => ({
+            板块名称: (item.f14 || '').trim(),
+            板块代码: item.f12 || item.code,
+            主力净流入_亿: item.f62 / 100000000,
+            涨跌幅_百分比: item.f3,
+            换手_百分比: item.f184
+        }));
+    } else {
+        console.error('Unexpected API data structure:', apiData);
+        return [];
+    }
+}
+
+/**
+ * 合并两批数据（top流入 + top流出），按板块代码去重，保留更极端的值
+ */
+function mergeBoardData(inflowData, outflowData) {
+    const map = new Map();
+    [inflowData, outflowData].forEach(arr => {
+        arr.forEach(item => {
+            const code = item.板块代码;
+            if (map.has(code)) {
+                // 保留绝对值更大的（流入更大的或流出更大的）
+                const existing = map.get(code);
+                if (Math.abs(item.主力净流入_亿) > Math.abs(existing.主力净流入_亿)) {
+                    map.set(code, item);
+                }
+            } else {
+                map.set(code, item);
+            }
+        });
+    });
+    return Array.from(map.values());
+}
+
 // 拉取数据并渲染 Chart.js 资金流向图
 function loadFundFlowCharts() {
-    // 优先从API获取数据，如果失败则使用本地JSON
-    const baseUrl = "https://push2.eastmoney.com/api/qt/clist/get";
+    const baseUrl = 'https://push2.eastmoney.com/api/qt/clist/get';
 
-    // 行业板块参数
-    const industryParams = new URLSearchParams({
-        "pn": "1",
-        "pz": "99999",
-        "po": "1",
-        "np": "1",
-        "fltt": "2",
-        "invt": "2",
-        "fid": "f62",
-        "fs": "m:90+t:2",  // 行业板块
-        "fields": "f12,f14,f2,f3,f62,f184,f66,f69,f72,f75,f78,f81,f84,f87,f204,f205,f124,f1,f13"
-    });
+    // 每种板块分两次请求：po=1 取 top100 流入，po=0 取 top100 流出
+    const requests = [
+        // 行业板块 - 流入 + 流出
+        fetch(`${baseUrl}?${buildBoardParams('m:90+t:2', '1').toString()}`)
+            .catch(() => fetch('data/industry_boards.json')),
+        fetch(`${baseUrl}?${buildBoardParams('m:90+t:2', '0').toString()}`)
+            .catch(() => []),
+        // 概念板块 - 流入 + 流出
+        fetch(`${baseUrl}?${buildBoardParams('m:90+t:3', '1').toString()}`)
+            .catch(() => fetch('data/concept_boards.json')),
+        fetch(`${baseUrl}?${buildBoardParams('m:90+t:3', '0').toString()}`)
+            .catch(() => [])
+    ];
 
-    // 概念板块参数
-    const conceptParams = new URLSearchParams({
-        "pn": "1",
-        "pz": "99999",
-        "po": "1",
-        "np": "1",
-        "fltt": "2",
-        "invt": "2",
-        "fid": "f62",
-        "fs": "m:90+t:3",  // 概念板块
-        "fields": "f12,f14,f2,f3,f62,f184,f66,f69,f72,f75,f78,f81,f84,f87,f204,f205,f124,f1,f13"
-    });
-
-    Promise.all([
-        fetch(`${baseUrl}?${industryParams.toString()}`)
-            .catch(error => {
-                console.warn('API不可用或发生错误，尝试使用本地行业板块数据', error);
-                return fetch('data/industry_boards.json');
-            }),
-        fetch(`${baseUrl}?${conceptParams.toString()}`)
-            .catch(error => {
-                console.warn('API不可用或发生错误，尝试使用本地概念板块数据', error);
-                return fetch('data/concept_boards.json');
-            })
-    ])
+    Promise.all(requests)
     .then(function(responses) {
         return Promise.all(responses.map(function(response) {
+            // 空 catch fallback 直接返回空数组
+            if (!response || typeof response.json !== 'function') {
+                return Promise.resolve({});
+            }
             if (!response.ok) {
                 throw new Error('Network response was not ok');
             }
@@ -52,36 +99,29 @@ function loadFundFlowCharts() {
         }));
     })
     .then(function(dataArray) {
-        // Transform data from Eastmoney API format to expected format
-        const transformedDataArray = dataArray.map(apiData => {
-            // Assuming apiData has a structure like { data: { diff: [...] } }
-            if (apiData && apiData.data && apiData.data.diff) {
-                    return apiData.data.diff.map(item => ({
-                        // *** 根据实际API响应结构调整字段映射 ***
-                        板块名称: (item.f14 || '').trim(), // 去除前后空格
-                        板块代码: item.f12 || item.code, // 兼容不同数据源的代码字段
-                    主力净流入_亿: item.f62 / 100000000, // 主力净流入 (单位从元转换为亿)
-                    涨跌幅_百分比: item.f3, // 涨跌幅
-                    换手_百分比: item.f184 // 换手率
-                    // 其他字段根据需要添加和映射
-                }));
-            } else {
-                console.error('Unexpected API data structure:', apiData);
-                return []; // Return empty array if data structure is unexpected
-            }
-        });
+        // dataArray: [行业流入, 行业流出, 概念流入, 概念流出]
+        const industryInflow = transformBoardData(dataArray[0]);
+        const industryOutflow = transformBoardData(dataArray[1]);
+        const conceptInflow = transformBoardData(dataArray[2]);
+        const conceptOutflow = transformBoardData(dataArray[3]);
+
+        // 合并流入和流出数据（去重）
+        const industryData = mergeBoardData(industryInflow, industryOutflow);
+        const conceptData = mergeBoardData(conceptInflow, conceptOutflow);
+
+        console.log('行业板块数据:', industryData.length, '条 (流入:', industryInflow.length, '流出:', industryOutflow.length, ')');
+        console.log('概念板块数据:', conceptData.length, '条 (流入:', conceptInflow.length, '流出:', conceptOutflow.length, ')');
 
         // Render charts
-        // dataArray[0] is industry data, dataArray[1] is concept data
-        renderScatterChart(transformedDataArray[0], 'industryChart');
-        renderScatterChart(transformedDataArray[1], 'conceptChart');
-        
+        renderScatterChart(industryData, 'industryChart');
+        renderScatterChart(conceptData, 'conceptChart');
+
         // Update floating layers with data
         if (window.updateFloatingFundFlow) {
-            window.updateFloatingFundFlow(transformedDataArray[0]); // Industry data
+            window.updateFloatingFundFlow(industryData);
         }
         if (window.updateFloatingConceptFlow) {
-            window.updateFloatingConceptFlow(transformedDataArray[1]); // Concept data
+            window.updateFloatingConceptFlow(conceptData);
         }
     })
     .catch(function(error) {
@@ -96,7 +136,24 @@ function renderScatterChart(data, canvasId) {
         return;
     }
 
+    // 销毁旧实例（用缓存引用，不依赖 ctx.chart）
+    if (window.fundFlowCharts[canvasId]) {
+        window.fundFlowCharts[canvasId].destroy();
+        window.fundFlowCharts[canvasId] = null;
+    }
+
     var ctx = document.getElementById(canvasId).getContext('2d');
+
+    // 如果 canvas 所在 wrapper 当前隐藏，跳过渲染，等 tab 切换时再画
+    var canvas = document.getElementById(canvasId);
+    var wrapper = canvas && canvas.parentElement;
+    var isHidden = (canvas && canvas.offsetParent === null) || (wrapper && wrapper.style.display === 'none');
+    if (isHidden) {
+        console.warn('Canvas', canvasId, 'is hidden, deferring chart render to tab switch.');
+        // 保存待渲染数据，tab 切换时使用
+        window.fundFlowCharts[canvasId + '_pendingData'] = data;
+        return;
+    }
 
     // Prepare chart data
     var chartData = {
@@ -106,7 +163,7 @@ function renderScatterChart(data, canvasId) {
                 return {
                     x: item.主力净流入_亿,
                     y: item.涨跌幅_百分比,
-                    r: Math.sqrt(Math.abs(item.主力净流入_亿)) * 4, // Bubble size based on absolute fund flow
+                    r: Math.max(3, Math.log1p(Math.abs(item.主力净流入_亿)) * 5), // Bubble size: log scale for better visual differentiation
                     name: item.板块名称,
                     volume: item.换手_百分比  // Turnover rate
                 };
@@ -134,16 +191,32 @@ function renderScatterChart(data, canvasId) {
         return;
     }
 
-    // Destroy existing chart instance if it exists
-    if (ctx.chart) {
-        ctx.chart.destroy();
-    }
+    // Create chart and缓存实例
+    // Alternating row background plugin - simulates ECharts splitArea
+    var splitAreaPlugin = {
+        id: 'splitArea_' + canvasId,
+        beforeDraw: function(chart) {
+            var yAxis = chart.scales && chart.scales.y;
+            if (!yAxis) return;
+            var ctx = chart.ctx;
+            var chartArea = chart.chartArea;
+            var ticks = yAxis.ticks;
+            if (!ticks || ticks.length < 2) return;
+            ctx.save();
+            for (var i = 0; i < ticks.length - 1; i++) {
+                var yTop = yAxis.getPixelForValue(ticks[i].value);
+                var yBottom = yAxis.getPixelForValue(ticks[i + 1].value);
+                ctx.fillStyle = (i % 2 === 0) ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.05)';
+                ctx.fillRect(chartArea.left, Math.min(yTop, yBottom), chartArea.right - chartArea.left, Math.abs(yBottom - yTop));
+            }
+            ctx.restore();
+        }
+    };
 
-            // Create chart
-            new Chart(ctx, {
+    window.fundFlowCharts[canvasId] = new Chart(ctx, {
                 type: 'bubble',
                 data: chartData,
-                plugins: [], // Plugins are added in options.plugins now
+                plugins: [splitAreaPlugin],
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
@@ -271,9 +344,11 @@ function renderScatterChart(data, canvasId) {
                         color: '#b0b0b0' // Tick color for dark theme
                     },
                     grid: {
-                        color: 'rgba(255, 255, 255, 0.1)' // Grid line color for dark theme
+                        color: 'rgba(150, 150, 150, 0.4)',
+                        lineWidth: 1,
+                        borderDash: [4, 4]
                     },
-                     position: 'bottom' // Ensure x-axis is at the bottom
+                     position: 'bottom'
                 },
                 y: {
                     title: {
@@ -295,7 +370,9 @@ function renderScatterChart(data, canvasId) {
                         }
                     },
                     grid: {
-                        color: 'rgba(255, 255, 255, 0.1)' // Grid line color for dark theme
+                        color: 'rgba(150, 150, 150, 0.4)',
+                        lineWidth: 1,
+                        borderDash: [4, 4]
                     }
                 }
             },
@@ -373,12 +450,14 @@ function updateFloatingConceptFlow(data) {
     
     // Update outflows list
     const outflowsList = document.getElementById('topConceptOutflowsList');
-    outflowsList.innerHTML = topOutflows.map(item => `
+    outflowsList.innerHTML = topOutflows.length > 0
+        ? topOutflows.map(item => `
         <div class="floating-fund-flow-item">
-            <span class="floating-fund-flow-name" style="cursor:pointer;" onclick="if(typeof openStockModal === 'function' && '${item['板块代码']}'){openStockModal('bankuai.html?blockCode=${item['板块代码']}')}else{console.error('无效的板块代码:', '${item['板块代码']}')}">${item['板块名称']}</span>
+            <span class="floating-fund-flow-name" style="cursor:pointer;" onclick="if(typeof openStockModal === 'function' && '${item['板块代码']}'){openStockModal('bankuai.html?blockCode=${item['板块代码']}')}else{console.error('无效的板块代码:', '${item['板块代码']}')}" >${item['板块名称']}</span>
             <span class="floating-fund-flow-value negative">${item['主力净流入_亿'].toFixed(2)}亿</span>
         </div>
-    `).join('');
+    `).join('')
+        : '<div class="floating-fund-flow-item" style="color:#666;font-size:12px;justify-content:center;">暂无净流出板块</div>';
 }
 
 // Wait for DOM to be fully loaded before setting up event listeners
@@ -443,11 +522,25 @@ document.addEventListener('DOMContentLoaded', function() {
         industryTabBtn.addEventListener('click', function() {
             floatingFundFlow.style.display = 'block';
             floatingConceptFlow.style.display = 'none';
+            // 行业图从 hidden 变 visible，处理延迟渲染或 resize
+            if (window.fundFlowCharts['industryChart']) {
+                window.fundFlowCharts['industryChart'].resize();
+            } else if (window.fundFlowCharts['industryChart_pendingData']) {
+                renderScatterChart(window.fundFlowCharts['industryChart_pendingData'], 'industryChart');
+                delete window.fundFlowCharts['industryChart_pendingData'];
+            }
         });
 
         conceptTabBtn.addEventListener('click', function() {
             floatingFundFlow.style.display = 'none';
             floatingConceptFlow.style.display = 'block';
+            // 概念图从 hidden 变 visible，处理延迟渲染或 resize
+            if (window.fundFlowCharts['conceptChart']) {
+                window.fundFlowCharts['conceptChart'].resize();
+            } else if (window.fundFlowCharts['conceptChart_pendingData']) {
+                renderScatterChart(window.fundFlowCharts['conceptChart_pendingData'], 'conceptChart');
+                delete window.fundFlowCharts['conceptChart_pendingData'];
+            }
         });
     }
 

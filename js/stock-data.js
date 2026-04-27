@@ -47,12 +47,12 @@ function fetchInflowStocks() {
                 renderInflowStocks(transformedData);
             } else {
                 console.error('主力净流入数据格式错误:', response);
-                $('#inflowStocksBody').html('<tr><td colspan="5" style="text-align: center; padding: 20px; color: #ff5252;">数据格式错误</td></tr>');
+                $('#inflowStocksBody').html('<tr><td colspan="4" style="text-align: center; padding: 20px; color: #ff5252;">数据格式错误</td></tr>');
             }
         },
         error: function(xhr, status, error) {
             console.error('获取主力净流入数据失败:', error);
-            $('#inflowStocksBody').html('<tr><td colspan="5" style="text-align: center; padding: 20px; color: #ff5252;">获取数据失败</td></tr>');
+            $('#inflowStocksBody').html('<tr><td colspan="4" style="text-align: center; padding: 20px; color: #ff5252;">获取数据失败</td></tr>');
             
             // 如果API不可用，尝试使用本地数据
             $.getJSON('data/inflow_stocks.json')
@@ -115,10 +115,12 @@ function renderInflowStocks(data, sortKey = null, sortDirection = 'desc') {
                     <a href="javascript:openStockModal('redball.html##${stockCode}##')" style="color: ${changeColor}; text-decoration: none;">
                         ${stock['股票名称']}
                     </a>
-                    <span style="color: #888; font-size: 10px;">${stockCode}</span>
+                    <div style="color: #888; font-size: 10px;">${stockCode}</div>
                 </td>
-                <td style="padding: 8px; text-align: right; font-size: 12px;">${stock['最新价']}</td>
-                <td style="padding: 8px; text-align: right; font-size: 12px; color: ${changeColor};">${changeSign}${changePercent.toFixed(2)}%</td>
+                <td style="padding: 8px; text-align: right; font-size: 12px; line-height: 1.4;">
+                    <div>${stock['最新价']}</div>
+                    <div style="color: ${changeColor}; font-size: 11px;">${changeSign}${changePercent.toFixed(2)}%</div>
+                </td>
                 <td style="padding: 8px; text-align: right; font-size: 12px;">${inflow}</td>
                 <td style="padding: 8px; text-align: right; font-size: 12px; color: ${inflowSpeedColor};">${inflowSpeed}</td>
             </tr>
@@ -150,12 +152,12 @@ function fetchLimitUpStocks() {
                 updateLimitUpStats(response.data.limit_up_count);
             } else {
                 console.error('冲刺涨停数据格式错误:', response);
-                $('#limitUpStocksBody').html('<tr><td colspan="5" style="text-align: center; padding: 20px; color: #ff5252;">数据格式错误</td></tr>');
+                $('#limitUpStocksBody').html('<tr><td colspan="4" style="text-align: center; padding: 20px; color: #ff5252;">数据格式错误</td></tr>');
             }
         },
         error: function(xhr, status, error) {
             console.error('获取冲刺涨停数据失败:', error);
-            $('#limitUpStocksBody').html('<tr><td colspan="5" style="text-align: center; padding: 20px; color: #ff5252;">获取数据失败</td></tr>');
+            $('#limitUpStocksBody').html('<tr><td colspan="4" style="text-align: center; padding: 20px; color: #ff5252;">获取数据失败</td></tr>');
             
             // 如果API不可用，尝试使用本地数据
             $.getJSON('data/limit_up_stocks.json')
@@ -218,10 +220,12 @@ function renderLimitUpStocks(data) {
                     <a href="javascript:openStockModal('redball.html##${stockCode}##')" style="color: #fff; text-decoration: none;">
                         ${stock.name}
                     </a>
-                    <span style="color: #888; font-size: 10px;">${stockCode}</span>
+                    <div style="color: #888; font-size: 10px;">${stockCode}</div>
                 </td>
-                <td style="padding: 8px; text-align: right; font-size: 12px;">${stock.latest}</td>
-                <td style="padding: 8px; text-align: right; font-size: 12px; color: ${changeColor};">+${changePercent.toFixed(2)}%</td>
+                <td style="padding: 8px; text-align: right; font-size: 12px; line-height: 1.4;">
+                    <div>${stock.latest}</div>
+                    <div style="color: ${changeColor}; font-size: 11px;">+${changePercent.toFixed(2)}%</div>
+                </td>
                 <td style="padding: 8px; text-align: right; font-size: 12px; color: ${momentumColor};">
                     <div class="momentum-bar" style="width: 100%; height: 4px; background: #333; border-radius: 2px; overflow: hidden;">
                         <div style="height: 100%; width: ${Math.min(100, momentum * 5)}%; background-color: ${momentumColor};"></div>

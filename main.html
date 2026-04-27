@@ -7,17 +7,13 @@
     <title>主力资金实时追踪系统</title>
     <link rel="stylesheet" href="css/font-awesome/all.min.css">
     <link rel="stylesheet" href="css/main.css">
-    <!-- Modal styles -->
     <link rel="stylesheet" href="css/base.css">
     <script src="js/echarts.js"></script>
-    <!-- Chart.js and Plugins -->
     <script src="js/chart/Chart.min.js"></script>
     <script src="js/plugins/chartjs-plugin-zoom.min.js"></script>
     <script src="js/plugins/chartjs-plugin-datalabels.min.js"></script>
     <script src="js/plugins/core-js-bundle.min.js"></script>
-    <!-- Added jQuery for the news feed script -->
     <script type="text/javascript" src="js/jquery.min.js"></script>
-    <!-- 引入模块化JS文件 -->
     <script src="js/utils.js"></script>
     <script src="js/market-sentiment.js"></script>
     <script src="js/fund-flow.js"></script>
@@ -27,449 +23,340 @@
     <script src="js/main.js"></script>
     <script src="js/market-style.js"></script>
     <script src="js/industry_trend.js"></script>
-    <!-- 在其他 JS 文件引入后添加 -->
-    <script src="js/hotspot.js"></script>
+
 </head>
 <body>
-    <!-- Modal HTML -->
+    <!-- Modal -->
     <div id="stockModal" class="modal-overlay">
         <div class="modal-content">
             <span class="modal-close">&times;</span>
             <iframe id="stockModalFrame" class="modal-iframe"></iframe>
         </div>
     </div>
+
+    <!-- Brand Bar -->
     <div class="brand-bar">
         <div class="brand-logo"><i class="fas fa-chart-line"></i></div>
         <div>
             <div class="brand-title">主力资金实时追踪系统</div>
             <div class="brand-sub">主力资金动向实时监控，短线交易投资决策参考</div>
         </div>
-        <div id="current-time" style="margin-left: auto; padding-right: 20px; font-size: 14px; color: #d0d0d0;"></div>
+        <div id="current-time"></div>
     </div>
-    <div class="dashboard">
-        <div class="dashboard-side">
-            <div class="card">
-                <div class="card-title-row">
-                    <span class="card-title"><i class="fas fa-thermometer-half"></i> 市场情绪</span>
-                    <span class="card-value">29%</span>
-                </div>
-                <div id="marketTempGauge" class="echart"></div>
-                <div id="marketTempLineChart" class="echart"></div>
-                <!-- 添加操作建议区域 -->
-                <div class="market-advice" style="padding: 8px 5px; margin-top: 5px; border-top: 1px dashed #444; font-size: 12px;">
-                    <div style="font-weight: bold; margin-bottom: 5px; color: #aaa;">操作建议：<span id="adviceType" style="color: #ffcc00;">-</span></div>
-                    <div id="adviceContent" style="color: #ddd; line-height: 1.4;">-</div>
-                </div>
-            </div>
-            <div class="card">
-                <div class="card-title-row">
-                    <span class="card-title"><i class="fas fa-comments"></i> 股吧情绪</span>
-                    <span class="card-value">63.0%</span>
-                </div>
-                <div id="gubaSentimentGauge" class="echart" style="height: 150px;"></div>
-                <div id="gubaSentimentChart" class="echart" style="height: 80px;"></div>
-                <!-- 添加操作建议区域 -->
-                <div class="market-advice" style="padding: 8px 5px; margin-top: 5px; border-top: 1px dashed #444; font-size: 12px;">
-                    <div style="font-weight: bold; margin-bottom: 5px; color:#aaa;">操作建议：<span id="gubaAdviceType" style="color: #ffcc00;">-</span></div>
-                    <div id="gubaAdviceContent" style="color: #ddd; line-height: 1.4;">-</div>
-                </div>
-            </div>
-            <div class="card">
-        <div class="card-title-row">
-            <div><span class="card-title"><i class="fas fa-line-chart"></i> 大盘走势</span></div>
-            <!-- 移除原位置的图标 -->
-        </div>
-                <div id="bar" class="echart"></div>
-            </div>
-            <!-- Reverted: Container for side-by-side cards -->
-            
-            <div class="card">
-                <div class="card-title-row">
-                    <span class="card-title"><i class="fas fa-balance-scale"></i> 涨跌家数对比</span>
-                    <span class="card-value">51:20</span>
-                </div>
-                <div id="line2" class="echart"></div>
-            </div>
-            <div class="card">
-                <div class="card-title-row">
-                    <span class="card-title"><i class="fas fa-arrows-alt-v"></i> 涨跌停对比</span>
-                    <span class="card-value red">0</span>
-                    <span class="card-value up">0</span>
-                </div>
-                <div id="line1" class="echart"></div>
-            </div>
 
+    <!-- Dashboard -->
+    <div class="dashboard">
+
+        <!-- Left Sidebar -->
+        <div class="dashboard-side">
+            <!-- 情绪指标：市场情绪 + 股吧情绪 -->
             <div class="card">
                 <div class="card-title-row">
-                    <span class="card-title"><i class="fas fa-ban"></i> 封板未遂</span>
-                    <span class="card-value gray">（炸板率-%）</span>
+                    <span class="card-title"><i class="fas fa-thermometer-half"></i> 情绪指标</span>
                 </div>
-                <div id="line3" class="echart" style="height: 120px;"></div>
-            </div>
-            <div class="card">
-                <div class="card-title-row">
-                    <span class="card-title"><i class="fas fa-history"></i> 昨日涨停今日表现</span>
-                    <span class="card-value red">-</span>
-                </div>
-                <div id="line4" class="echart" style="height: 120px;"></div>
-            </div>
-        </div>
-        <div class="dashboard-main">
-            <!-- 大盘/风格/行业走势卡片 -->
-            <div class="card" id="main-market-switch-card" style="min-height: 300px;">
-                <div class="card-title-row" style="justify-content: space-between;">
-                    <div>
-                        <span class="card-title"><i class="fas fa-line-chart"></i> 
-                            <span id="mainMarketTabBtn" class="tab-btn active" style="cursor:pointer;">指数走势</span>
-                            <span style="color:#444;margin:0 8px;">|</span>
-                            <span id="industryTrendTabBtn" class="tab-btn" style="cursor:pointer;">行业走势</span>
-                            <span style="color:#444;margin:0 8px;">|</span>
-                            <span id="styleMarketTabBtn" class="tab-btn" style="cursor:pointer;">风格走势</span>
-                        </span>
+                <div class="sentiment-row">
+                    <div class="sentiment-col">
+                        <div class="sentiment-label">市场温度 <span class="card-value" style="font-size:var(--fs-md);">29%</span></div>
+                        <div id="marketTempGauge" class="echart"></div>
+                        <div id="marketTempLineChart" class="echart"></div>
+                        <div class="market-advice">
+                            <div class="market-advice-label">建议：<span id="adviceType">-</span></div>
+                            <div id="adviceContent" class="market-advice-content">-</div>
+                        </div>
+                    </div>
+                    <div class="sentiment-divider"></div>
+                    <div class="sentiment-col">
+                        <div class="sentiment-label">股吧热度 <span class="card-value" style="font-size:var(--fs-md);">63.0%</span></div>
+                        <div id="gubaSentimentGauge" class="echart"></div>
+                        <div id="gubaSentimentChart" class="echart"></div>
+                        <div class="market-advice">
+                            <div class="market-advice-label">建议：<span id="gubaAdviceType">-</span></div>
+                            <div id="gubaAdviceContent" class="market-advice-content">-</div>
+                        </div>
                     </div>
                 </div>
-                <div id="mainIndexLineChart" class="echart tab-pane" style="height: 240px; display: block;"></div>
-                <div id="market-style-chart" class="echart tab-pane" style="height: 240px; display: none;"></div>
-                <div id="industry-trend-chart" class="echart tab-pane" style="height: 240px; display: none;"></div>
             </div>
 
-            <!-- 行业/概念主力资金净流入卡片 -->
+            <!-- 大盘走势 -->
+            <div class="card">
+                <div class="card-title-row">
+                    <span class="card-title"><i class="fas fa-chart-area"></i> 大盘走势</span>
+                </div>
+                <div id="bar" class="echart"></div>
+            </div>
+
+            <!-- 涨跌对比：家数 + 涨跌停 -->
+            <div class="card">
+                <div class="card-title-row">
+                    <span class="card-title"><i class="fas fa-balance-scale"></i> 涨跌对比</span>
+                    <span style="font-size:var(--fs-xs);color:var(--c-text-muted);">
+                        家数 <span class="text-rise" id="riseFallCount">51:20</span>
+                        &nbsp;|&nbsp; 涨停/跌停 <span class="text-rise" id="limitUpDownCount">0/0</span>
+                    </span>
+                </div>
+                <div id="line2" class="echart"><div class="chart-label">涨跌家数</div></div>
+                <div style="height:4px;"></div>
+                <div id="line1" class="echart"><div class="chart-label">涨跌停</div></div>
+            </div>
+
+            <!-- 涨停分析：封板未遂 + 昨日涨停 -->
+            <div class="card">
+                <div class="card-title-row">
+                    <span class="card-title"><i class="fas fa-ban"></i> 涨停分析</span>
+                    <span style="font-size:var(--fs-xs);color:var(--c-text-muted);">
+                        炸板率 <span class="text-rise" id="brokenRate">-%</span>
+                        &nbsp;|&nbsp; 昨日涨停 <span class="text-rise" id="yesterdayLimit">-</span>
+                    </span>
+                </div>
+                <div id="line3" class="echart"><div class="chart-label">封板未遂</div></div>
+                <div style="height:4px;"></div>
+                <div id="line4" class="echart"><div class="chart-label">昨日涨停</div></div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="dashboard-main">
+            <!-- 指数/行业/风格 走势 -->
+            <div class="card" id="main-market-switch-card" style="min-height:300px;">
+                <div class="card-title-row">
+                    <span class="card-title">
+                        <i class="fas fa-line-chart"></i>
+                        <span id="mainMarketTabBtn" class="tab-btn active">指数走势</span>
+                        <span class="tab-sep">|</span>
+                        <span id="industryTrendTabBtn" class="tab-btn">行业走势</span>
+                        <span class="tab-sep">|</span>
+                        <span id="styleMarketTabBtn" class="tab-btn">风格走势</span>
+                    </span>
+                </div>
+                <div id="mainIndexLineChart" class="echart tab-pane" style="height:240px;display:block;"></div>
+                <div id="market-style-chart" class="echart tab-pane" style="height:240px;display:none;"></div>
+                <div id="industry-trend-chart" class="echart tab-pane" style="height:240px;display:none;"></div>
+            </div>
+
+            <!-- 行业/概念 主力资金净流入 -->
             <div class="card fund-flow-card" id="fund-flow-switch-card">
-    <div class="card-title-row" style="justify-content: space-between;">
-        <div>
-            <span class="card-title">
-                <i class="fas fa-chart-pie"></i> <!-- 添加图表图标 -->
-                <span id="industryTabBtn" class="tab-btn active" style="cursor:pointer;">行业主力资金净流入</span>
-                <span style="color:#444;margin:0 8px;">|</span>
-                <span id="conceptTabBtn" class="tab-btn" style="cursor:pointer;">概念主力资金净流入</span>
-            </span>
-        </div>
-    </div>
-    <canvas id="industryChart" class="tab-pane" style="width: 100%; height: calc(100% - 40px); display: block;"></canvas>
-    <canvas id="conceptChart" class="tab-pane" style="width: 100%; height: calc(100% - 40px); display: none;"></canvas>
-    
-    <!-- Industry floating fund flow layer -->
-    <div class="floating-fund-flow" id="floatingFundFlow" style="right: 10px;">
-        <div class="floating-fund-flow-header">
-                <div class="floating-fund-flow-title">
-                    <i class="fas fa-money-bill-wave"></i> 行业主力资金流向
+                <div class="card-title-row">
+                    <span class="card-title">
+                        <i class="fas fa-chart-pie"></i>
+                        <span id="industryTabBtn" class="tab-btn active">行业主力资金净流入</span>
+                        <span class="tab-sep">|</span>
+                        <span id="conceptTabBtn" class="tab-btn">概念主力资金净流入</span>
+                    </span>
                 </div>
-            <div class="floating-fund-flow-close" id="floatingFundFlowClose">
-                <i class="fas fa-times"></i>
-            </div>
-        </div>
-        
-        <div class="floating-fund-flow-section">
-            <div class="floating-fund-flow-section-title">
-                <i class="fas fa-arrow-up"></i> 净流入TOP5
-            </div>
-            <div id="topInflowsList"></div>
-        </div>
-        
-        <div class="floating-fund-flow-section">
-            <div class="floating-fund-flow-section-title">
-                <i class="fas fa-arrow-down"></i> 净流出TOP5
-            </div>
-            <div id="topOutflowsList"></div>
-        </div>
-    </div>
+                <div class="chart-wrapper" id="industryChartWrapper">
+                    <canvas id="industryChart" class="tab-pane"></canvas>
+                </div>
+                <div class="chart-wrapper" id="conceptChartWrapper" style="display:none;">
+                    <canvas id="conceptChart" class="tab-pane"></canvas>
+                </div>
 
-    <!-- Concept floating fund flow layer -->
-    <div class="floating-fund-flow" id="floatingConceptFlow" style="left: 10px;">
-        <div class="floating-fund-flow-header">
-                <div class="floating-fund-flow-title">
-                    <i class="fas fa-lightbulb"></i> 概念主力资金流向
+                <!-- 行业浮动资金流 -->
+                <div class="floating-fund-flow" id="floatingFundFlow">
+                    <div class="floating-fund-flow-header">
+                        <div class="floating-fund-flow-title">
+                            <i class="fas fa-money-bill-wave"></i> 行业主力资金流向
+                        </div>
+                        <div class="floating-fund-flow-close" id="floatingFundFlowClose">
+                            <i class="fas fa-times"></i>
+                        </div>
+                    </div>
+                    <div class="floating-fund-flow-section">
+                        <div class="floating-fund-flow-section-title">
+                            <i class="fas fa-arrow-up"></i> 净流入TOP5
+                        </div>
+                        <div id="topInflowsList"></div>
+                    </div>
+                    <div class="floating-fund-flow-section">
+                        <div class="floating-fund-flow-section-title">
+                            <i class="fas fa-arrow-down"></i> 净流出TOP5
+                        </div>
+                        <div id="topOutflowsList"></div>
+                    </div>
                 </div>
-            <div class="floating-fund-flow-close" id="floatingConceptFlowClose">
-                <i class="fas fa-times"></i>
-            </div>
-        </div>
-        
-        <div class="floating-fund-flow-section">
-            <div class="floating-fund-flow-section-title">
-                <i class="fas fa-arrow-up"></i> 净流入TOP5
-            </div>
-            <div id="topConceptInflowsList"></div>
-        </div>
-        
-        <div class="floating-fund-flow-section">
-            <div class="floating-fund-flow-section-title">
-                <i class="fas fa-arrow-down"></i> 净流出TOP5
-            </div>
-            <div id="topConceptOutflowsList"></div>
-        </div>
-    </div>
-</div>
 
-            <!-- 将最强风口卡片移到这里 -->
-            <div class="card hotspot-card">
-    <div class="card-title"><i class="fas fa-fire"></i> 最强风口
-        <i class="fas fa-external-link-alt" title="风格主题趋势" style="margin-left:8px; color:#ff9800; cursor:pointer; font-size:15px; vertical-align:middle;" onclick="openStockModal('theme-trend.html')"></i>
-    </div>
-    <div class="hotspot-container" id="hotspotContainer">
-        <!-- 每个热点板块的模板 -->
-        <div class="hotspot-item">
-            <div class="hotspot-header">
-                <div class="hotspot-name">光伏设备</div>
-                <div class="hotspot-stats">
-                    <span class="hotspot-stat">领涨 5.8%</span>
-                    <span class="hotspot-stat">成交额 123亿</span>
+                <!-- 概念浮动资金流 -->
+                <div class="floating-fund-flow" id="floatingConceptFlow">
+                    <div class="floating-fund-flow-header">
+                        <div class="floating-fund-flow-title">
+                            <i class="fas fa-lightbulb"></i> 概念主力资金流向
+                        </div>
+                        <div class="floating-fund-flow-close" id="floatingConceptFlowClose">
+                            <i class="fas fa-times"></i>
+                        </div>
+                    </div>
+                    <div class="floating-fund-flow-section">
+                        <div class="floating-fund-flow-section-title">
+                            <i class="fas fa-arrow-up"></i> 净流入TOP5
+                        </div>
+                        <div id="topConceptInflowsList"></div>
+                    </div>
+                    <div class="floating-fund-flow-section">
+                        <div class="floating-fund-flow-section-title">
+                            <i class="fas fa-arrow-down"></i> 净流出TOP5
+                        </div>
+                        <div id="topConceptOutflowsList"></div>
+                    </div>
                 </div>
             </div>
-            <div class="hotspot-desc">
-                光伏产业链持续回暖，硅片价格连续上涨，带动设备需求预期改善
-            </div>
-            <div class="hotspot-stocks">
-                <div class="stock-chip">
-                    <span class="stock-name">晶盛机电</span>
-                    <span class="stock-code">300316</span>
-                    <span class="stock-change change-up">+6.28%</span>
-                </div>
-                <!-- 更多股票... -->
-            </div>
+
+
         </div>
-        <!-- 加载和错误提示 -->
-        <div id="loading-hotspot">加载中...</div>
-        <div id="error-hotspot"></div>
-    </div>
-</div>
-        </div>
+
+        <!-- Right Sidebar -->
         <div class="dashboard-side">
-            <div class="card" id="plate-news-switch-card">
-    <div class="card-title-row" style="justify-content: space-between;">
-        <div>
-            <span class="card-title"><i class="fas fa-chart-line"></i>
-                <span id="plateTabBtn" class="tab-btn active" style="cursor:pointer;">板块异动</span>
-                <span style="color:#444;margin:0 8px;">|</span>
-                <span id="newsTabBtn" class="tab-btn" style="cursor:pointer;">高频异动</span>
-            </span>
-        </div>
-    </div>
-    <div id="plateContainer" class="plate-container tab-pane" style="display: block;">
-        <div id="loading-plate">加载中...</div>
-        <div id="error-plate" style="color: red;"></div>
-    </div>
-    <div id="newsContainer" class="news-container tab-pane" style="display: none;">
-        <div id="loading-news">加载中...</div>
-        <div id="error-news" style="color: red;"></div>
-    </div>
-</div>
+            <!-- 板块异动 / 高频异动 / 冲刺涨停+主力流入（新合并卡片） / 资金流卡片 -->
+            <div class="card" id="plate-news-switch-card" style="min-height:300px;">
+                <div class="card-title-row">
+                    <span class="card-title">
+                        <i class="fas fa-chart-line"></i>
+                        <span id="plateTabBtn" class="tab-btn active">板块异动</span>
+                        <span class="tab-sep">|</span>
+                        <span id="newsTabBtn" class="tab-btn">高频异动</span>
+                    </span>
+                </div>
+                <div id="plateContainer" class="plate-container tab-pane" style="display:block;height:240px;overflow-y:auto;">
+                    <div id="loading-plate">加载中...</div>
+                    <div id="error-plate"></div>
+                </div>
+                <div id="newsContainer" class="news-container tab-pane" style="display:none;height:240px;overflow-y:auto;">
+                    <div id="loading-news">加载中...</div>
+                    <div id="error-news"></div>
+                </div>
+            </div>
 
-            <!-- 板块异动卡片后面添加冲刺涨停卡片 -->
-            <div class="card">
-        <div class="card-title"><i class="fas fa-rocket"></i> 冲刺涨停</div>
-        <div class="card-subtitle" style="font-size: 12px; color: #aaa; margin: 4px 0;">
-            今日涨停: <span id="todayLimitUp" style="color: #ff5252; font-weight: bold;">41</span> 
-            封板成功率: <span id="limitUpRate" style="color: #ff5252; font-weight: bold;">66.1%</span> 
-            打开涨停: <span id="openLimitUp" style="color: #22e090; font-weight: bold;">21</span>
-        </div>
-        <div class="stock-limit-up-wrapper" style="max-height: 400px; overflow-y: auto;">
-            <table class="stock-limit-up-table" style="width: 100%; border-collapse: collapse; margin-top: 10px;">
-                <thead>
-                    <tr style="background-color: #252538; position: sticky; top: 0; z-index: 1;">
-                        <th style="padding: 8px; text-align: left; border-bottom: 1px solid #444; color: #aaa; font-size: 12px;">股票名称</th>
-                        <th style="padding: 8px; text-align: right; border-bottom: 1px solid #444; color: #aaa; font-size: 12px;">最新价</th>
-                        <th style="padding: 8px; text-align: right; border-bottom: 1px solid #444; color: #aaa; font-size: 12px;">涨跌幅</th>
-                        <th style="padding: 8px; text-align: right; border-bottom: 1px solid #444; color: #aaa; font-size: 12px;">距离涨停</th>
-                        <th style="padding: 8px; text-align: right; border-bottom: 1px solid #444; color: #aaa; font-size: 12px;">封单量</th>
-                    </tr>
-                </thead>
-                <tbody id="limitUpStocksBody">
-                    <tr>
-                        <td colspan="5" style="text-align: center; padding: 20px;">加载中...</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-            <!-- 在冲刺涨停卡片后面添加主力净流入卡片 -->
-            <div class="card">
-    <div class="card-title"><i class="fas fa-money-bill-wave"></i> 今日主力流入</div>
-    <div class="stock-inflow-table-wrapper" style="max-height: 400px; overflow-y: auto;">
-        <table class="stock-inflow-table" style="width: 100%; border-collapse: collapse; margin-top: 10px;">
-            <thead>
-                <tr style="background-color: #252538; position: sticky; top: 0; z-index: 1;">
-                    <th style="padding: 8px; text-align: left; border-bottom: 1px solid #444; color: #aaa; font-size: 12px;">股票名称</th>
-                    <th style="padding: 8px; text-align: right; border-bottom: 1px solid #444; color: #aaa; font-size: 12px;">最新价</th>
-                    <th style="padding: 8px; text-align: right; border-bottom: 1px solid #444; color: #aaa; font-size: 12px;">涨跌幅</th>
-                    <th style="padding: 8px; text-align: right; border-bottom: 1px solid #444; color: #aaa; font-size: 12px;">主力净流入</th>
-                    <th style="padding: 8px; text-align: right; border-bottom: 1px solid #444; color: #aaa; font-size: 12px;">净流速</th>
-                </tr>
-            </thead>
-            <tbody id="inflowStocksBody">
-                <tr>
-                    <td colspan="5" style="text-align: center; padding: 20px;">加载中...</td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-</div>
+            <!-- 冲刺涨停 / 主力流入（合并卡片） -->
+            <div class="card" id="limit-up-inflow-card" style="height:620px;">
+                <div class="card-title-row">
+                    <span class="card-title">
+                        <i class="fas fa-rocket"></i>
+                        <span id="limitUpTabBtn" class="tab-btn active">冲刺涨停</span>
+                        <span class="tab-sep">|</span>
+                        <span id="inflowTabBtn" class="tab-btn">主力流入</span>
+                    </span>
+                </div>
+                <div id="limitUpContainer" class="tab-pane" style="display:block;overflow-y:auto;">
+                    <div class="card-subtitle">
+                        今日涨停: <span id="todayLimitUp" class="text-rise">41</span>
+                        封板成功率: <span id="limitUpRate" class="text-rise">66.1%</span>
+                        打开涨停: <span id="openLimitUp" class="text-fall">21</span>
+                    </div>
+                    <div class="stock-limit-up-wrapper">
+                        <table class="stock-limit-up-table">
+                            <thead>
+                                <tr>
+                                    <th>股票名称</th>
+                                    <th>最新价/涨跌幅</th>
+                                    <th>距离涨停</th>
+                                    <th>状态</th>
+                                </tr>
+                            </thead>
+                            <tbody id="limitUpStocksBody">
+                                <tr><td colspan="4" class="table-loading">加载中...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="inflowContainer" class="tab-pane" style="display:none;overflow-y:auto;">
+                    <div class="stock-inflow-table-wrapper">
+                        <table class="stock-inflow-table">
+                            <thead>
+                                <tr>
+                                    <th>股票名称</th>
+                                    <th>最新价/涨跌幅</th>
+                                    <th>主力净流入</th>
+                                    <th>净流速</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inflowStocksBody">
+                                <tr><td colspan="4" class="table-loading">加载中...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- 自选股浮动层 -->
-    <div class="floating-favorite-icon" style="position: fixed; top: 30px; right: 20px; z-index: 1000;">
-        <div class="favorite-stock-icon" style="font-size: 24px; color: #ff3366; cursor: pointer; background: rgba(255,51,102,0.2); border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border: 2px solid #ff3366;">
+    <div class="floating-favorite-icon">
+        <div class="favorite-stock-icon">
             <i class="fas fa-heart" title="自选股"></i>
         </div>
-        <div class="favorite-stocks-dropdown" style="display: none; position: absolute; right: 0; top: 100%; width: 220px; background: #2a2a40; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.4); padding: 12px; margin-top: 8px;">
-            <div class="favorite-stocks-header" style="display: flex; justify-content: space-between; align-items: center; font-weight: bold; margin-bottom: 10px; color: #fff; font-size: 14px; border-bottom: 1px solid #3a3a5a; padding-bottom: 6px;">
+        <div class="favorite-stocks-dropdown">
+            <div class="favorite-stocks-header">
                 <span>自选股票池</span>
-                <i class="fas fa-external-link-alt" style="cursor: pointer; font-size: 12px; color: #aaa;" 
-                   onclick="openStockModal('stock-trend.html')" 
-                   title="查看股票趋势"></i>
+                <i class="fas fa-external-link-alt" style="cursor:pointer;font-size:12px;color:var(--c-text-muted);" 
+                   onclick="openStockModal('stock-trend.html')" title="查看股票趋势"></i>
             </div>
-            <div id="favoriteStocksList" style="max-height: 300px; overflow-y: auto; font-size: 12px;"></div>
+            <div id="favoriteStocksList"></div>
         </div>
     </div>
 
     <script>
-        // 自选股功能
-        document.addEventListener('DOMContentLoaded', function() {
-            const favoriteIcon = document.querySelector('.favorite-stock-icon');
-            const dropdown = document.querySelector('.favorite-stocks-dropdown');
-            const stocksList = document.getElementById('favoriteStocksList');
-            
-            // 从localStorage读取自选股
-            const STOCK_POOL_KEY = 'stock_pool';
-            
-            function getFavoriteStocks() {
-                const poolStr = localStorage.getItem(STOCK_POOL_KEY);
-                if (poolStr) {
-                    try {
-                        return JSON.parse(poolStr);
-                    } catch (e) {
-                        console.error('Error parsing stock pool', e);
-                    }
-                }
-                return [];
-            }
-            
-            // 保存自选股到localStorage
-            function saveFavoriteStocks(stocks) {
-                localStorage.setItem(STOCK_POOL_KEY, JSON.stringify(stocks));
-            }
-            
-            // 渲染自选股列表
-            function renderFavoriteStocks() {
-                const stocks = getFavoriteStocks();
-                stocksList.innerHTML = stocks.length 
-                    ? stocks.map(stock => `
-                        <div style="padding: 8px 0; border-bottom: 1px solid #3a3a5a; position: relative;">
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                                <span style="font-weight: bold; font-size: 12px;">${stock.name}</span>
-                            <span style="color: ${stock.change >= 0 ? '#ff5252' : '#22e090'}; font-size: 11px;">${stock.change !== undefined && stock.change !== 0 ? (stock.change >= 0 ? '+' : '') + stock.change + '%' : ''}</span>
-                            </div>
-                            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #888;">
-                                <span>${stock.code}</span>
-                                <span>${stock.date || '日期未知'}</span>
-                            </div>
-                            <div style="position: absolute; right: 0; top: 8px; cursor: pointer; color: #888; font-size: 14px;" 
-                                 onclick="removeFromFavorites('${stock.code}')" title="移除自选">
-                                ×
-                            </div>
-                        </div>
-                    `).join('')
-                    : '<div style="padding: 10px; color: #aaa; text-align: center;">暂无自选股票</div>';
-            }
-            
-        // 鼠标悬停显示下拉列表
-        favoriteIcon.addEventListener('mouseenter', function() {
-            dropdown.style.display = 'block';
-            renderFavoriteStocks();
-        });
-        
-        // 鼠标离开隐藏下拉列表
-        dropdown.addEventListener('mouseleave', function() {
-            dropdown.style.display = 'none';
-        });
-        
-        // 优化滚动条设置，避免双重滚动条
-        dropdown.style.maxHeight = '350px';
-        dropdown.style.overflow = 'auto';  // 只在外层容器设置滚动
-        dropdown.style.paddingRight = '8px';
-        dropdown.style.width = '220px';
-        dropdown.style.boxSizing = 'border-box';
-        
-        // 移除内层列表的滚动条设置
-        const stocksListElement = document.getElementById('favoriteStocksList');
-        stocksListElement.style.overflowY = 'visible';
-        stocksListElement.style.maxHeight = 'none';
+        // ==================== 自选股功能 ====================
+        const STOCK_POOL_KEY = 'stock_pool';
 
-        // 初始化渲染
-        renderFavoriteStocks();
-    });
-
-        // 从localStorage读取自选股
         function getFavoriteStocks() {
-            const poolStr = localStorage.getItem('stock_pool');
+            const poolStr = localStorage.getItem(STOCK_POOL_KEY);
             if (poolStr) {
-                try {
-                    return JSON.parse(poolStr);
-                } catch (e) {
-                    console.error('解析自选股数据失败:', e);
-                    return [];
-                }
+                try { return JSON.parse(poolStr); }
+                catch (e) { console.error('解析自选股数据失败:', e); }
             }
             return [];
         }
 
-        // 保存自选股到localStorage
         function saveFavoriteStocks(stocks) {
-            localStorage.setItem('stock_pool', JSON.stringify(stocks));
+            localStorage.setItem(STOCK_POOL_KEY, JSON.stringify(stocks));
         }
 
-        // 渲染自选股列表
         function renderFavoriteStocks() {
             const stocks = getFavoriteStocks();
             const stocksList = document.getElementById('favoriteStocksList');
             if (!stocksList) return;
-            
-            stocksList.innerHTML = stocks.length 
+
+            stocksList.innerHTML = stocks.length
                 ? stocks.map(stock => `
-                    <div style="padding: 8px 0; border-bottom: 1px solid #3a3a5a; position: relative;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                            <span style="font-weight: bold; font-size: 12px;">${stock.name}</span>
-                            <span style="color: ${stock.change >= 0 ? '#ff5252' : '#22e090'}; font-size: 11px;">${stock.change !== undefined && stock.change !== 0 ? (stock.change >= 0 ? '+' : '') + stock.change + '%' : ''}</span>
+                    <div class="fav-stock-item">
+                        <div class="fav-stock-row">
+                            <span class="fav-stock-name">${stock.name}</span>
+                            <span class="fav-stock-change ${stock.change >= 0 ? 'text-rise' : 'text-fall'}">
+                                ${stock.change !== undefined && stock.change !== 0 ? (stock.change >= 0 ? '+' : '') + stock.change + '%' : ''}
+                            </span>
                         </div>
-                        <div style="display: flex; justify-content: space-between; font-size: 11px; color: #888;">
+                        <div class="fav-stock-meta">
                             <span>${stock.code}</span>
                             <span>${stock.date || '日期未知'}</span>
                         </div>
-                        <div style="position: absolute; right: 0; top: 8px; cursor: pointer; color: #888; font-size: 14px;" 
-                             onclick="removeFromFavorites('${stock.code}')" title="移除自选">
-                            ×
-                        </div>
+                        <div class="fav-stock-remove" onclick="removeFromFavorites('${stock.code}', event)" title="移除自选">×</div>
                     </div>
                 `).join('')
-                : '<div style="padding: 10px; color: #aaa; text-align: center;">暂无自选股票</div>';
+                : '<div style="padding:10px;color:var(--c-text-muted);text-align:center;">暂无自选股票</div>';
         }
 
-        // 从自选股移除
         function removeFromFavorites(stockCode, event) {
             try {
                 const stocks = getFavoriteStocks();
-                const updatedStocks = stocks.filter(stock => stock.code !== stockCode);
-                saveFavoriteStocks(updatedStocks);
+                saveFavoriteStocks(stocks.filter(s => s.code !== stockCode));
                 renderFavoriteStocks();
-                
-                // 防止事件冒泡
-                if (event) {
-                    event.stopPropagation();
-                    event.preventDefault();
-                }
-            } catch (e) {
-                console.error('移除自选股失败:', e);
-            }
+                if (event) { event.stopPropagation(); event.preventDefault(); }
+            } catch (e) { console.error('移除自选股失败:', e); }
         }
 
-        // 初始化自选股功能
         document.addEventListener('DOMContentLoaded', function() {
-            // 渲染初始列表
+            const favoriteIcon = document.querySelector('.favorite-stock-icon');
+            const dropdown = document.querySelector('.favorite-stocks-dropdown');
+
+            favoriteIcon.addEventListener('mouseenter', function() {
+                dropdown.style.display = 'block';
+                renderFavoriteStocks();
+            });
+
+            dropdown.addEventListener('mouseleave', function() {
+                dropdown.style.display = 'none';
+            });
+
             renderFavoriteStocks();
 
-            // 添加全局点击事件监听
             document.getElementById('favoriteStocksList')?.addEventListener('click', function(e) {
                 if (e.target.closest('[onclick^="removeFromFavorites"]')) {
                     const stockCode = e.target.closest('[onclick]').getAttribute('onclick').match(/'([^']+)'/)[1];
@@ -479,363 +366,262 @@
         });
     </script>
 
-    <!-- Floating fund flow layer moved inside fund-flow-card -->
-
-    <script type="text/javascript">
-        // Update current time with full date and market status
+    <script>
+        // ==================== 时钟 & 市场状态 ====================
         function updateCurrentTime() {
-            const timeElement = document.getElementById('current-time');
+            const el = document.getElementById('current-time');
             const now = new Date();
-            const year = now.getFullYear();
-            const month = (now.getMonth() + 1).toString().padStart(2, '0');
-            const day = now.getDate().toString().padStart(2, '0');
-            const hours = now.getHours().toString().padStart(2, '0');
-            const minutes = now.getMinutes().toString().padStart(2, '0');
-            const seconds = now.getSeconds().toString().padStart(2, '0');
-            
-            // Check if it's a trading day (Monday to Friday)
+            const pad = n => String(n).padStart(2, '0');
+            const dateStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+            const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
             const isTradingDay = now.getDay() >= 1 && now.getDay() <= 5;
-            
-            // Check if it's trading hours (9:30-11:30 or 13:00-15:00)
-            const currentTime = `${hours}:${minutes}`;
-            const isMorningTrading = currentTime >= '09:30' && currentTime <= '11:30';
-            const isAfternoonTrading = currentTime >= '13:00' && currentTime <= '15:00';
-            const isTradingHours = isMorningTrading || isAfternoonTrading;
-            
-            // Determine market status
-            let marketStatus = '';
-            if (!isTradingDay) {
-                marketStatus = ' (休市中)';
-            } else if (isTradingHours) {
-                marketStatus = ' (交易中)';
-            } else {
-                marketStatus = ' (非交易时间)';
-            }
-            
-            timeElement.textContent = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}${marketStatus}`;
+            const hm = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+            const isTrading = isTradingDay && ((hm >= '09:30' && hm <= '11:30') || (hm >= '13:00' && hm <= '15:00'));
+            const status = !isTradingDay ? ' 休市中' : isTrading ? ' 交易中' : ' 非交易时间';
+
+            el.textContent = `${dateStr} ${timeStr}${status}`;
         }
-        
-        // Update time immediately and every second
         updateCurrentTime();
         setInterval(updateCurrentTime, 1000);
 
-        // Modal functions
+        // ==================== Modal ====================
         function openStockModal(url) {
             document.getElementById('stockModalFrame').src = url;
             document.getElementById('stockModal').style.display = 'block';
         }
-        
         function closeStockModal() {
             document.getElementById('stockModal').style.display = 'none';
             document.getElementById('stockModalFrame').src = '';
         }
-        
-        // Close modal when clicking X or outside
         document.querySelector('.modal-close').addEventListener('click', closeStockModal);
         document.getElementById('stockModal').addEventListener('click', function(e) {
             if (e.target === this) closeStockModal();
         });
-        
-        // 生成固定交易时间轴
+
+        // ==================== 交易时间轴 ====================
         function generateTradingTimeAxis() {
             return [
-                '09:30', '09:35', '09:40', '09:45', '09:50', '09:55', '10:00', '10:05', '10:10', '10:15', '10:20', '10:25', '10:30',
-                '10:35', '10:40', '10:45', '10:50', '10:55', '11:00', '11:05', '11:10', '11:15', '11:20', '11:25', '11:30',
-                '13:00', '13:05', '13:10', '13:15', '13:20', '13:25', '13:30', '13:35', '13:40', '13:45', '13:50', '13:55', '14:00',
-                '14:05', '14:10', '14:15', '14:20', '14:25', '14:30', '14:35', '14:40', '14:45', '14:50', '14:55', '15:00'
+                '09:30','09:35','09:40','09:45','09:50','09:55','10:00','10:05','10:10','10:15','10:20','10:25','10:30',
+                '10:35','10:40','10:45','10:50','10:55','11:00','11:05','11:10','11:15','11:20','11:25','11:30',
+                '13:00','13:05','13:10','13:15','13:20','13:25','13:30','13:35','13:40','13:45','13:50','13:55','14:00',
+                '14:05','14:10','14:15','14:20','14:25','14:30','14:35','14:40','14:45','14:50','14:55','15:00'
             ];
         }
 
-        // 切换卡片显示
-    document.getElementById('mainMarketTabBtn').onclick = function() {
-        document.getElementById('mainIndexLineChart').style.display = 'block';
-        document.getElementById('market-style-chart').style.display = 'none';
-        document.getElementById('industry-trend-chart').style.display = 'none';
-        this.classList.add('active');
-        document.getElementById('styleMarketTabBtn').classList.remove('active');
-        document.getElementById('industryTrendTabBtn').classList.remove('active');
-        if (window.mainIndexLineChartObj) window.mainIndexLineChartObj.resize();
-    };
-    document.getElementById('styleMarketTabBtn').onclick = function() {
-        document.getElementById('mainIndexLineChart').style.display = 'none';
-        document.getElementById('market-style-chart').style.display = 'block';
-        document.getElementById('industry-trend-chart').style.display = 'none';
-        this.classList.add('active');
-        document.getElementById('mainMarketTabBtn').classList.remove('active');
-        document.getElementById('industryTrendTabBtn').classList.remove('active');
-        // 调整图表大小
-        if (window.marketStyleChart) {
-            setTimeout(() => {
-                marketStyleChart.resize();
-            }, 100);
-        }
-    };
-    document.getElementById('industryTrendTabBtn').onclick = function() {
-        document.getElementById('mainIndexLineChart').style.display = 'none';
-        document.getElementById('market-style-chart').style.display = 'none';
-        document.getElementById('industry-trend-chart').style.display = 'block';
-        this.classList.add('active');
-        document.getElementById('mainMarketTabBtn').classList.remove('active');
-        document.getElementById('styleMarketTabBtn').classList.remove('active');
-        // 初始化行业走势图表
-        if (!window.industryTrendChart) {
-            drawIndustryTrendChart('industry-trend-chart');
-            fetchIndustryTrend();
-        }
-        // 调整图表大小
-        if (window.industryTrendChart) {
-            setTimeout(() => {
-                industryTrendChart.resize();
-            }, 100);
-        }
-    };
+        // ==================== Tab 切换 ====================
+        // 指数/行业/风格
+        document.getElementById('mainMarketTabBtn').onclick = function() {
+            document.getElementById('mainIndexLineChart').style.display = 'block';
+            document.getElementById('market-style-chart').style.display = 'none';
+            document.getElementById('industry-trend-chart').style.display = 'none';
+            this.classList.add('active');
+            document.getElementById('styleMarketTabBtn').classList.remove('active');
+            document.getElementById('industryTrendTabBtn').classList.remove('active');
+            if (window.mainIndexLineChartObj) window.mainIndexLineChartObj.resize();
+        };
+        document.getElementById('styleMarketTabBtn').onclick = function() {
+            document.getElementById('mainIndexLineChart').style.display = 'none';
+            document.getElementById('market-style-chart').style.display = 'block';
+            document.getElementById('industry-trend-chart').style.display = 'none';
+            this.classList.add('active');
+            document.getElementById('mainMarketTabBtn').classList.remove('active');
+            document.getElementById('industryTrendTabBtn').classList.remove('active');
+            if (window.marketStyleChart) setTimeout(() => marketStyleChart.resize(), 100);
+        };
+        document.getElementById('industryTrendTabBtn').onclick = function() {
+            document.getElementById('mainIndexLineChart').style.display = 'none';
+            document.getElementById('market-style-chart').style.display = 'none';
+            document.getElementById('industry-trend-chart').style.display = 'block';
+            this.classList.add('active');
+            document.getElementById('mainMarketTabBtn').classList.remove('active');
+            document.getElementById('styleMarketTabBtn').classList.remove('active');
+            if (!window.industryTrendChart) { drawIndustryTrendChart('industry-trend-chart'); fetchIndustryTrend(); }
+            if (window.industryTrendChart) setTimeout(() => industryTrendChart.resize(), 100);
+        };
 
-    // 主力资金帧切换
-    document.getElementById('industryTabBtn').onclick = function() {
-        document.getElementById('industryChart').style.display = 'block';
-        document.getElementById('conceptChart').style.display = 'none';
-        this.classList.add('active');
-        document.getElementById('conceptTabBtn').classList.remove('active');
-        // 触发Chart.js自适应
-        if (window.industryChartObj && window.industryChartObj.resize) window.industryChartObj.resize();
-    };
-    document.getElementById('conceptTabBtn').onclick = function() {
-        document.getElementById('industryChart').style.display = 'none';
-        document.getElementById('conceptChart').style.display = 'block';
-        this.classList.add('active');
-        document.getElementById('industryTabBtn').classList.remove('active');
-        if (window.conceptChartObj && window.conceptChartObj.resize) window.conceptChartObj.resize();
-    };
+        // 行业/概念主力资金
+        document.getElementById('industryTabBtn').onclick = function() {
+            document.getElementById('industryChartWrapper').style.display = 'block';
+            document.getElementById('conceptChartWrapper').style.display = 'none';
+            this.classList.add('active');
+            document.getElementById('conceptTabBtn').classList.remove('active');
+            if (window.industryChartObj && window.industryChartObj.resize) window.industryChartObj.resize();
+        };
+        document.getElementById('conceptTabBtn').onclick = function() {
+            document.getElementById('industryChartWrapper').style.display = 'none';
+            document.getElementById('conceptChartWrapper').style.display = 'block';
+            this.classList.add('active');
+            document.getElementById('industryTabBtn').classList.remove('active');
+            if (window.conceptChartObj && window.conceptChartObj.resize) window.conceptChartObj.resize();
+        };
 
-    // 板块/高频异动帧切换
-    document.getElementById('plateTabBtn').onclick = function() {
-        document.getElementById('plateContainer').style.display = 'block';
-        document.getElementById('newsContainer').style.display = 'none';
-        this.classList.add('active');
-        document.getElementById('newsTabBtn').classList.remove('active');
-    };
-    document.getElementById('newsTabBtn').onclick = function() {
-        document.getElementById('plateContainer').style.display = 'none';
-        document.getElementById('newsContainer').style.display = 'block';
-        this.classList.add('active');
-        document.getElementById('plateTabBtn').classList.remove('active');
-    };
+        // 板块 / 高频异动 tab切换
+        function switchPlateTab(showId) {
+            ['plateContainer', 'newsContainer'].forEach(function(id) {
+                document.getElementById(id).style.display = id === showId ? 'block' : 'none';
+            });
+            ['plateTabBtn', 'newsTabBtn'].forEach(function(id) {
+                document.getElementById(id).classList.remove('active');
+            });
+            var btnMap = { plateContainer: 'plateTabBtn', newsContainer: 'newsTabBtn' };
+            document.getElementById(btnMap[showId]).classList.add('active');
+        }
+        document.getElementById('plateTabBtn').onclick = function() { switchPlateTab('plateContainer'); };
+        document.getElementById('newsTabBtn').onclick = function() { switchPlateTab('newsContainer'); };
+
+        // 冲刺涨停 / 主力流入 tab切换
+        function switchLimitInflowTab(showId) {
+            ['limitUpContainer', 'inflowContainer'].forEach(function(id) {
+                document.getElementById(id).style.display = id === showId ? 'block' : 'none';
+            });
+            ['limitUpTabBtn', 'inflowTabBtn'].forEach(function(id) {
+                document.getElementById(id).classList.remove('active');
+            });
+            var btnMap = { limitUpContainer: 'limitUpTabBtn', inflowContainer: 'inflowTabBtn' };
+            document.getElementById(btnMap[showId]).classList.add('active');
+        }
+        document.getElementById('limitUpTabBtn').onclick = function() { switchLimitInflowTab('limitUpContainer'); };
+        document.getElementById('inflowTabBtn').onclick = function() { switchLimitInflowTab('inflowContainer'); };
     </script>
+
     <script>
-        // 股吧情绪图表初始化
+        // ==================== 股吧情绪 ====================
         const gubaSentimentGauge = echarts.init(document.getElementById('gubaSentimentGauge'));
         const gubaSentimentChart = echarts.init(document.getElementById('gubaSentimentChart'));
-        
-            // 获取股吧情绪数据
-            function fetchGubaSentiment() {
-                const url = 'https://gbapi.eastmoney.com/data/api/Data/GetIndexData?product=guba&version=9005000&plat=ipad&deviceid=1&callback=__jp0';
-                
-                // 使用JSONP方式获取数据
-                const script = document.createElement('script');
-                script.src = url;
-                document.body.appendChild(script);
-                
-                // 定义回调函数
-                window.__jp0 = function(data) {
-                    console.log('Raw API response:', data); // 调试日志
-                    try {
-                        if (data && data.re && Array.isArray(data.re)) {
-                            console.log('First data point:', data.re[0]); // 调试日志
-                            updateGubaChart(data.re);
-                            updateGubaAdvice(data.re[0].value);
-                        } else {
-                            console.error('Invalid data format:', data);
-                        }
-                    } catch (e) {
-                        console.error('Error processing data:', e);
-                    } finally {
-                        document.body.removeChild(script);
+
+        function fetchGubaSentiment() {
+            const url = 'https://gbapi.eastmoney.com/data/api/Data/GetIndexData?product=guba&version=9005000&plat=ipad&deviceid=1&callback=__jp0';
+            const script = document.createElement('script');
+            script.src = url;
+            document.body.appendChild(script);
+
+            window.__jp0 = function(data) {
+                try {
+                    if (data && data.re && Array.isArray(data.re)) {
+                        updateGubaChart(data.re);
+                        updateGubaAdvice(data.re[0].value);
+                    } else {
+                        console.error('Invalid data format:', data);
                     }
-                };
+                } catch (e) {
+                    console.error('Error processing data:', e);
+                } finally {
+                    document.body.removeChild(script);
+                }
+            };
+        }
+
+        function updateGubaChart(data) {
+            const recentData = data.slice(0, 30).reverse();
+            const times = recentData.map(item => {
+                const d = new Date(item.time);
+                return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+            });
+            const values = recentData.map(item => {
+                const val = parseFloat(item.value) * 100;
+                return isNaN(val) ? null : val;
+            });
+            const currentValue = values[values.length - 1] || 0;
+
+            // 更新卡片数值
+            const gubaValueEl = document.querySelector('.sentiment-col:last-child .sentiment-label .card-value');
+            if (gubaValueEl) {
+                gubaValueEl.textContent = `${currentValue.toFixed(1)}%`;
             }
-        
-            // 更新股吧情绪图表
-            function updateGubaChart(data) {
-                console.log('Raw guba data:', data); // 调试日志
-                
-                // 处理数据 - 取最近30个数据点
-                const recentData = data.slice(0, 30).reverse();
-                const times = recentData.map(item => {
-                    const date = new Date(item.time);
-                    return `${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
-                });
-                const values = recentData.map(item => {
-                    const val = parseFloat(item.value) * 100;
-                    return isNaN(val) ? null : val;
-                });
-                const currentValue = values[0] || 0;
-                
-                console.log('Processed values:', values); // 调试日志
-            
-            // 更新当前值显示
-            const cardValueElement = document.querySelector('.card-title:has(i.fa-comments)')?.nextElementSibling;
-            if (cardValueElement && cardValueElement.classList.contains('card-value')) {
-                console.log('Updating card value to:', currentValue.toFixed(1)); // 调试日志
-                cardValueElement.textContent = `${currentValue.toFixed(1)}%`;
-            } else {
-                console.error('Failed to find card value element');
-            }
-            
-            // 更新仪表盘 - 使用和市场情绪相同的样式
+
+            // 仪表盘
             gubaSentimentGauge.setOption({
                 series: [{
                     type: 'gauge',
-                    startAngle: 180,
-                    endAngle: 0,
-                    min: 0,
-                    max: 100,
-                    splitNumber: 4,
-                    axisLine: {
-                        lineStyle: {
-                            width: 8,
-                            color: [[0.4, '#22e090'], [0.6, '#ffcc00'], [1, '#ff5252']]
-                        }
-                    },
+                    startAngle: 180, endAngle: 0,
+                    min: 0, max: 100, splitNumber: 4,
+                    axisLine: { lineStyle: { width: 8, color: [[0.4, '#22e090'], [0.6, '#ffcc00'], [1, '#ff5252']] } },
                     pointer: { show: true },
                     progress: { show: false },
-                    axisTick: { show: false },
-                    splitLine: { show: false },
-                    axisLabel: { show: false },
-                    detail: { 
-                        show: true,
-                        formatter: function (value) {
-                            return value.toFixed(1) + '%热度';
-                        },
-                        fontSize: 20,
-                        offsetCenter: ['0%', '80%'],
-                        color: 'auto'
-                    },
+                    axisTick: { show: false }, splitLine: { show: false }, axisLabel: { show: false },
+                    detail: { show: true, formatter: v => v.toFixed(1) + '%', fontSize: 18, offsetCenter: ['0%', '80%'], color: 'auto' },
                     data: [{ value: currentValue }]
                 }],
                 textStyle: { color: '#ffffff' }
             });
-            
-            // 设置图表选项 - 使用和市场情绪相同的样式
-            const option = {
+
+            // 趋势线
+            gubaSentimentChart.setOption({
                 grid: { left: 5, right: 5, top: 5, bottom: 5, containLabel: true },
-                xAxis: { 
-                    type: 'category',
-                    data: times,
+                xAxis: {
+                    type: 'category', data: times,
                     axisLine: { lineStyle: { color: '#666' } },
-                    axisLabel: { 
-                        color: '#d0d0d0',
-                        fontSize: 10,
-                        formatter: function(value) {
-                            return value.substring(0,5); // 只显示HH:MM
-                        }
-                    },
-                    splitLine: {
-                        show: true,
-                        lineStyle: {
-                            type: 'dashed',
-                            color: 'rgba(255,255,255,0.15)'
-                        }
-                    }
+                    axisLabel: { color: '#d0d0d0', fontSize: 10, formatter: v => v.substring(0,5) },
+                    splitLine: { show: true, lineStyle: { type: 'dashed', color: 'rgba(255,255,255,0.1)' } }
                 },
-                yAxis: { 
-                    type: 'value', 
-                    show: false,
-                    scale: true
-                },
+                yAxis: { type: 'value', show: false, scale: true },
                 series: [{
-                    name: '股吧情绪',
-                    type: 'line',
-                    data: values,
-                    smooth: true,
-                    showSymbol: false,
-                    lineStyle: { color: '#3388ff', width: 1.5 },
-                    areaStyle: { color: 'rgba(51, 136, 255, 0.15)' }
+                    name: '股吧情绪', type: 'line', data: values,
+                    smooth: true, showSymbol: false,
+                    lineStyle: { color: '#3b82f6', width: 1.5 },
+                    areaStyle: { color: 'rgba(59, 130, 246, 0.12)' }
                 }],
                 tooltip: {
                     trigger: 'axis',
-                    backgroundColor: 'rgba(30,30,45,0.95)',
-                    borderColor: '#444',
-                    textStyle: { color: '#fff' },
-                    formatter: function (params) {
-                        const idx = params[0].dataIndex;
-                        const t = times[idx];
+                    backgroundColor: 'rgba(20,20,40,0.95)', borderColor: '#3a3a5a', textStyle: { color: '#fff' },
+                    formatter: params => {
                         const v = params[0].value;
-                        return `${t}\n情绪: ${typeof v === 'number' && !isNaN(v) ? v.toFixed(2) : '--'}%`;
+                        return `${times[params[0].dataIndex]}\n情绪: ${typeof v === 'number' && !isNaN(v) ? v.toFixed(2) : '--'}%`;
                     }
                 }
-            };
-            
-            gubaSentimentChart.setOption(option);
+            });
         }
-        
-        // 更新操作建议
+
         function updateGubaAdvice(value) {
-            const valuePercent = value * 100;
-            const adviceType = document.getElementById('gubaAdviceType');
-            const adviceContent = document.getElementById('gubaAdviceContent');
-            
-            if (valuePercent > 70) {
-                adviceType.textContent = '积极';
-                adviceType.style.color = '#22e090';
-                adviceContent.textContent = '股吧情绪高涨，投资者乐观情绪较强，可考虑适当参与热门话题个股';
-            } else if (valuePercent > 50) {
-                adviceType.textContent = '中性';
-                adviceType.style.color = '#ffcc00';
-                adviceContent.textContent = '股吧情绪平稳，投资者观望情绪较浓，建议谨慎操作';
+            const pct = value * 100;
+            const typeEl = document.getElementById('gubaAdviceType');
+            const contentEl = document.getElementById('gubaAdviceContent');
+            if (pct > 70) {
+                typeEl.textContent = '积极'; typeEl.style.color = 'var(--c-fall-bright)';
+                contentEl.textContent = '股吧情绪高涨，投资者乐观情绪较强，可考虑适当参与热门话题个股';
+            } else if (pct > 50) {
+                typeEl.textContent = '中性'; typeEl.style.color = 'var(--c-warn-bright)';
+                contentEl.textContent = '股吧情绪平稳，投资者观望情绪较浓，建议谨慎操作';
             } else {
-                adviceType.textContent = '谨慎';
-                adviceType.style.color = '#ff5252';
-                adviceContent.textContent = '股吧情绪低迷，投资者悲观情绪较重，建议控制仓位等待机会';
+                typeEl.textContent = '谨慎'; typeEl.style.color = 'var(--c-rise-bright)';
+                contentEl.textContent = '股吧情绪低迷，投资者悲观情绪较重，建议控制仓位等待机会';
             }
         }
-        
-        // 初始化并获取数据
-        fetchGubaSentiment();
-        setInterval(fetchGubaSentiment, 60000); // 每分钟更新一次
-        
-        // 窗口大小变化时重绘图表
-        window.addEventListener('resize', function() {
-            gubaSentimentChart.resize();
-        });
 
-        // Update floating fund flow layer
+        fetchGubaSentiment();
+        setInterval(fetchGubaSentiment, 60000);
+        window.addEventListener('resize', () => { gubaSentimentChart.resize(); });
+
+        // ==================== 浮动资金流 ====================
         function updateFloatingFundFlow(data) {
-            // Sort by net inflow (descending)
             const sorted = [...data].sort((a, b) => b['主力净流入_亿'] - a['主力净流入_亿']);
-            
-            // Get top 5 inflows (positive values)
-            const topInflows = sorted.filter(item => item['主力净流入_亿'] > 0).slice(0, 5);
-            
-            // Get top 5 outflows (negative values, sorted by most negative)
-            const topOutflows = sorted.filter(item => item['主力净流入_亿'] < 0)
-                                    .sort((a, b) => a['主力净流入_亿'] - b['主力净流入_亿'])
-                                    .slice(0, 5);
-            
-            // Update inflows list
-            const inflowsList = document.getElementById('topInflowsList');
-            inflowsList.innerHTML = topInflows.map(item => `
+            const topInflows = sorted.filter(i => i['主力净流入_亿'] > 0).slice(0, 5);
+            const topOutflows = sorted.filter(i => i['主力净流入_亿'] < 0)
+                                     .sort((a, b) => a['主力净流入_亿'] - b['主力净流入_亿']).slice(0, 5);
+
+            document.getElementById('topInflowsList').innerHTML = topInflows.map(item => `
                 <div class="floating-fund-flow-item">
-                    <span class="floating-fund-flow-name" style="cursor:pointer;" onclick="openStockModal('bankuai.html?blockCode=${encodeURIComponent(item['板块代码'] || '')}')">${item['板块名称']}</span>
+                    <span class="floating-fund-flow-name" onclick="openStockModal('bankuai.html?blockCode=${encodeURIComponent(item['板块代码'] || '')}')">${item['板块名称']}</span>
                     <span class="floating-fund-flow-value positive">+${item['主力净流入_亿'].toFixed(2)}亿</span>
                 </div>
             `).join('');
-            
-            // Update outflows list
-            const outflowsList = document.getElementById('topOutflowsList');
-            outflowsList.innerHTML = topOutflows.map(item => `
-                <div class="floating-fund-flow-item">
-                    <span class="floating-fund-flow-name" style="cursor:pointer;" onclick="openStockModal('bankuai.html?blockCode=${encodeURIComponent(item['板块代码'] || '')}')">${item['板块名称']}</span>
-                    <span class="floating-fund-flow-value negative">${item['主力净流入_亿'].toFixed(2)}亿</span>
-                </div>
-            `).join('');
+
+            document.getElementById('topOutflowsList').innerHTML = topOutflows.length > 0
+                ? topOutflows.map(item => `
+                    <div class="floating-fund-flow-item">
+                        <span class="floating-fund-flow-name" onclick="openStockModal('bankuai.html?blockCode=${encodeURIComponent(item['板块代码'] || '')}')">${item['板块名称']}</span>
+                        <span class="floating-fund-flow-value negative">${item['主力净流入_亿'].toFixed(2)}亿</span>
+                    </div>
+                `).join('')
+                : '<div class="floating-fund-flow-item" style="color:var(--c-text-muted);justify-content:center;">暂无净流出板块</div>';
         }
 
-        // Close button handler
         document.getElementById('floatingFundFlowClose').addEventListener('click', function() {
             document.getElementById('floatingFundFlow').style.display = 'none';
         });
 
-        // Initial update with sample data (will be replaced with real data)
+        // 初始示例数据
         updateFloatingFundFlow([
             {"板块名称":"电子元件","板块代码":"BK0451","主力净流入_亿":12.5},
             {"板块名称":"医药制造","板块代码":"BK0465","主力净流入_亿":8.7},
@@ -849,174 +635,7 @@
             {"板块名称":"通信","板块代码":"BK0448","主力净流入_亿":5.4}
         ]);
     </script>
-    <style>
-/* 修改最强风口卡片样式 */
-        .hotspot-card {
-            height: 725px;  /* 增加高度到725px */
-            display: flex;
-            flex-direction: column;
-            margin-bottom: 18px;
-        }
 
-.hotspot-container {
-    flex: 1;
-    overflow-y: auto;  /* 添加垂直滚动条 */
-    padding: 12px;
-    margin: 8px 0;
-}
 
-.hotspot-item {
-    background: #252538;
-    border-radius: 8px;
-    padding: 16px;
-    margin-bottom: 12px;
-}
-
-.hotspot-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-}
-
-.hotspot-name {
-    font-size: 14px;
-    font-weight: bold;
-    color: #e0e0e0;
-}
-
-.hotspot-stats {
-    display: flex;
-    gap: 12px;
-}
-
-.hotspot-stat {
-    font-size: 12px;
-    color: #aaa;
-}
-
-.hotspot-desc {
-    color: #888;
-    font-size: 12px;
-    line-height: 1.4;
-    margin-bottom: 12px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid #333;
-}
-
-.hotspot-stocks {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);  /* 固定2列 */
-    gap: 8px;
-}
-
-.stock-chip {
-    background: rgba(255,255,255,0.05);
-    padding: 8px 12px;
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-</style>
-<style>
-/* 修改板块异动和高频异动的容器样式 */
-#plate-news-switch-card {
-    height: 400px;
-    display: flex;
-    flex-direction: column;
-}
-
-/* 专门为板块异动和高频异动定义的样式 */
-#plateContainer, #newsContainer {
-    flex: 1;
-    overflow-y: auto;
-    margin: 8px 0;
-    padding: 0 12px 0 8px;
-    border: none;
-    margin-right: 4px;
-}
-
-.plate-item, .news-item {
-    padding: 12px;
-    margin-bottom: 8px;
-    border-radius: 4px;
-    background: rgba(30, 30, 45, 0.6);
-    border: 1px solid #3a3a5a;
-}
-
-/* 修改滚动条样式 */
-#plateContainer::-webkit-scrollbar,
-#newsContainer::-webkit-scrollbar {
-    width: 6px;
-}
-
-#plateContainer::-webkit-scrollbar-track,
-#newsContainer::-webkit-scrollbar-track {
-    background: rgba(0,0,0,0.1);
-    border-radius: 3px;
-}
-
-#plateContainer::-webkit-scrollbar-thumb,
-#newsContainer::-webkit-scrollbar-thumb {
-    background: rgba(255,255,255,0.1);
-    border-radius: 3px;
-}
-
-/* 图表相关的tab-pane样式 */
-.fund-flow-card .tab-pane {
-    position: relative;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-/* 板块异动相关的tab-pane样式 */
-#plate-news-switch-card .tab-pane {
-    height: calc(100% - 48px);
-    overflow-y: auto;
-}
-</style>
-<style>
-/* 修改主力资金净流入卡片样式 */
-.fund-flow-card {
-    height: 600px; /* 增加卡片高度到600px，确保图表有足够的空间 */
-    display: flex;
-    flex-direction: column;
-    padding: 12px;
-}
-
-#industryChart, #conceptChart {
-    width: 100%;
-    height: calc(100% - 60px) !important; /* 确保图表区域保持合适的高宽比 */
-    margin: 0;
-    padding: 0;
-    aspect-ratio: 16/10; /* 设置固定的宽高比，保持气泡为圆形 */
-}
-
-/* 调整标题栏样式 */
-#fund-flow-switch-card .card-title-row {
-    padding: 8px 0;
-    margin-bottom: 12px;
-    height: 40px;
-}
-
-/* 确保图表容器布局正确 */
-.tab-pane {
-    position: relative;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-/* 移除所有可能影响布局的额外属性 */
-canvas {
-    display: block;
-    max-width: 100%;
-    max-height: 100%;
-}
-</style>
 </body>
 </html>

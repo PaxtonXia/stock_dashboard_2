@@ -35,10 +35,10 @@
   .layout { display:flex; height:calc(100vh - 57px); overflow:hidden; }
 
   /* Left panel */
-  .panel-left { width:420px; min-width:300px; border-right:1px solid var(--border); overflow-y:auto; padding:14px; }
-  .date-group { margin-bottom:20px; }
-  .date-label { font-size:11px; color:var(--muted); padding:0 4px; margin-bottom:8px; font-weight:500; }
-  .theme-card { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:12px 14px; margin-bottom:7px; cursor:pointer; transition:.15s; }
+  .panel-left { width:340px; min-width:260px; border-right:1px solid var(--border); overflow-y:auto; padding:10px; }
+  .date-group { margin-bottom:14px; }
+  .date-label { font-size:10px; color:var(--muted); padding:0 4px; margin-bottom:6px; font-weight:500; }
+  .theme-card { background:var(--card); border:1px solid var(--border); border-radius:6px; padding:10px 12px; margin-bottom:5px; cursor:pointer; transition:.15s; }
   .theme-card:hover { background:var(--card-h); border-color:#484f58; }
   .theme-card.active { border-color:var(--accent); background:rgba(88,166,255,.07); }
   .theme-card.continuous { border-color:rgba(88,166,255,.4); background:linear-gradient(135deg,rgba(88,166,255,.05),transparent); }
@@ -46,34 +46,42 @@
   .trend-arrow { font-size:11px; margin-left:4px; font-weight:700; }
   .trend-up { color:var(--up); }
   .trend-down { color:var(--down); }
-  .theme-top { display:flex; align-items:center; gap:6px; margin-bottom:4px; }
-  .theme-name { font-size:14px; font-weight:700; flex:1; display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
-  .theme-name-text { max-width:210px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .theme-top { display:flex; align-items:center; gap:5px; margin-bottom:3px; }
+  .theme-name { font-size:13px; font-weight:700; flex:1; display:flex; align-items:center; gap:4px; flex-wrap:wrap; }
+  .theme-name-text { max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .hot-tag { font-size:10px; background:rgba(248,81,73,.15); color:var(--red); padding:1px 5px; border-radius:3px; font-weight:600; }
   .cont-tag { font-size:10px; background:rgba(88,166,255,.12); color:var(--accent); padding:1px 5px; border-radius:3px; font-weight:600; margin-left:4px; }
   .new-tag { font-size:10px; background:rgba(63,185,80,.12); color:var(--green); padding:1px 5px; border-radius:3px; font-weight:600; margin-left:4px; }
-  .f3-badge { font-size:13px; font-weight:800; font-family:'SF Mono',Consolas,monospace; flex-shrink:0; }
+  .f3-badge { font-size:12px; font-weight:800; font-family:'SF Mono',Consolas,monospace; flex-shrink:0; }
   .f3.up{color:var(--up)} .f3.down{color:var(--down)} .f3.flat{color:var(--muted)}
-  .theme-sort-bar { padding:8px 14px; display:flex; align-items:center; gap:6px; border-bottom:1px solid var(--border); background:var(--card); position:sticky; top:0; z-index:10; }
-  .theme-sort-bar .sort-label { font-size:12px; color:var(--muted); }
-  .theme-title { font-size:11px; color:var(--text); line-height:1.4; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; margin-bottom:3px; font-weight:500; }
-  .theme-summary { font-size:11px; color:var(--muted); line-height:1.4; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+  .theme-sort-bar { padding:6px 10px; display:flex; align-items:center; gap:5px; border-bottom:1px solid var(--border); background:var(--card); position:sticky; top:0; z-index:10; }
+  .theme-sort-bar .sort-label { font-size:11px; color:var(--muted); }
+  .theme-title { font-size:10px; color:var(--text); line-height:1.35; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; margin-bottom:2px; font-weight:500; }
+  .theme-summary { font-size:10px; color:var(--muted); line-height:1.35; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
   .theme-tags { display:flex; gap:5px; flex-wrap:wrap; }
   .tag{font-size:10px;padding:1px 5px;border-radius:3px}
   .tag-reason{background:rgba(188,140,255,.12);color:var(--purple)}
   .tag-stocks{background:rgba(63,185,80,.12);color:var(--green)}
 
-  /* Right panel */
-  .panel-right { flex:1; overflow-y:auto; padding:18px 24px; min-width:0; }
+  /* Middle panel - stock list */
+  .panel-mid { width:620px; min-width:480px; border-right:1px solid var(--border); overflow-y:auto; padding:12px 16px; }
+  .panel-mid.empty { display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:14px; }
+
+  /* Right panel - mindmap */
+  .panel-right { flex:1; min-width:300px; overflow:hidden; background:#0d1117; position:relative; }
   .panel-right.empty { display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:14px; }
-  .back-btn { background:none; border:none; color:var(--accent); cursor:pointer; font-size:13px; padding:4px 0; margin-bottom:14px; }
+  .mindmap-canvas { width:100%; height:100%; }
+  .mindmap-title { position:absolute; top:12px; left:50%; transform:translateX(-50%); color:var(--muted); font-size:12px; pointer-events:none; z-index:10; }
+  .mindmap-tip { position:absolute; bottom:12px; left:50%; transform:translateX(-50%); color:var(--muted); font-size:11px; pointer-events:none; z-index:10; opacity:.6; }
+
+  .back-btn { background:none; border:none; color:var(--accent); cursor:pointer; font-size:12px; padding:3px 0; margin-bottom:10px; }
   .back-btn:hover{text-decoration:underline}
 
   /* Stock header */
-  .stock-header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
+  .stock-header { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
   .stock-title-wrap { flex:1; min-width:0; }
-  .stock-title { font-size:20px; font-weight:700; margin-bottom:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .stock-meta { display:flex; align-items:center; gap:10px; font-size:12px; color:var(--muted); flex-wrap:wrap; }
+  .stock-title { font-size:18px; font-weight:700; margin-bottom:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .stock-meta { display:flex; align-items:center; gap:8px; font-size:11px; color:var(--muted); flex-wrap:wrap; }
   .meta-badge { padding:1px 7px; border-radius:4px; font-size:11px; }
   .meta-badge.blue{background:rgba(88,166,255,.1);color:var(--accent)}
   .meta-badge.red{background:rgba(248,81,73,.1);color:var(--red)}
@@ -86,15 +94,15 @@
   .fav-star:hover{transform:scale(1.3)}
   .fav-star.saved{color:var(--orange)}
 
-  .sort-bar { display:flex; align-items:center; gap:6px; margin-bottom:10px; flex-wrap:wrap; }
+  .sort-bar { display:flex; align-items:center; gap:5px; margin-bottom:8px; flex-wrap:wrap; }
   .sort-label{font-size:12px;color:var(--muted);margin-right:2px}
   .sort-btn{background:var(--card);border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:5px;cursor:pointer;font-size:12px;transition:.2s}
   .sort-btn:hover{border-color:var(--accent);color:var(--text)}
   .sort-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(88,166,255,.08)}
   .sort-arrow{margin-left:2px;font-size:10px}
 
-  .stock-table { width:100%; border-collapse:collapse; font-size:13px; }
-  .stock-table th{text-align:left;padding:8px 10px;font-size:11px;color:var(--muted);font-weight:500;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);white-space:nowrap;z-index:10}
+  .stock-table { width:100%; border-collapse:collapse; font-size:12px; }
+  .stock-table th{text-align:left;padding:6px 8px;font-size:10px;color:var(--muted);font-weight:500;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);white-space:nowrap;z-index:10}
   .stock-table th.n{text-align:right;width:36px}
   .stock-table th.name{min-width:90px}
   .stock-table th.code{min-width:88px}
@@ -103,7 +111,7 @@
   .stock-table th.hs{text-align:right;width:70px}
   .stock-table th.flow{text-align:right;width:90px}
   .stock-table th.sector{min-width:90px}
-  .stock-table td{padding:10px 10px;border-bottom:1px solid rgba(48,54,61,.35);vertical-align:middle}
+  .stock-table td{padding:7px 8px;border-bottom:1px solid rgba(48,54,61,.35);vertical-align:middle}
   .stock-table td.n{text-align:right;color:var(--muted);font-size:12px}
   .stock-table td.name{font-weight:600;cursor:pointer;white-space:nowrap}
   .stock-table td.name:hover{color:var(--accent);text-decoration:underline}
@@ -142,13 +150,21 @@
   .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--border);color:var(--text);padding:8px 16px;border-radius:8px;font-size:13px;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none}
   .toast.show{opacity:1}
 
+  @media(max-width:1200px){
+    .layout{flex-direction:column}
+    .panel-left{width:100%;border-right:none;border-bottom:1px solid var(--border);max-height:40vh}
+    .panel-mid{width:100%;border-right:none;border-bottom:1px solid var(--border);max-height:35vh}
+    .panel-right{min-height:300px}
+  }
   @media(max-width:768px){
     .layout{flex-direction:column}
     .panel-left{width:100%;border-right:none;border-bottom:1px solid var(--border);max-height:45vh}
-    .panel-right{padding:14px}
+    .panel-mid{width:100%;border-right:none;border-bottom:1px solid var(--border);max-height:35vh}
+    .panel-right{min-height:250px}
     .back-btn{display:inline-block}
     .header{padding:12px 16px}
     .panel-left{padding:10px}
+    .panel-mid{padding:12px}
     .stock-table th.hs,.stock-table td.hs,.stock-table th.flow,.stock-table td.flow,.stock-table th.sector,.stock-table td.sector{display:none}
     .h1-tag span,.badge,.update-time{display:none}
   }
@@ -176,7 +192,12 @@
   <div class="panel-left" id="panelLeft">
     <div class="loading-wrap"><div class="spinner"></div>加载中...</div>
   </div>
-  <div class="panel-right empty" id="panelRight">👈 点击左侧板块查看成分股</div>
+  <div class="panel-mid empty" id="panelMid">👈 点击左侧板块查看成分股</div>
+  <div class="panel-right empty" id="panelRight">
+    <div class="mindmap-title" id="mindmapTitle">概念脑图</div>
+    <canvas class="mindmap-canvas" id="mindmapCanvas"></canvas>
+    <div class="mindmap-tip">拖拽可移动</div>
+  </div>
 </div>
 
 <div class="tooltip" id="tooltip">
@@ -359,7 +380,7 @@ async function selectTheme(code, el) {
   currentCode = code;
 
   const theme = allThemes.find(t => t.themeCode === code);
-  const panel = document.getElementById('panelRight');
+  const panel = document.getElementById('panelMid');
   panel.classList.remove('empty');
 
   // Show loading state
@@ -380,6 +401,8 @@ async function selectTheme(code, el) {
       stockCache[code] = json.data.stockList || [];
       // Render full panel
       panel.innerHTML = buildPanelHtml(theme, stockCache[code], json.data.statistic || {});
+      // 渲染脑图
+      renderMindmap(theme, stockCache[code]);
     } else {
       throw new Error(`错误码 ${json.code} ${json.message||''}`);
     }
@@ -507,8 +530,10 @@ function sortStocks(list, field, asc) {
 function rerender() {
   if (!currentCode || !stockCache[currentCode]) return;
   const theme = allThemes.find(t => t.themeCode === currentCode);
-  const panel = document.getElementById('panelRight');
+  const panel = document.getElementById('panelMid');
   if (panel) panel.innerHTML = buildPanelHtml(theme, stockCache[currentCode], {});
+  // 更新脑图
+  renderMindmap(theme, stockCache[currentCode]);
 }
 
 // ─── Favorites ──────────────────────────────────────────
@@ -611,9 +636,15 @@ function resetToList() {
   if (window.innerWidth <= 768) document.querySelector('.panel-left').style.display = '';
   document.querySelectorAll('.theme-card').forEach(c => c.classList.remove('active'));
   currentCode = null;
-  const panel = document.getElementById('panelRight');
+  const panel = document.getElementById('panelMid');
   panel.classList.add('empty');
   panel.innerHTML = '👈 点击左侧板块查看成分股';
+  // 清空脑图
+  const canvas = document.getElementById('mindmapCanvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  document.getElementById('panelRight').classList.add('empty');
+  document.getElementById('mindmapTitle').textContent = '概念脑图';
 }
 
 // ─── Helpers ────────────────────────────────────────────
@@ -622,7 +653,348 @@ function esc(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// ─── Mindmap ────────────────────────────────────────────
+let mmOffsetX = 0, mmOffsetY = 0, mmDragging = false, mmLastX, mmLastY;
+
+function renderMindmap(theme, stocks) {
+  const canvas = document.getElementById('mindmapCanvas');
+  const ctx = canvas.getContext('2d');
+  const container = canvas.parentElement;
+  
+  canvas.width = container.clientWidth;
+  canvas.height = container.clientHeight;
+  
+  document.getElementById('panelRight').classList.remove('empty');
+  document.getElementById('mindmapTitle').textContent = `${theme?.themeName || '概念'} 脑图`;
+  
+  if (!stocks || stocks.length === 0) {
+    ctx.fillStyle = '#8b949e';
+    ctx.font = '14px Microsoft YaHei';
+    ctx.textAlign = 'center';
+    ctx.fillText('暂无数据', canvas.width/2, canvas.height/2);
+    return;
+  }
+  
+  const cx = canvas.width/2 + mmOffsetX;
+  const cy = canvas.height/2 + mmOffsetY;
+  
+  // 排序：涨幅排序
+  const sorted = [...stocks].sort((a,b) => (b.f3||0) - (a.f3||0));
+  const top12 = sorted.slice(0, 12);
+  
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  // 颜色配置
+  const COLORS = {
+    center: '#f0883e',
+    up: '#f85149',
+    down: '#3fb950',
+    flat: '#8b949e',
+    line: '#30363d',
+    nodeBg: '#161b22',
+    nodeText: '#c9d1d9',
+    flowIn: '#f85149',
+    flowOut: '#3fb950',
+    limitUp: '#ff6b6b',
+    gold: '#ffd700'
+  };
+  
+  // 统计数据
+  const stat = {
+    limitUp: stocks.filter(s => (s.f3||0) >= 9.9).length,
+    limitDown: stocks.filter(s => (s.f3||0) <= -9.9).length,
+    avgChange: stocks.reduce((sum, s) => sum + (s.f3||0), 0) / stocks.length,
+    totalFlow: stocks.reduce((sum, s) => sum + (s.f62||0), 0)
+  };
+  
+  // 计算最大资金流用于归一化
+  const maxFlow = Math.max(...top12.map(s => Math.abs(s.f62||0)), 1e8);
+  const maxMarketCap = Math.max(...top12.map(s => s.f21||1e9), 1e9);
+  
+  // ─── 绘制连接线（带资金流粗细和方向） ───
+  top12.forEach((s, i) => {
+    const angle = (i / top12.length) * Math.PI * 2 - Math.PI/2;
+    const r = Math.min(canvas.width, canvas.height) * 0.34;
+    const nx = cx + Math.cos(angle) * r;
+    const ny = cy + Math.sin(angle) * r;
+    
+    const flow = s.f62 || 0;
+    const flowRatio = Math.abs(flow) / maxFlow;
+    const lineW = Math.max(1, flowRatio * 8);
+    
+    // 资金流向决定线条颜色
+    const lineColor = flow > 1e6 ? COLORS.flowIn : flow < -1e6 ? COLORS.flowOut : COLORS.line;
+    
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(nx, ny);
+    ctx.strokeStyle = lineColor;
+    ctx.lineWidth = lineW;
+    ctx.globalAlpha = 0.7;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    
+    // 资金流入画箭头
+    if (Math.abs(flow) > 1e7) {
+      const midX = (cx + nx) / 2;
+      const midY = (cy + ny) / 2;
+      const arrowSize = 6;
+      const arrowAngle = Math.atan2(ny - cy, nx - cx);
+      
+      ctx.beginPath();
+      ctx.moveTo(midX, midY);
+      ctx.lineTo(midX - arrowSize * Math.cos(arrowAngle - 0.5), midY - arrowSize * Math.sin(arrowAngle - 0.5));
+      ctx.lineTo(midX - arrowSize * Math.cos(arrowAngle + 0.5), midY - arrowSize * Math.sin(arrowAngle + 0.5));
+      ctx.closePath();
+      ctx.fillStyle = lineColor;
+      ctx.fill();
+    }
+  });
+  
+  // ─── 绘制中心节点 ───
+  const centerR = 72;
+  
+  // 外圈：涨停数量指示
+  if (stat.limitUp > 0) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, centerR + 8, -Math.PI/2, -Math.PI/2 + (stat.limitUp / stocks.length) * Math.PI * 2);
+    ctx.strokeStyle = COLORS.limitUp;
+    ctx.lineWidth = 4;
+    ctx.stroke();
+  }
+  
+  // 中心圆
+  ctx.beginPath();
+  ctx.arc(cx, cy, centerR, 0, Math.PI * 2);
+  const centerGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, centerR);
+  centerGrad.addColorStop(0, '#ff9f43');
+  centerGrad.addColorStop(1, COLORS.center);
+  ctx.fillStyle = centerGrad;
+  ctx.fill();
+  
+  // 中心文字
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 14px Microsoft YaHei';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const centerName = (theme?.themeName || '概念').slice(0, 6);
+  ctx.fillText(centerName, cx, cy - 12);
+  
+  ctx.font = '11px Microsoft YaHei';
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.fillText(`${stocks.length}只成分股`, cx, cy + 4);
+  
+  // 板块涨跌幅
+  const avgCls = stat.avgChange > 0 ? COLORS.up : stat.avgChange < 0 ? COLORS.down : COLORS.flat;
+  ctx.fillStyle = avgCls;
+  ctx.font = 'bold 12px SF Mono, Consolas';
+  const avgText = (stat.avgChange > 0 ? '+' : '') + stat.avgChange.toFixed(2) + '%';
+  ctx.fillText(avgText, cx, cy + 20);
+  
+  // 涨停数量标记
+  if (stat.limitUp > 0) {
+    ctx.fillStyle = COLORS.limitUp;
+    ctx.font = 'bold 10px Microsoft YaHei';
+    ctx.fillText(`🔥${stat.limitUp}涨停`, cx, cy + 34);
+  }
+  
+  // ─── 绘制股票节点 ───
+  top12.forEach((s, i) => {
+    const angle = (i / top12.length) * Math.PI * 2 - Math.PI/2;
+    const r = Math.min(canvas.width, canvas.height) * 0.34;
+    const nx = cx + Math.cos(angle) * r;
+    const ny = cy + Math.sin(angle) * r;
+    
+    const f3 = s.f3 || 0;
+    const isLimitUp = f3 >= 9.9;
+    const color = f3 > 0 ? COLORS.up : f3 < 0 ? COLORS.down : COLORS.flat;
+    
+    // 市值决定节点大小
+    const marketCap = s.f21 || 1e9;
+    const sizeRatio = Math.sqrt(marketCap / maxMarketCap);
+    const nodeW = 85 + sizeRatio * 35;
+    const nodeH = 70 + sizeRatio * 15;
+    const nodeX = nx - nodeW/2;
+    const nodeY = ny - nodeH/2;
+
+    // 综合排名徽章（左上角）
+    const rank = s._rank || (i + 1);
+    const badgeR = 11;
+    const badgeX = nodeX - badgeR * 0.4;
+    const badgeY = nodeY - badgeR * 0.4;
+    let badgeColor, badgeTextColor;
+    if (rank === 1) {
+      badgeColor = '#ffd700'; badgeTextColor = '#1a1a1a';
+    } else if (rank === 2) {
+      badgeColor = '#c0c0c0'; badgeTextColor = '#1a1a1a';
+    } else if (rank === 3) {
+      badgeColor = '#cd7f32'; badgeTextColor = '#fff';
+    } else if (rank <= 10) {
+      badgeColor = '#e06c00'; badgeTextColor = '#fff';
+    } else {
+      badgeColor = '#444c56'; badgeTextColor = '#c9d1d9';
+    }
+    ctx.beginPath();
+    ctx.arc(badgeX, badgeY, badgeR, 0, Math.PI * 2);
+    ctx.fillStyle = badgeColor;
+    ctx.fill();
+    ctx.fillStyle = badgeTextColor;
+    ctx.font = 'bold 10px SF Mono, Consolas';
+    ctx.textAlign = 'center';
+    ctx.fillText(String(rank), badgeX, badgeY + 3.5);
+    ctx.textAlign = 'left';
+
+    // 涨停股发光效果
+    if (isLimitUp) {
+      ctx.shadowColor = COLORS.limitUp;
+      ctx.shadowBlur = 15;
+    }
+    
+    // 绘制圆角矩形背景
+    ctx.beginPath();
+    ctx.moveTo(nodeX + 8, nodeY);
+    ctx.lineTo(nodeX + nodeW - 8, nodeY);
+    ctx.quadraticCurveTo(nodeX + nodeW, nodeY, nodeX + nodeW, nodeY + 8);
+    ctx.lineTo(nodeX + nodeW, nodeY + nodeH - 8);
+    ctx.quadraticCurveTo(nodeX + nodeW, nodeY + nodeH, nodeX + nodeW - 8, nodeY + nodeH);
+    ctx.lineTo(nodeX + 8, nodeY + nodeH);
+    ctx.quadraticCurveTo(nodeX, nodeY + nodeH, nodeX, nodeY + nodeH - 8);
+    ctx.lineTo(nodeX, nodeY + 8);
+    ctx.quadraticCurveTo(nodeX, nodeY, nodeX + 8, nodeY);
+    ctx.closePath();
+    ctx.fillStyle = COLORS.nodeBg;
+    ctx.fill();
+    
+    // 边框
+    ctx.strokeStyle = isLimitUp ? COLORS.gold : color;
+    ctx.lineWidth = isLimitUp ? 2.5 : 1.5;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    
+    // 股票名
+    ctx.fillStyle = COLORS.nodeText;
+    ctx.font = 'bold 12px Microsoft YaHei';
+    ctx.textAlign = 'center';
+    const name = (s.securityName || s.name || '').slice(0, 5);
+    ctx.fillText(name, nx, ny - 22);
+    
+    // 代码（完整代码）
+    ctx.fillStyle = '#8b949e';
+    ctx.font = '10px SF Mono, Consolas';
+    const fullCode = s.securityCode || s.code || '';
+    ctx.fillText(fullCode, nx, ny - 8);
+    
+    // 涨跌幅
+    ctx.fillStyle = color;
+    ctx.font = 'bold 11px SF Mono, Consolas';
+    const f3Text = (f3 > 0 ? '+' : '') + f3.toFixed(2) + '%';
+    ctx.fillText(f3Text, nx, ny + 6);
+    
+    // ─── 市值标签 ───
+    const capY = ny + 18;
+    const capText = marketCap >= 1e8 ? (marketCap/1e8).toFixed(1) + '亿' : (marketCap/1e4).toFixed(0) + '万';
+    ctx.fillStyle = '#8b949e';
+    ctx.font = '9px Microsoft YaHei';
+    ctx.fillText('市值 ' + capText, nx, capY);
+    
+    // ─── 资金净流入标签 ───
+    const flow = s.f62 || 0;
+    const flowY = ny + 30;
+    
+    // 资金流入背景条
+    const barW = nodeW - 16;
+    const barH = 4;
+    const barX = nx - barW/2;
+    const barY = flowY - barH/2;
+    
+    // 背景条
+    ctx.fillStyle = '#21262d';
+    ctx.fillRect(barX, barY, barW, barH);
+    
+    // 资金条（流入红色/流出绿色）
+    const flowRatio = Math.min(Math.abs(flow) / maxFlow, 1);
+    const flowBarW = barW * flowRatio;
+    if (flow > 0) {
+      ctx.fillStyle = COLORS.flowIn;
+      ctx.fillRect(barX, barY, flowBarW, barH);
+    } else if (flow < 0) {
+      ctx.fillStyle = COLORS.flowOut;
+      ctx.fillRect(barX + barW - flowBarW, barY, flowBarW, barH);
+    }
+    
+    // 资金数值
+    const flowNumY = flowY + 11;
+    const flowAbs = Math.abs(flow);
+    let flowText = '';
+    if (flowAbs >= 1e8) {
+      flowText = (flow > 0 ? '+' : '') + (flow/1e8).toFixed(2) + '亿';
+    } else if (flowAbs >= 1e4) {
+      flowText = (flow > 0 ? '+' : '') + (flow/1e4).toFixed(0) + '万';
+    } else {
+      flowText = (flow > 0 ? '+' : '') + flow.toFixed(0);
+    }
+    // 白色高亮显示，配合彩色背景
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 9px SF Mono, Consolas';
+    ctx.fillText(flowText, nx, flowNumY);
+  });
+  
+  // ─── 图例 ───
+  const legendY = canvas.height - 30;
+  ctx.font = '10px Microsoft YaHei';
+  ctx.fillStyle = '#8b949e';
+  ctx.textAlign = 'left';
+  
+  ctx.fillText('节点大小 = 市值  |  进度条 = 资金净流入', 20, legendY);
+  ctx.fillText('红色流入  绿色流出', 20, legendY + 14);
+}
+
+// Canvas 拖拽
+function initMindmapDrag() {
+  const canvas = document.getElementById('mindmapCanvas');
+  
+  canvas.addEventListener('mousedown', e => {
+    mmDragging = true;
+    mmLastX = e.clientX;
+    mmLastY = e.clientY;
+    canvas.style.cursor = 'grabbing';
+  });
+  
+  canvas.addEventListener('mousemove', e => {
+    if (!mmDragging) return;
+    mmOffsetX += e.clientX - mmLastX;
+    mmOffsetY += e.clientY - mmLastY;
+    mmLastX = e.clientX;
+    mmLastY = e.clientY;
+    if (currentCode && stockCache[currentCode]) {
+      const theme = allThemes.find(t => t.themeCode === currentCode);
+      renderMindmap(theme, stockCache[currentCode]);
+    }
+  });
+  
+  canvas.addEventListener('mouseup', () => {
+    mmDragging = false;
+    canvas.style.cursor = 'grab';
+  });
+  
+  canvas.addEventListener('mouseleave', () => {
+    mmDragging = false;
+    canvas.style.cursor = 'grab';
+  });
+  
+  canvas.style.cursor = 'grab';
+}
+
+// 窗口大小变化时重绘
+window.addEventListener('resize', () => {
+  if (currentCode && stockCache[currentCode]) {
+    const theme = allThemes.find(t => t.themeCode === currentCode);
+    renderMindmap(theme, stockCache[currentCode]);
+  }
+});
+
 // ─── Boot ───────────────────────────────────────────────
+initMindmapDrag();
 loadThemes();
 </script>
 </body>

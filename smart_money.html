@@ -994,10 +994,10 @@
 										data.price = c + '价格:' + item.data;
 										data.ratio = c + '涨幅:' + ratioCalculate(item.data, preClose) + "%";
 									}else if(name == "分时均价"){
-										data.avgPrice = c + '均价:' + item.data;
+										data.avgPrice = c + '均价:' + parseFloat(item.data).toFixed(2);
 									}else if(name.indexOf("成交量") > -1){
 										// Show original volume value in tooltip
-										str += c + item.seriesName + " : " + (item.data / 0.00005) + "<br>";
+										str += c + item.seriesName + " : " + (item.data / 0.00005).toFixed(2) + "<br>";
 									} else if(item.componentSubType === 'scatter') {
 										const temp = scatterData.find(v => v.realTime === item.axisValue)
 										if (temp && temp.others) {

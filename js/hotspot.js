@@ -171,7 +171,7 @@ class HotspotManager {
                     turnover: (stock[10] * 100).toFixed(2),
                     marketValue: (stock[4] / 100000000).toFixed(2),
                     description: stock[5] || '',
-                    url: `redball.html##${stockCode}##`,
+                    url: `smart_money.html##${stockCode}##`,
                     // 根据正确的涨停幅度计算进度 (0-100)
                     limitProgress: Math.min(100, Math.max(0, (change / limitUpPercent) * 100)),
                     // 添加涨停幅度信息用于显示

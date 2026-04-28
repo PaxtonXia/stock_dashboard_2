@@ -1,6 +1,6 @@
-// stock-data.js - 股票数据相关功能
+﻿// stock-data.js - 鑲＄エ鏁版嵁鐩稿叧鍔熻兘
 
-// ==================== 主力净流入股票 ====================
+// ==================== 涓诲姏鍑€娴佸叆鑲＄エ ====================
 function fetchInflowStocks() {
     const baseUrl = "https://push2.eastmoney.com/api/qt/clist/get";
     const params = new URLSearchParams({
@@ -26,23 +26,23 @@ function fetchInflowStocks() {
         success: function(response) {
             if (response && response.data && Array.isArray(response.data.diff)) {
                 const transformedData = response.data.diff.map(item => ({
-                    '股票代码': item.f12,
-                    '股票名称': item.f14,
-                    '最新价': item.f2,
-                    '涨跌幅(%)': item.f3,
-                    '主力净流入(元)': item.f62,
-                    '净流速(元)': item.f605
+                    '鑲＄エ浠ｇ爜': item.f12,
+                    '鑲＄エ鍚嶇О': item.f14,
+                    '鏈€鏂颁环': item.f2,
+                    '娑ㄨ穼骞?%)': item.f3,
+                    '涓诲姏鍑€娴佸叆(鍏?': item.f62,
+                    '鍑€娴侀€?鍏?': item.f605
                 }));
                 window.inflowStocksData = transformedData;
                 renderInflowStocks(transformedData);
             } else {
-                console.error('主力净流入数据格式错误:', response);
-                $('#inflowStocksBody').html('<tr><td colspan="4" style="text-align:center;padding:20px;color:#ef4444;">数据格式错误</td></tr>');
+                console.error('涓诲姏鍑€娴佸叆鏁版嵁鏍煎紡閿欒:', response);
+                $('#inflowStocksBody').html('<tr><td colspan="4" style="text-align:center;padding:20px;color:#ef4444;">鏁版嵁鏍煎紡閿欒</td></tr>');
             }
         },
         error: function(xhr, status, error) {
-            console.error('获取主力净流入数据失败:', error);
-            $('#inflowStocksBody').html('<tr><td colspan="4" style="text-align:center;padding:20px;color:#ef4444;">获取数据失败</td></tr>');
+            console.error('鑾峰彇涓诲姏鍑€娴佸叆鏁版嵁澶辫触:', error);
+            $('#inflowStocksBody').html('<tr><td colspan="4" style="text-align:center;padding:20px;color:#ef4444;">鑾峰彇鏁版嵁澶辫触</td></tr>');
             
             $.getJSON('data/inflow_stocks.json')
                 .done(function(localData) {
@@ -61,11 +61,11 @@ function renderInflowStocks(data, sortKey = null, sortDirection = 'desc') {
         data.sort((a, b) => {
             let valueA, valueB;
             if (sortKey === 'inflow') {
-                valueA = parseFloat(a['主力净流入(元)']);
-                valueB = parseFloat(b['主力净流入(元)']);
+                valueA = parseFloat(a['涓诲姏鍑€娴佸叆(鍏?']);
+                valueB = parseFloat(b['涓诲姏鍑€娴佸叆(鍏?']);
             } else if (sortKey === 'inflowSpeed') {
-                valueA = parseFloat(a['净流速(元)']);
-                valueB = parseFloat(b['净流速(元)']);
+                valueA = parseFloat(a['鍑€娴侀€?鍏?']);
+                valueB = parseFloat(b['鍑€娴侀€?鍏?']);
             }
             return sortDirection === 'asc' ? valueA - valueB : valueB - valueA;
         });
@@ -74,24 +74,24 @@ function renderInflowStocks(data, sortKey = null, sortDirection = 'desc') {
     const limitedData = data.slice(0, 30);
     let html = '';
     limitedData.forEach(function(stock) {
-        const changePercent = parseFloat(stock['涨跌幅(%)']);
+        const changePercent = parseFloat(stock['娑ㄨ穼骞?%)']);
         const changeColor = changePercent >= 0 ? '#ef4444' : '#34d058';
         const changeSign = changePercent >= 0 ? '+' : '';
         
-        const inflow = (parseFloat(stock['主力净流入(元)']) / 10000).toFixed(2);
-        const inflowSpeed = (parseFloat(stock['净流速(元)']) / 10000).toFixed(2);
-        const inflowSpeedColor = parseFloat(stock['净流速(元)']) >= 0 ? '#ef4444' : '#34d058';
-        const stockCode = stock['股票代码'].toString();
+        const inflow = (parseFloat(stock['涓诲姏鍑€娴佸叆(鍏?']) / 10000).toFixed(2);
+        const inflowSpeed = (parseFloat(stock['鍑€娴侀€?鍏?']) / 10000).toFixed(2);
+        const inflowSpeedColor = parseFloat(stock['鍑€娴侀€?鍏?']) >= 0 ? '#ef4444' : '#34d058';
+        const stockCode = stock['鑲＄エ浠ｇ爜'].toString();
         
         html += `<tr style="border-bottom:1px solid #333;">
             <td style="padding:8px;text-align:left;font-size:12px;">
-                <a href="javascript:openStockModal('redball.html##${stockCode}##')" style="color:${changeColor};text-decoration:none;">
-                    ${stock['股票名称']}
+                <a href="javascript:openStockModal('smart_money.html##${stockCode}##')" style="color:${changeColor};text-decoration:none;">
+                    ${stock['鑲＄エ鍚嶇О']}
                 </a>
                 <div style="color:#888;font-size:10px;">${stockCode}</div>
             </td>
             <td style="padding:8px;text-align:right;font-size:12px;line-height:1.4;">
-                <div>${stock['最新价']}</div>
+                <div>${stock['鏈€鏂颁环']}</div>
                 <div style="color:${changeColor};font-size:11px;">${changeSign}${changePercent.toFixed(2)}%</div>
             </td>
             <td style="padding:8px;text-align:right;font-size:12px;">${inflow}</td>
@@ -107,7 +107,7 @@ function renderInflowStocks(data, sortKey = null, sortDirection = 'desc') {
     }
 }
 
-// ==================== 冲刺涨停股票 ====================
+// ==================== 鍐插埡娑ㄥ仠鑲＄エ ====================
 function fetchLimitUpStocks() {
     $.ajax({
         url: 'https://data.10jqka.com.cn/dataapi/limit_up/limit_up?page=1&limit=15&field=199112,10,48,1968584,19,3475914,9003,9004&filter=HS,GEM2STAR&order_field=199112&order_type=0&date=',
@@ -118,11 +118,11 @@ function fetchLimitUpStocks() {
                 renderLimitUpStocks(response.data.info);
                 updateLimitUpStats(response.data.limit_up_count);
             } else {
-                $('#limitUpStocksBody').html('<tr><td colspan="4" style="text-align:center;padding:20px;color:#ef4444;">数据格式错误</td></tr>');
+                $('#limitUpStocksBody').html('<tr><td colspan="4" style="text-align:center;padding:20px;color:#ef4444;">鏁版嵁鏍煎紡閿欒</td></tr>');
             }
         },
         error: function() {
-            $('#limitUpStocksBody').html('<tr><td colspan="4" style="text-align:center;padding:20px;color:#ef4444;">获取数据失败</td></tr>');
+            $('#limitUpStocksBody').html('<tr><td colspan="4" style="text-align:center;padding:20px;color:#ef4444;">鑾峰彇鏁版嵁澶辫触</td></tr>');
             $.getJSON('data/limit_up_stocks.json')
                 .done(function(localData) {
                     if (localData && localData.status_code === 0 && localData.data && localData.data.info) {
@@ -147,13 +147,13 @@ function renderLimitUpStocks(data) {
         let status = '';
         let statusColor = '';
         if (stock.change_tag === 'LIMIT_FAILED') {
-            status = '炸板';
+            status = '鐐告澘';
             statusColor = '#f59f00';
         } else if (changePercent >= 9.9) {
-            status = '涨停';
+            status = '娑ㄥ仠';
             statusColor = '#ef4444';
         } else {
-            status = '冲刺';
+            status = '鍐插埡';
             statusColor = '#3b82f6';
         }
         
@@ -161,7 +161,7 @@ function renderLimitUpStocks(data) {
         
         html += `<tr style="border-bottom:1px solid #333;">
             <td style="padding:8px;text-align:left;font-size:12px;">
-                <a href="javascript:openStockModal('redball.html##${stockCode}##')" style="color:#fff;text-decoration:none;">
+                <a href="javascript:openStockModal('smart_money.html##${stockCode}##')" style="color:#fff;text-decoration:none;">
                     ${stock.name}
                 </a>
                 <div style="color:#888;font-size:10px;">${stockCode}</div>
@@ -201,14 +201,14 @@ function initStockTableSorting() {
     });
 }
 
-// ==================== 自选股功能 ====================
+// ==================== 鑷€夎偂鍔熻兘 ====================
 const STOCK_POOL_KEY = 'stock_pool';
 
 function getFavoriteStocks() {
     const poolStr = localStorage.getItem(STOCK_POOL_KEY);
     if (poolStr) {
         try { return JSON.parse(poolStr); }
-        catch (e) { console.error('解析自选股数据失败:', e); }
+        catch (e) { console.error('瑙ｆ瀽鑷€夎偂鏁版嵁澶辫触:', e); }
     }
     return [];
 }
@@ -232,11 +232,11 @@ function renderFavoriteStocks() {
                 </div>
                 <div class="fav-stock-meta">
                     <span>${stock.code}</span>
-                    <span>${stock.date || '日期未知'}</span>
+                    <span>${stock.date || '鏃ユ湡鏈煡'}</span>
                 </div>
-                <div class="fav-stock-remove" onclick="removeFromFavorites('${stock.code}', event)" title="移除自选">×</div>
+                <div class="fav-stock-remove" onclick="removeFromFavorites('${stock.code}', event)" title="绉婚櫎鑷€?>脳</div>
             </div>`).join('')
-        : '<div style="padding:10px;color:var(--c-text-muted);text-align:center;">暂无自选股</div>';
+        : '<div style="padding:10px;color:var(--c-text-muted);text-align:center;">鏆傛棤鑷€夎偂</div>';
 }
 
 function removeFromFavorites(stockCode, event) {
@@ -245,7 +245,7 @@ function removeFromFavorites(stockCode, event) {
         saveFavoriteStocks(stocks.filter(s => s.code !== stockCode));
         renderFavoriteStocks();
         if (event) { event.stopPropagation(); event.preventDefault(); }
-    } catch (e) { console.error('移除自选股失败:', e); }
+    } catch (e) { console.error('绉婚櫎鑷€夎偂澶辫触:', e); }
 }
 
 document.addEventListener('DOMContentLoaded', function() {

@@ -168,9 +168,23 @@
     .stock-table th.hs,.stock-table td.hs,.stock-table th.flow,.stock-table td.flow,.stock-table th.sector,.stock-table td.sector{display:none}
     .h1-tag span,.badge,.update-time{display:none}
   }
+/* ── Modal ── */
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:1000;display:none}
+.modal-content{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(30,30,45,.7);backdrop-filter:blur(18px) saturate(140%);-webkit-backdrop-filter:blur(18px) saturate(140%);padding:20px;border-radius:8px;width:90%;max-width:1000px;max-height:80vh;overflow:auto;border:1px solid #3a3a5a;box-shadow:0 4px 20px rgba(0,0,0,.5)}
+.modal-close{position:absolute;top:10px;right:15px;cursor:pointer;color:#aaa;font-size:24px;z-index:10}
+.modal-close:hover{color:#fff}
+.modal-iframe{width:100%;height:calc(80vh - 60px);border:none;border-radius:4px;background:#fff}
 </style>
 </head>
 <body>
+
+<!-- Modal -->
+<div id="stockModal" class="modal-overlay">
+  <div class="modal-content">
+    <span class="modal-close">&times;</span>
+    <iframe id="stockModalFrame" class="modal-iframe"></iframe>
+  </div>
+</div>
 
 <header class="header">
   <div class="header-left">
@@ -446,7 +460,7 @@ function buildPanelHtml(theme, list, stat) {
 
     rows += `<tr class="${isFavRow?'fav-row':''}">
       <td class="n">${origIdx}</td>
-      <td class="name" onmouseenter="showTooltip(event,this)" onmouseleave="hideTooltip()" onclick="window.open('https://quote.eastmoney.com/${code}.html','_blank')">
+      <td class="name" onmouseenter="showTooltip(event,this)" onmouseleave="hideTooltip()" onclick="openStockModal('smart_money.html##${code}##')">
         ${esc(name)}${resonate}
         <span class="fav-star ${isFavRow?'saved':''}" onclick="event.stopPropagation();toggleFav('${esc(code)}')">${isFavRow?'★':'☆'}</span>
       </td>
@@ -655,11 +669,13 @@ function esc(str) {
 
 // ─── Mindmap ────────────────────────────────────────────
 let mmOffsetX = 0, mmOffsetY = 0, mmDragging = false, mmLastX, mmLastY;
+let mmNodes = []; // {x, y, w, h, code} for click detection
 
 function renderMindmap(theme, stocks) {
   const canvas = document.getElementById('mindmapCanvas');
   const ctx = canvas.getContext('2d');
   const container = canvas.parentElement;
+  mmNodes = [];
   
   canvas.width = container.clientWidth;
   canvas.height = container.clientHeight;
@@ -937,6 +953,8 @@ function renderMindmap(theme, stocks) {
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 9px SF Mono, Consolas';
     ctx.fillText(flowText, nx, flowNumY);
+
+    mmNodes.push({x: nodeX, y: nodeY, w: nodeW, h: nodeH, code: fullCode});
   });
   
   // ─── 图例 ───
@@ -954,6 +972,16 @@ function initMindmapDrag() {
   const canvas = document.getElementById('mindmapCanvas');
   
   canvas.addEventListener('mousedown', e => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    for (let i = mmNodes.length - 1; i >= 0; i--) {
+      const n = mmNodes[i];
+      if (mx >= n.x && mx <= n.x + n.w && my >= n.y && my <= n.y + n.h) {
+        openStockModal('smart_money.html##' + n.code + '##');
+        return;
+      }
+    }
     mmDragging = true;
     mmLastX = e.clientX;
     mmLastY = e.clientY;
@@ -992,6 +1020,11 @@ window.addEventListener('resize', () => {
     renderMindmap(theme, stockCache[currentCode]);
   }
 });
+
+// ─── Modal ───────────────────────────────────────────────
+function openStockModal(url){document.getElementById('stockModalFrame').src=url;document.getElementById('stockModal').style.display='block'}
+function closeStockModal(){document.getElementById('stockModal').style.display='none';document.getElementById('stockModalFrame').src=''}
+(function(){const c=document.querySelector('.modal-close');if(c)c.addEventListener('click',closeStockModal);const m=document.getElementById('stockModal');if(m)m.addEventListener('click',function(e){if(e.target===this)closeStockModal()})})();
 
 // ─── Boot ───────────────────────────────────────────────
 initMindmapDrag();

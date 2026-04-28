@@ -437,6 +437,7 @@ function buildPanelHtml(theme, list, stat) {
   const favStocks = sorted.filter(s => isFav(s.securityCode||s.code));
   const others = sorted.filter(s => !isFav(s.securityCode||s.code));
   const ordered = [...favStocks, ...others];
+  window._sortedStocks = ordered; // save display-order list for tooltip
 
   let rows = '';
   ordered.forEach((s) => {
@@ -458,7 +459,8 @@ function buildPanelHtml(theme, list, stat) {
     const overlap = overlapMap[code]||0;
     const resonate = overlap>1?`<span class="resonate-ind" title="出现在 ${overlap} 个板块">共振${overlap}</span>`:'';
 
-    rows += `<tr class="${isFavRow?'fav-row':''}">
+    const rowIdx = ordered.indexOf(s);
+    rows += `<tr class="${isFavRow?'fav-row':''}" data-idx="${rowIdx}">
       <td class="n">${origIdx}</td>
       <td class="name" onmouseenter="showTooltip(event,this)" onmouseleave="hideTooltip()" onclick="openStockModal('smart_money.html##${code}##')">
         ${esc(name)}${resonate}
@@ -573,10 +575,10 @@ function toggleThemeFav() {
 function showTooltip(e, el) {
   const row = el.closest('tr');
   if (!row) return;
-  const rows = Array.from(document.querySelectorAll('.stock-table tbody tr:not(.reason-row)'));
-  const idx = rows.indexOf(row);
-  if (idx < 0 || !stockCache[currentCode]) return;
-  const s = stockCache[currentCode][idx];
+  const idx = parseInt(row.dataset.idx, 10);
+  if (isNaN(idx)) return;
+  const list = window._sortedStocks || stockCache[currentCode] || [];
+  const s = list[idx];
   if (!s) return;
 
   const flow = s.f62 ?? 0;

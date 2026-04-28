@@ -41,12 +41,21 @@
   .theme-card { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:12px 14px; margin-bottom:7px; cursor:pointer; transition:.15s; }
   .theme-card:hover { background:var(--card-h); border-color:#484f58; }
   .theme-card.active { border-color:var(--accent); background:rgba(88,166,255,.07); }
+  .theme-card.continuous { border-color:rgba(88,166,255,.4); background:linear-gradient(135deg,rgba(88,166,255,.05),transparent); }
+  .theme-card.continuous.active { border-color:var(--accent); }
+  .trend-arrow { font-size:11px; margin-left:4px; font-weight:700; }
+  .trend-up { color:var(--up); }
+  .trend-down { color:var(--down); }
   .theme-top { display:flex; align-items:center; gap:6px; margin-bottom:4px; }
   .theme-name { font-size:14px; font-weight:700; flex:1; display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
   .theme-name-text { max-width:210px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .hot-tag { font-size:10px; background:rgba(248,81,73,.15); color:var(--red); padding:1px 5px; border-radius:3px; font-weight:600; }
+  .cont-tag { font-size:10px; background:rgba(88,166,255,.12); color:var(--accent); padding:1px 5px; border-radius:3px; font-weight:600; margin-left:4px; }
+  .new-tag { font-size:10px; background:rgba(63,185,80,.12); color:var(--green); padding:1px 5px; border-radius:3px; font-weight:600; margin-left:4px; }
   .f3-badge { font-size:13px; font-weight:800; font-family:'SF Mono',Consolas,monospace; flex-shrink:0; }
   .f3.up{color:var(--up)} .f3.down{color:var(--down)} .f3.flat{color:var(--muted)}
+  .theme-sort-bar { padding:8px 14px; display:flex; align-items:center; gap:6px; border-bottom:1px solid var(--border); background:var(--card); position:sticky; top:0; z-index:10; }
+  .theme-sort-bar .sort-label { font-size:12px; color:var(--muted); }
   .theme-title { font-size:11px; color:var(--text); line-height:1.4; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; margin-bottom:3px; font-weight:500; }
   .theme-summary { font-size:11px; color:var(--muted); line-height:1.4; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
   .theme-tags { display:flex; gap:5px; flex-wrap:wrap; }
@@ -192,6 +201,7 @@ let stockCache = {};
 let favorites = JSON.parse(localStorage.getItem('dc_fav') || '{}');
 let currentCode = null;
 let currentSort = { field:'f3', asc:false };
+let themeSort = { field:'default', asc:false }; // default | fex3 | cumulateF3
 let overlapMap = {};
 
 // ─── Market session ─────────────────────────────────────
@@ -273,14 +283,33 @@ function renderThemeList() {
   const panel = document.getElementById('panelLeft');
   if (!allThemes.length) { panel.innerHTML='<div class="error-msg">暂无数据</div>'; return; }
 
+  // 排序控制条
+  const sortBar = `
+    <div class="theme-sort-bar">
+      <span class="sort-label">排序：</span>
+      <button class="sort-btn${themeSort.field==='default'?' active':''}" onclick="changeThemeSort('default')">默认</button>
+      <button class="sort-btn${themeSort.field==='fex3'?' active':''}" onclick="changeThemeSort('fex3')">延续性<span class="sort-arrow">${themeSort.field==='fex3'?(themeSort.asc?'▲':'▼'):''}</span></button>
+      <button class="sort-btn${themeSort.field==='cumulateF3'?' active':''}" onclick="changeThemeSort('cumulateF3')">累计涨幅<span class="sort-arrow">${themeSort.field==='cumulateF3'?(themeSort.asc?'▲':'▼'):''}</span></button>
+    </div>
+  `;
+
   const groups = {};
-  allThemes.forEach(t => {
+  let sortedThemes = [...allThemes];
+  
+  // 排序逻辑
+  if (themeSort.field === 'fex3') {
+    sortedThemes.sort((a,b) => (themeSort.asc ? 1 : -1) * ((b.fex3||0) - (a.fex3||0)));
+  } else if (themeSort.field === 'cumulateF3') {
+    sortedThemes.sort((a,b) => (themeSort.asc ? 1 : -1) * ((b.cumulateF3||0) - (a.cumulateF3||0)));
+  }
+  
+  sortedThemes.forEach(t => {
     const d = t.tradeDate||'未知';
     if (!groups[d]) groups[d] = [];
     groups[d].push(t);
   });
 
-  let html = '';
+  let html = sortBar;
   Object.keys(groups).sort().reverse().forEach(date => {
     html += `<div class="date-group"><div class="date-label">📅 ${date}</div>`;
     groups[date].forEach(t => {
@@ -288,14 +317,27 @@ function renderThemeList() {
       const f3cls = f3>0?'up':f3<0?'down':'flat';
       const f3sign = f3>0?'+':'';
       const hot = t.isHot?'<span class="hot-tag">HOT</span>':'';
+  const cont = t.fex3>=2?`<span class="cont-tag">🔥${t.fex3}连</span>`:'';
+  const newTag = t.isNew?'<span class="new-tag">NEW</span>':'';
+  // 计算K线5日趋势
+  const klist = t.kLineList||[];
+  let trendArrow = '';
+  let trendUp = false;
+  if (klist.length >= 5) {
+    const last5 = klist.slice(-5);
+    const first = last5[0], last = last5[last5.length-1];
+    trendUp = last > first;
+    trendArrow = trendUp ? '<span class="trend-arrow trend-up">↗</span>' : '<span class="trend-arrow trend-down">↘</span>';
+  }
+  const cardCls = `theme-card${currentCode===t.themeCode?' active':''}${t.fex3>=2?' continuous':''}`;
       const shortName = (t.themeName||'').length>14?(t.themeName||'').slice(0,14)+'…':(t.themeName||'');
       const reasonCnt = t.reasonCount||(t.keywordList&&t.keywordList.length)||0;
       const stocks = t.stockList||[];
       html += `
-        <div class="theme-card${currentCode===t.themeCode?' active':''}" data-code="${esc(t.themeCode)}" onclick="selectTheme('${esc(t.themeCode)}',this)">
+        <div class="${cardCls}" data-code="${esc(t.themeCode)}" onclick="selectTheme('${esc(t.themeCode)}',this)">
           <div class="theme-top">
-            <div class="theme-name"><span class="theme-name-text">${esc(shortName)}</span>${hot}</div>
-            <span class="f3-badge ${f3cls}" style="color:var(--${f3cls==='up'?'up':f3cls==='down'?'down':'muted'})">${f3sign}${f3.toFixed(2)}%</span>
+            <div class="theme-name"><span class="theme-name-text">${esc(shortName)}</span>${hot}${cont}${newTag}</div>
+            <span class="f3-badge ${f3cls}" style="color:var(--${f3cls==='up'?'up':f3cls==='down'?'down':'muted'})">${f3sign}${f3.toFixed(2)}%${trendArrow}</span>
           </div>
           ${t.title?`<div class="theme-title">${esc(t.title)}</div>`:''}
           <div class="theme-summary">${esc(t.summary||'')}</div>
@@ -443,6 +485,16 @@ function changeSort(field) {
     currentSort.asc = false;
   }
   rerender();
+}
+
+function changeThemeSort(field) {
+  if (themeSort.field === field) {
+    themeSort.asc = !themeSort.asc;
+  } else {
+    themeSort.field = field;
+    themeSort.asc = false;
+  }
+  renderThemeList();
 }
 
 function sortStocks(list, field, asc) {

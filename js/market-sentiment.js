@@ -699,7 +699,7 @@ async function fetchMarketSentiment() {
 }
 
 // 初始化调用
-fetchGubaSentiment();
+document.addEventListener('DOMContentLoaded', fetchGubaSentiment);
 setInterval(fetchGubaSentiment, 60000);
 
 // 初始示例数据

@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>多股同列</title>
+<script src="js/echarts.js"></script>
+<script src="js/utils.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;background:#1a1a2e;color:#e0e0e0;width:100vw;height:100vh;overflow:hidden;display:flex;flex-direction:column}
+.header{display:flex;align-items:center;gap:12px;padding:10px 16px;background:#252538;border-bottom:1px solid rgba(255,255,255,.1);flex-shrink:0;flex-wrap:wrap}
+.header h2{font-size:15px;font-weight:700;white-space:nowrap;display:flex;align-items:center;gap:6px}
+.header .close-btn{background:none;border:none;color:#aaa;font-size:22px;cursor:pointer;line-height:1;padding:0 4px}
+.header .close-btn:hover{color:#fff}
+.search-box{display:flex;gap:6px;align-items:center}
+.search-input{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);border-radius:4px;padding:5px 10px;color:#e0e0e0;font-size:13px;width:160px}
+.search-input:focus{outline:none;border-color:#4a9eff}
+.search-btn{background:#4a9eff;border:none;border-radius:4px;padding:5px 12px;color:#fff;font-size:13px;cursor:pointer}
+.search-btn:hover{background:#3a8eef}
+.autocomplete{position:absolute;top:100%;left:0;right:0;background:#2a2a3e;border:1px solid rgba(255,255,255,.2);border-radius:4px;max-height:200px;overflow-y:auto;z-index:1000;display:none;box-shadow:0 4px 12px rgba(0,0,0,.3)}
+.autocomplete.show{display:block}
+.autocomplete-item{padding:8px 12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.1);font-size:13px}
+.autocomplete-item:hover{background:rgba(255,255,255,.1)}
+.autocomplete-item .sname{color:#e0e0e0}
+.autocomplete-item .scode{font-size:11px;color:rgba(255,255,255,.5);margin-left:8px}
+#legends{flex:1;display:flex;flex-wrap:wrap;gap:6px;overflow-y:auto;max-height:80px;padding:2px;background:rgba(255,255,255,.03);border-radius:4px;border:1px solid rgba(255,255,255,.08)}
+#legends::-webkit-scrollbar{width:4px}
+#legends::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:2px}
+.legend-item{display:flex;align-items:center;gap:5px;white-space:nowrap;padding:3px 8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:4px;font-size:12px;cursor:pointer;transition:.2s}
+.legend-item:hover{background:rgba(255,255,255,.1)}
+.legend-item.inactive{opacity:.3}
+.legend-item .cdot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.legend-item .lname{color:rgba(255,255,255,.9)}
+.legend-item .lchg{font-family:'SF Mono',Consolas,monospace;font-size:11px;margin-left:2px;padding:0 3px;border-radius:2px}
+.legend-item .lremove{color:#f85149;font-size:14px;margin-left:4px;cursor:pointer;line-height:1}
+.legend-item .lremove:hover{color:#ff6b6b}
+.chart-wrap{flex:1;min-height:0;position:relative}
+#chart{width:100%;height:100%}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#252538;border:1px solid rgba(255,255,255,.15);color:#e0e0e0;padding:8px 16px;border-radius:6px;font-size:13px;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <button class="close-btn" onclick="window.parent?.closeStockModal?.()||window.close()" title="关闭">✕</button>
+  <h2>📊 多股同列</h2>
+  <div style="position:relative;display:flex;gap:6px;align-items:center">
+    <input class="search-input" id="searchInput" placeholder="输入股票名称/代码" autocomplete="off">
+    <button class="search-btn" onclick="addBySearch()">添加</button>
+    <div class="autocomplete" id="autocomplete"></div>
+  </div>
+  <div id="legends"></div>
+</div>
+
+<div class="chart-wrap"><div id="chart"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── Config ────────────────────────────────────────────
+const COLORS = ['#4a9eff','#f0883e','#3fb950','#bc8cff','#f85149','#d29922','#39d2c0','#ff6b9d','#a5d8ff','#e599f7','#ffec99','#96f2d7'];
+let tradingTimes = generateTradingTimeAxis();
+let myChart = null;
+let allStocks = [];
+let stockPool = []; // {name, code, color, data, changePercent}
+
+// ─── Init ──────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  myChart = echarts.init(document.getElementById('chart'), null, {renderer:'canvas'});
+  window.addEventListener('resize', () => myChart.resize());
+
+  // Load stock list for search
+  try {
+    const res = await fetch('data/a_stock_codes.json');
+    if (res.ok) allStocks = (await res.json()).stocks || [];
+  } catch(e) { console.warn('股票列表加载失败，搜索不可用'); }
+
+  // Parse URL params: ?codes=600000.SH:平安银行,000001.SZ:平安银行
+  const params = new URLSearchParams(location.search);
+  const codesStr = params.get('codes');
+  if (codesStr) {
+    const items = codesStr.split(',').filter(Boolean);
+    for (let i = 0; i < items.length; i++) {
+      const parts = items[i].split(':');
+      const code = parts[0];
+      const name = parts[1] || code;
+      addStock(code, name);
+    }
+  }
+
+  // Also support hash: #600000.SH:平安银行,000001.SZ:某某
+  if (!codesStr && location.hash) {
+    const hashStr = location.hash.slice(1);
+    const items = hashStr.split(',').filter(Boolean);
+    for (let i = 0; i < items.length; i++) {
+      const parts = items[i].split(':');
+      const code = parts[0];
+      const name = parts[1] || code;
+      addStock(code, name);
+    }
+  }
+
+  // Search autocomplete
+  const input = document.getElementById('searchInput');
+  input.addEventListener('input', () => {
+    const q = input.value.trim();
+    if (!q) { hideAC(); return; }
+    const results = searchStocks(q).slice(0, 8);
+    showAC(results);
+  });
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') addBySearch();
+  });
+
+  // Auto refresh during trading
+  startAutoRefresh();
+});
+
+// ─── Search ────────────────────────────────────────────
+function searchStocks(query) {
+  if (!query || !allStocks.length) return [];
+  const q = query.toLowerCase();
+  const results = [];
+  for (const s of allStocks) {
+    if (s.name.toLowerCase().includes(q) || s.code.includes(q)) {
+      results.push(s);
+      if (results.length >= 10) break;
+    }
+  }
+  return results;
+}
+
+function showAC(results) {
+  const el = document.getElementById('autocomplete');
+  if (!results.length) { el.classList.remove('show'); return; }
+  el.innerHTML = results.map(s =>
+    `<div class="autocomplete-item" onclick="selectAC('${s.code}','${s.name}')"><span class="sname">${s.name}</span><span class="scode">${s.code}</span></div>`
+  ).join('');
+  el.classList.add('show');
+}
+
+function hideAC() { document.getElementById('autocomplete').classList.remove('show'); }
+
+function selectAC(code, name) {
+  document.getElementById('searchInput').value = name;
+  hideAC();
+  addStock(code, name);
+  document.getElementById('searchInput').value = '';
+}
+
+function addBySearch() {
+  const input = document.getElementById('searchInput');
+  const q = input.value.trim();
+  if (!q) return;
+  const results = searchStocks(q);
+  if (results.length > 0) {
+    addStock(results[0].code, results[0].name);
+    input.value = '';
+    hideAC();
+  } else {
+    showToast('未找到匹配股票');
+  }
+}
+
+// ─── Stock Management ──────────────────────────────────
+function addStock(code, name) {
+  // Skip if already added
+  if (stockPool.find(s => s.code === code)) return;
+  if (stockPool.length >= 12) { showToast('最多同列12只'); return; }
+
+  const color = COLORS[stockPool.length % COLORS.length];
+  const stock = { name, code, color, data: new Array(tradingTimes.length).fill(null), changePercent: 0 };
+  stockPool.push(stock);
+  fetchStockData(stock);
+  renderChart();
+  renderLegends();
+}
+
+function removeStock(code) {
+  stockPool = stockPool.filter(s => s.code !== code);
+  renderChart();
+  renderLegends();
+}
+
+// ─── Data Fetching ─────────────────────────────────────
+function toMarketCode(code) {
+  if (code.includes('.')) return code;
+  if (/^6/.test(code)) return code + '.SS';
+  if (/^0|^3/.test(code)) return code + '.SZ';
+  return code;
+}
+
+async function fetchStockData(stock) {
+  try {
+    const marketCode = toMarketCode(stock.code);
+    const res = await fetch(`https://api-ddc-wscn.xuangubao.com.cn/market/trend?fields=tick_at,close_px&prod_code=${marketCode}&period=1m`);
+    const json = await res.json();
+
+    let trends = [];
+    if (json.data?.trends) {
+      trends = json.data.trends.map(t => ({ ...t, tick_at: parseInt(t.tick_at) * 1000 }));
+    } else if (json.data?.candle?.[marketCode]?.lines) {
+      trends = json.data.candle[marketCode].lines.map(line => ({ tick_at: line[0] * 1000, close_px: line[1] }));
+    }
+
+    if (trends.length > 0) {
+      const result = processApiData(trends, [...stock.data]);
+      stock.data = result.data;
+      stock.changePercent = result.changePercent;
+      renderChart();
+      renderLegends();
+    }
+  } catch (e) {
+    console.error(`获取 ${stock.name} 数据失败:`, e);
+  }
+}
+
+function processApiData(trends, data) {
+  if (!Array.isArray(trends) || trends.length === 0) {
+    return { data, changePercent: 0, lastValidValueIndex: -1 };
+  }
+
+  const baseValue = parseFloat(trends[0]?.close_px) || 1;
+  let lastValidValue = baseValue;
+  let lastValidValueIndex = -1;
+  const morning11_29Index = tradingTimes.indexOf('11:29');
+  const afternoon13_00Index = tradingTimes.indexOf('13:00');
+
+  const newData = [...data];
+  const morningData = {};
+  const afternoonData = {};
+
+  trends.forEach(item => {
+    const timestamp = parseInt(item.tick_at);
+    const closePrice = parseFloat(item.close_px);
+    const value = Number(((closePrice - baseValue) / baseValue * 100).toFixed(2));
+
+    if (isNaN(timestamp) || timestamp <= 0 || isNaN(value)) return;
+
+    const time = new Date(timestamp);
+    const hours = time.getHours();
+    const minutes = time.getMinutes();
+    const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    const index = tradingTimes.indexOf(timeStr);
+
+    if (index !== -1) {
+      newData[index] = value;
+      if (!isNaN(closePrice) && closePrice > 0) {
+        lastValidValue = closePrice;
+        lastValidValueIndex = index;
+      }
+      if (hours < 12) morningData[index] = value;
+      else if (hours >= 13) afternoonData[index] = value;
+    }
+  });
+
+  // Remove lunch gap nulls
+  for (let i = morning11_29Index + 1; i < afternoon13_00Index; i++) {
+    newData[i] = null;
+  }
+
+  const changePercent = lastValidValueIndex !== -1
+    ? Number(((lastValidValue - baseValue) / baseValue * 100).toFixed(2))
+    : 0;
+
+  return { data: newData, changePercent, lastValidValueIndex };
+}
+
+// ─── Chart ─────────────────────────────────────────────
+function renderChart() {
+  if (!myChart) return;
+
+  const series = stockPool.map(stock => ({
+    name: stock.name,
+    type: 'line',
+    smooth: true,
+    symbol: 'none',
+    lineStyle: { color: stock.color, width: 2 },
+    areaStyle: {
+      color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+        { offset: 0, color: stock.color + '20' },
+        { offset: 1, color: stock.color + '03' }
+      ])
+    },
+    emphasis: {
+      focus: 'series',
+      lineStyle: { width: 3, shadowBlur: 10, shadowColor: stock.color }
+    },
+    data: stock.data
+  }));
+
+  const option = {
+    title: { show: false },
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(30,30,50,0.95)',
+      borderColor: 'rgba(255,255,255,0.15)',
+      textStyle: { color: '#e0e0e0', fontSize: 12 },
+      formatter: function(params) {
+        if (!params || !params.length) return '';
+        const time = params[0].axisValue;
+        let html = `<div style="font-weight:600;margin-bottom:4px">${time}</div>`;
+        params.forEach(p => {
+          if (p.value !== null && p.value !== undefined) {
+            const stock = stockPool.find(s => s.name === p.seriesName);
+            const c = stock ? stock.color : '#fff';
+            const v = parseFloat(p.value).toFixed(2);
+            html += `<div style="display:flex;justify-content:space-between;align-items:center;margin:2px 0">
+              <span style="display:flex;align-items:center"><span style="color:${c};margin-right:4px">●</span><span style="color:${c}">${p.seriesName}</span></span>
+              <span style="color:${v>=0?'#f85149':'#3fb950'};margin-left:8px;font-family:'SF Mono',Consolas,monospace">${v>=0?'+':''}${v}%</span>
+            </div>`;
+          }
+        });
+        return html;
+      }
+    },
+    grid: { left: '3%', right: '4%', bottom: '3%', top: '8%', containLabel: true },
+    xAxis: [{
+      type: 'category',
+      boundaryGap: false,
+      data: tradingTimes,
+      axisLine: { lineStyle: { color: 'rgba(255,255,255,0.15)' } },
+      axisLabel: {
+        color: 'rgba(255,255,255,0.5)',
+        formatter: function(v) {
+          const imp = ['09:30','10:00','10:30','11:00','11:30','13:00','13:30','14:00','14:30','15:00'];
+          return imp.includes(v) ? v : '';
+        },
+        interval: 0
+      },
+      splitLine: {
+        show: true,
+        interval: function(idx, v) { return v.endsWith(':00') || v.endsWith(':30'); },
+        lineStyle: { color: 'rgba(255,255,255,0.05)', type: 'dashed' }
+      }
+    }],
+    yAxis: [{
+      type: 'value',
+      axisLine: { lineStyle: { color: 'rgba(255,255,255,0.15)' } },
+      axisLabel: { color: 'rgba(255,255,255,0.5)', formatter: '{value}%' },
+      splitLine: { show: true, lineStyle: { color: 'rgba(255,255,255,0.06)', type: 'dashed' } },
+      splitNumber: 4,
+      minInterval: 1
+    }],
+    series
+  };
+
+  myChart.setOption(option, true);
+}
+
+// ─── Legends ───────────────────────────────────────────
+function renderLegends() {
+  const el = document.getElementById('legends');
+  el.innerHTML = stockPool.map((s, i) => {
+    const chg = s.changePercent;
+    const chgCls = chg > 0 ? 'color:#f85149' : chg < 0 ? 'color:#3fb950' : 'color:#8b949e';
+    const chgText = (chg > 0 ? '+' : '') + chg.toFixed(2) + '%';
+    return `<div class="legend-item" onclick="toggleLegend(${i})" id="leg-${i}">
+      <span class="cdot" style="background:${s.color}"></span>
+      <span class="lname">${s.name}</span>
+      <span class="lchg" style="${chgCls}">${chgText}</span>
+      <span class="lremove" onclick="event.stopPropagation();removeStock('${s.code}')">✕</span>
+    </div>`;
+  }).join('');
+}
+
+function toggleLegend(idx) {
+  const el = document.getElementById(`leg-${idx}`);
+  if (!el) return;
+  el.classList.toggle('inactive');
+  // Toggle series visibility
+  if (myChart) {
+    myChart.dispatchAction({ type: 'toggleSelectSeries', seriesIndex: idx });
+  }
+}
+
+// ─── Auto Refresh ──────────────────────────────────────
+let refreshTimer = null;
+function startAutoRefresh() {
+  if (refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(() => {
+    const now = new Date();
+    const d = new Date(now.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }));
+    const day = d.getDay();
+    if (day === 0 || day === 6) return;
+    const h = d.getHours(), m = d.getMinutes();
+    const mins = h * 60 + m;
+    if ((mins >= 9*60+15 && mins < 11*60+30) || (mins >= 13*60 && mins < 15*60)) {
+      stockPool.forEach(s => fetchStockData(s));
+    }
+  }, 30000);
+}
+
+// ─── Toast ─────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>

@@ -64,7 +64,7 @@
   .tag-stocks{background:rgba(63,185,80,.12);color:var(--green)}
 
   /* Middle panel - stock list */
-  .panel-mid { width:620px; min-width:480px; border-right:1px solid var(--border); overflow-y:auto; padding:12px 16px; }
+  .panel-mid { width:620px; min-width:480px; border-right:1px solid var(--border); overflow-y:auto; padding:8px 12px; }
   .panel-mid.empty { display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:14px; }
 
   /* Right panel - mindmap */
@@ -78,59 +78,65 @@
   .back-btn:hover{text-decoration:underline}
 
   /* Stock header */
-  .stock-header { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
+  .stock-header { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:8px; flex-wrap:wrap; }
   .stock-title-wrap { flex:1; min-width:0; }
-  .stock-title { font-size:18px; font-weight:700; margin-bottom:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .stock-meta { display:flex; align-items:center; gap:8px; font-size:11px; color:var(--muted); flex-wrap:wrap; }
-  .meta-badge { padding:1px 7px; border-radius:4px; font-size:11px; }
+  .stock-title { font-size:16px; font-weight:700; margin-bottom:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .stock-meta { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); flex-wrap:wrap; }
+  .meta-badge { padding:1px 6px; border-radius:4px; font-size:10px; }
   .meta-badge.blue{background:rgba(88,166,255,.1);color:var(--accent)}
   .meta-badge.red{background:rgba(248,81,73,.1);color:var(--red)}
   .meta-badge.green{background:rgba(63,185,80,.1);color:var(--green)}
   .meta-badge.orange{background:rgba(210,153,34,.1);color:var(--orange)}
-  .stock-actions { display:flex; gap:8px; flex-shrink:0; align-items:center; }
-  .action-btn { background:var(--card); border:1px solid var(--border); color:var(--text); padding:5px 12px; border-radius:6px; cursor:pointer; font-size:12px; transition:.2s; display:flex; align-items:center; gap:4px; }
+  .stock-actions { display:flex; gap:6px; flex-shrink:0; align-items:center; }
+  .action-btn { background:var(--card); border:1px solid var(--border); color:var(--text); padding:4px 10px; border-radius:5px; cursor:pointer; font-size:11px; transition:.2s; display:flex; align-items:center; gap:4px; }
   .action-btn:hover{border-color:var(--accent);color:var(--accent)}
-  .fav-star{font-size:14px;cursor:pointer;user-select:none;transition:.2s;margin-left:4px}
+  .action-btn.primary{background:rgba(88,166,255,.12);border-color:var(--accent);color:var(--accent)}
+  .action-btn.primary:hover{background:rgba(88,166,255,.2)}
+  .action-btn:disabled{opacity:.4;pointer-events:none}
+  .fav-star{font-size:13px;cursor:pointer;user-select:none;transition:.2s;margin-left:3px}
   .fav-star:hover{transform:scale(1.3)}
   .fav-star.saved{color:var(--orange)}
 
-  .sort-bar { display:flex; align-items:center; gap:5px; margin-bottom:8px; flex-wrap:wrap; }
-  .sort-label{font-size:12px;color:var(--muted);margin-right:2px}
-  .sort-btn{background:var(--card);border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:5px;cursor:pointer;font-size:12px;transition:.2s}
+  .sort-bar { display:flex; align-items:center; gap:4px; margin-bottom:6px; flex-wrap:wrap; }
+  .sort-label{font-size:11px;color:var(--muted);margin-right:1px}
+  .sort-btn{background:var(--card);border:1px solid var(--border);color:var(--muted);padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px;transition:.2s}
   .sort-btn:hover{border-color:var(--accent);color:var(--text)}
   .sort-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(88,166,255,.08)}
-  .sort-arrow{margin-left:2px;font-size:10px}
+  .sort-arrow{margin-left:1px;font-size:10px}
 
   .stock-table { width:100%; border-collapse:collapse; font-size:12px; }
-  .stock-table th{text-align:left;padding:6px 8px;font-size:10px;color:var(--muted);font-weight:500;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);white-space:nowrap;z-index:10}
-  .stock-table th.n{text-align:right;width:36px}
-  .stock-table th.name{min-width:90px}
-  .stock-table th.code{min-width:88px}
-  .stock-table th.price{text-align:right;width:75px}
-  .stock-table th.chg{text-align:right;width:90px}
-  .stock-table th.hs{text-align:right;width:70px}
-  .stock-table th.flow{text-align:right;width:90px}
-  .stock-table th.sector{min-width:90px}
-  .stock-table td{padding:7px 8px;border-bottom:1px solid rgba(48,54,61,.35);vertical-align:middle}
-  .stock-table td.n{text-align:right;color:var(--muted);font-size:12px}
-  .stock-table td.name{font-weight:600;cursor:pointer;white-space:nowrap}
+  .stock-table th{text-align:left;padding:5px 6px;font-size:10px;color:var(--muted);font-weight:500;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);white-space:nowrap;z-index:10}
+  .stock-table th.ck{width:26px}
+  .stock-table td.ck{text-align:center}
+  .stock-table td.ck input{accent-color:var(--accent);cursor:pointer;width:13px;height:13px}
+  .stock-table th.n{text-align:right;width:32px}
+  .stock-table th.name{min-width:85px}
+  .stock-table th.code{min-width:82px}
+  .stock-table th.price{text-align:right;width:70px}
+  .stock-table th.chg{text-align:right;width:78px}
+  .stock-table th.hs{text-align:right;width:65px}
+  .stock-table th.flow{text-align:right;width:82px}
+  .stock-table th.sector{min-width:85px}
+  .stock-table td{padding:4px 6px;border-bottom:1px solid rgba(48,54,61,.35);vertical-align:middle}
+  .stock-table td.n{text-align:right;color:var(--muted);font-size:11px}
+  .stock-table td.name{font-weight:600;cursor:pointer;white-space:nowrap;font-size:12px}
   .stock-table td.name:hover{color:var(--accent);text-decoration:underline}
-  .stock-table td.code{color:var(--muted);font-size:12px;font-family:'SF Mono',Consolas,monospace}
-  .stock-table td.price{text-align:right;font-family:'SF Mono',Consolas,monospace}
-  .stock-table td.chg{text-align:right;font-weight:700;font-family:'SF Mono',Consolas,monospace}
+  .stock-table td.code{color:var(--muted);font-size:11px;font-family:'SF Mono',Consolas,monospace}
+  .stock-table td.price{text-align:right;font-family:'SF Mono',Consolas,monospace;font-size:12px}
+  .stock-table td.chg{text-align:right;font-weight:700;font-family:'SF Mono',Consolas,monospace;font-size:12px}
   .stock-table td.chg.up{color:var(--up)}
   .stock-table td.chg.down{color:var(--down)}
   .stock-table td.chg.flat{color:var(--muted)}
-  .stock-table td.hs{text-align:right;font-family:'SF Mono',Consolas,monospace;font-size:12px}
-  .stock-table td.flow{text-align:right;font-family:'SF Mono',Consolas,monospace;font-size:12px}
+  .stock-table td.hs{text-align:right;font-family:'SF Mono',Consolas,monospace;font-size:11px}
+  .stock-table td.flow{text-align:right;font-family:'SF Mono',Consolas,monospace;font-size:11px}
   .stock-table td.flow.in{color:var(--red)}
   .stock-table td.flow.out{color:var(--green)}
-  .stock-table td.sector{font-size:12px;color:var(--muted)}
+  .stock-table td.sector{font-size:11px;color:var(--muted)}
   .stock-table tr:hover td{background:rgba(255,255,255,.02)}
   .stock-table tr.fav-row td{background:rgba(210,153,34,.04)}
   .stock-table tr.fav-row:hover td{background:rgba(210,153,34,.07)}
   .resonate-ind{display:inline-block;font-size:10px;background:rgba(210,153,34,.12);color:var(--orange);padding:1px 4px;border-radius:3px;margin-left:4px}
-  .reason-row td{border:none;padding:0 10px 8px 10px}
+  .reason-row td{border:none;padding:0 8px 6px 8px}
   .reason-row:hover td{background:transparent}
   .reason-tags{display:flex;flex-wrap:wrap;gap:3px}
   .reason-tag{font-size:10px;padding:1px 5px;border-radius:3px;background:rgba(188,140,255,.1);color:#bc8cff}
@@ -460,7 +466,9 @@ function buildPanelHtml(theme, list, stat) {
     const resonate = overlap>1?`<span class="resonate-ind" title="出现在 ${overlap} 个板块">共振${overlap}</span>`:'';
 
     const rowIdx = ordered.indexOf(s);
+    const ckChecked = selectedStocks.has(code) ? 'checked' : '';
     rows += `<tr class="${isFavRow?'fav-row':''}" data-idx="${rowIdx}">
+      <td class="ck"><input type="checkbox" class="stock-ck" data-code="${esc(code)}" data-name="${esc(name)}" ${ckChecked} onchange="onStockCk(this)"></td>
       <td class="n">${origIdx}</td>
       <td class="name" onmouseenter="showTooltip(event,this)" onmouseleave="hideTooltip()" onclick="openStockModal('smart_money.html##${code}##')">
         ${esc(name)}${resonate}
@@ -494,6 +502,7 @@ function buildPanelHtml(theme, list, stat) {
         </div>
       </div>
       <div class="stock-actions">
+        <button class="action-btn primary" id="compareBtn" onclick="openCompare()" disabled>📊 多股同列 (<span id="selCount">0</span>)</button>
         <button class="action-btn" onclick="toggleThemeFav()"><span id="themeFavBtn">☆</span> 收藏</button>
         <button class="action-btn" onclick="copyCodes()">📋 复制代码</button>
         <button class="action-btn" onclick="exportCsv()">⬇ CSV</button>
@@ -509,7 +518,7 @@ function buildPanelHtml(theme, list, stat) {
     </div>
     <table class="stock-table">
       <thead>
-        <tr><th class="n">#</th><th class="name">股票名称</th><th class="code">代码</th><th class="price">现价</th><th class="chg">涨跌幅</th><th class="hs">换手率</th><th class="flow">主力净流入</th><th class="sector">所属板块</th></tr>
+        <tr><th class="ck"><input type="checkbox" id="ckAll" onchange="toggleAllCk(this.checked)" title="全选/取消"></th><th class="n">#</th><th class="name">股票名称</th><th class="code">代码</th><th class="price">现价</th><th class="chg">涨跌幅</th><th class="hs">换手率</th><th class="flow">主力净流入</th><th class="sector">所属板块</th></tr>
       </thead>
       <tbody>${rows}</tbody>
     </table>`;
@@ -1027,6 +1036,44 @@ window.addEventListener('resize', () => {
 function openStockModal(url){document.getElementById('stockModalFrame').src=url;document.getElementById('stockModal').style.display='block'}
 function closeStockModal(){document.getElementById('stockModal').style.display='none';document.getElementById('stockModalFrame').src=''}
 (function(){const c=document.querySelector('.modal-close');if(c)c.addEventListener('click',closeStockModal);const m=document.getElementById('stockModal');if(m)m.addEventListener('click',function(e){if(e.target===this)closeStockModal()})})();
+
+// ─── Multi-stock Compare ────────────────────────────────
+let selectedStocks = new Set(); // store codes
+
+function onStockCk(el) {
+  const code = el.dataset.code;
+  const name = el.dataset.name;
+  if (el.checked) selectedStocks.add(code);
+  else selectedStocks.delete(code);
+  // sync "select all" checkbox
+  const allCks = document.querySelectorAll('.stock-ck');
+  const allChecked = allCks.length > 0 && [...allCks].every(c => c.checked);
+  const ckAll = document.getElementById('ckAll');
+  if (ckAll) ckAll.checked = allChecked;
+  updateCompareBtn();
+}
+
+function toggleAllCk(checked) {
+  const allCks = document.querySelectorAll('.stock-ck');
+  allCks.forEach(c => { c.checked = checked; if (checked) selectedStocks.add(c.dataset.code); else selectedStocks.delete(c.dataset.code); });
+  updateCompareBtn();
+}
+
+function updateCompareBtn() {
+  const btn = document.getElementById('compareBtn');
+  const cnt = document.getElementById('selCount');
+  if (btn) btn.disabled = selectedStocks.size < 2;
+  if (cnt) cnt.textContent = selectedStocks.size;
+}
+
+function openCompare() {
+  if (selectedStocks.size < 2) { showToast('请至少选择2只股票'); return; }
+  // Build code list with names: code:name,code:name
+  const allCks = document.querySelectorAll('.stock-ck:checked');
+  const items = [...allCks].map(c => `${c.dataset.code}:${c.dataset.name}`);
+  const url = `stock-compare.html?codes=${encodeURIComponent(items.join(','))}`;
+  openStockModal(url);
+}
 
 // ─── Boot ───────────────────────────────────────────────
 initMindmapDrag();

@@ -8,53 +8,75 @@
 <script src="js/utils.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;background:#1a1a2e;color:#e0e0e0;width:100vw;height:100vh;overflow:hidden;display:flex;flex-direction:column}
-.header{display:flex;align-items:center;gap:12px;padding:10px 16px;background:#252538;border-bottom:1px solid rgba(255,255,255,.1);flex-shrink:0;flex-wrap:wrap}
-.header h2{font-size:15px;font-weight:700;white-space:nowrap;display:flex;align-items:center;gap:6px}
-.header .close-btn{background:none;border:none;color:#aaa;font-size:22px;cursor:pointer;line-height:1;padding:0 4px}
-.header .close-btn:hover{color:#fff}
-.search-box{display:flex;gap:6px;align-items:center}
-.search-input{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);border-radius:4px;padding:5px 10px;color:#e0e0e0;font-size:13px;width:160px}
-.search-input:focus{outline:none;border-color:#4a9eff}
-.search-btn{background:#4a9eff;border:none;border-radius:4px;padding:5px 12px;color:#fff;font-size:13px;cursor:pointer}
-.search-btn:hover{background:#3a8eef}
-.autocomplete{position:absolute;top:100%;left:0;right:0;background:#2a2a3e;border:1px solid rgba(255,255,255,.2);border-radius:4px;max-height:200px;overflow-y:auto;z-index:1000;display:none;box-shadow:0 4px 12px rgba(0,0,0,.3)}
+body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;background:linear-gradient(135deg,#0d1117 0%,#161b22 50%,#1a1a2e 100%);color:#e0e0e0;width:100vw;height:100vh;overflow:hidden;display:flex;flex-direction:column}
+
+.header{display:flex;flex-direction:column;gap:0;background:rgba(22,27,34,.95);backdrop-filter:blur(10px);border-bottom:1px solid rgba(48,54,61,.8);flex-shrink:0;box-shadow:0 2px 20px rgba(0,0,0,.3)}
+.header-top{display:flex;align-items:center;gap:12px;padding:12px 16px}
+.header h2{font-size:15px;font-weight:600;white-space:nowrap;color:#f0f6fc;text-shadow:0 1px 2px rgba(0,0,0,.5)}
+.header h2::before{content:'';width:3px;height:14px;background:linear-gradient(180deg,#4a9eff,#6f42c1);border-radius:2px;margin-right:8px;display:inline-block}
+.search-wrap{position:relative;display:flex;gap:6px;align-items:center;flex:1;max-width:280px}
+.search-input{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);border-radius:6px;padding:6px 12px;color:#e0e0e0;font-size:13px;width:100%;transition:all .2s}
+.search-input:focus{outline:none;border-color:#4a9eff;background:rgba(74,158,255,.08)}
+.search-input::placeholder{color:#6e7681}
+.search-btn{background:#4a9eff;border:none;border-radius:6px;padding:6px 14px;color:#fff;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;white-space:nowrap}
+.search-btn:hover{background:#58a6ff}
+.autocomplete{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#21262d;border:1px solid rgba(48,54,61,.8);border-radius:6px;max-height:200px;overflow-y:auto;z-index:1000;display:none;box-shadow:0 8px 24px rgba(0,0,0,.5)}
 .autocomplete.show{display:block}
-.autocomplete-item{padding:8px 12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.1);font-size:13px}
-.autocomplete-item:hover{background:rgba(255,255,255,.1)}
-.autocomplete-item .sname{color:#e0e0e0}
-.autocomplete-item .scode{font-size:11px;color:rgba(255,255,255,.5);margin-left:8px}
-#legends{flex:1;display:flex;flex-wrap:wrap;gap:6px;overflow-y:auto;max-height:80px;padding:2px;background:rgba(255,255,255,.03);border-radius:4px;border:1px solid rgba(255,255,255,.08)}
-#legends::-webkit-scrollbar{width:4px}
-#legends::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:2px}
-.legend-item{display:flex;align-items:center;gap:5px;white-space:nowrap;padding:3px 8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:4px;font-size:12px;cursor:pointer;transition:.2s}
-.legend-item:hover{background:rgba(255,255,255,.1)}
-.legend-item.inactive{opacity:.3}
-.legend-item .cdot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-.legend-item .lname{color:rgba(255,255,255,.9)}
-.legend-item .lchg{font-family:'SF Mono',Consolas,monospace;font-size:11px;margin-left:2px;padding:0 3px;border-radius:2px}
-.legend-item .lremove{color:#f85149;font-size:14px;margin-left:4px;cursor:pointer;line-height:1}
-.legend-item .lremove:hover{color:#ff6b6b}
-.chart-wrap{flex:1;min-height:0;position:relative}
-#chart{width:100%;height:100%}
-.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#252538;border:1px solid rgba(255,255,255,.15);color:#e0e0e0;padding:8px 16px;border-radius:6px;font-size:13px;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none}
-.toast.show{opacity:1}
+.autocomplete-item{padding:8px 12px;cursor:pointer;border-bottom:1px solid rgba(48,54,61,.5);font-size:13px}
+.autocomplete-item:last-child{border-bottom:none}
+.autocomplete-item:hover{background:rgba(74,158,255,.1)}
+.autocomplete-item .sname{color:#e6edf3;font-weight:500}
+.autocomplete-item .scode{font-size:11px;color:#7d8590;margin-left:8px;font-family:'SF Mono',Consolas,monospace}
+.header-info{display:flex;align-items:center;gap:8px;font-size:12px;color:#8b949e}
+.header-info .sep{width:1px;height:10px;background:rgba(48,54,61,.8)}
+.header-legends{display:flex;flex-wrap:wrap;gap:8px;padding:10px 16px;background:rgba(0,0,0,.2);border-top:1px solid rgba(48,54,61,.4);min-height:42px;align-items:center}
+.header-legends:empty::before{content:'搜索添加股票（最多12只）';color:#484f58;font-size:12px;font-style:italic}
+.legend-item{display:flex;align-items:center;gap:4px;white-space:nowrap;padding:5px 10px;background:rgba(255,255,255,.06);border:1px solid rgba(48,54,61,.6);border-radius:5px;font-size:12px;cursor:pointer;transition:all .15s;width:140px}
+.legend-item:hover{background:rgba(255,255,255,.1);transform:translateY(-1px)}
+.legend-item.inactive{opacity:.35}
+.legend-item .cdot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.legend-item .lname{color:#e6edf3;font-weight:500;overflow:hidden;text-overflow:ellipsis;flex:1}
+.legend-item .lchg{font-family:'SF Mono',Consolas,monospace;font-size:11px;padding:1px 4px;border-radius:3px;font-weight:600}
+.legend-item .lremove{color:#f85149;font-size:14px;margin-left:2px;cursor:pointer;line-height:1;opacity:.6;transition:opacity .2s}
+.legend-item .lremove:hover{opacity:1}
+.chart-wrap{flex:1;min-height:0;position:relative;padding:10px;background:linear-gradient(180deg,transparent 0%,rgba(0,0,0,.2) 100%)}
+#chart{width:100%;height:100%;border-radius:10px;background:rgba(13,17,23,.5)}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(33,38,45,.95);border:1px solid rgba(48,54,61,.8);color:#e6edf3;padding:8px 16px;border-radius:6px;font-size:13px;z-index:9999;opacity:0;transition:all .3s;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
+.status-bar{display:flex;align-items:center;gap:10px;padding:6px 16px;background:rgba(22,27,34,.6);border-top:1px solid rgba(48,54,61,.5);font-size:11px;color:#7d8590;flex-shrink:0}
+.status-bar .time{font-family:'SF Mono',Consolas,monospace}
+.status-bar .sep{width:1px;height:10px;background:rgba(48,54,61,.8)}
 </style>
 </head>
 <body>
 
 <div class="header">
-  <button class="close-btn" onclick="window.parent?.closeStockModal?.()||window.close()" title="关闭">✕</button>
-  <h2>📊 多股同列</h2>
-  <div style="position:relative;display:flex;gap:6px;align-items:center">
-    <input class="search-input" id="searchInput" placeholder="输入股票名称/代码" autocomplete="off">
-    <button class="search-btn" onclick="addBySearch()">添加</button>
-    <div class="autocomplete" id="autocomplete"></div>
+  <div class="header-top">
+    <h2>多股同列</h2>
+    <div class="search-wrap">
+      <input class="search-input" id="searchInput" placeholder="搜索股票名称或代码" autocomplete="off">
+      <button class="search-btn" onclick="addBySearch()">添加</button>
+      <div class="autocomplete" id="autocomplete"></div>
+    </div>
+    <div class="header-info">
+      <span id="stockCount">0/12 只</span>
+      <span class="sep"></span>
+      <span id="marketStatus">--</span>
+    </div>
   </div>
-  <div id="legends"></div>
+  <div class="header-legends" id="legends"></div>
 </div>
 
 <div class="chart-wrap"><div id="chart"></div></div>
+
+<div class="status-bar">
+  <span class="time" id="currentTime"></span>
+  <span class="sep"></span>
+  <span id="stockCount">0 只股票</span>
+  <span class="sep"></span>
+  <span id="marketStatus">--</span>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -115,7 +137,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Auto refresh during trading
   startAutoRefresh();
+  
+  // Update status bar
+  updateStatusBar();
+  setInterval(updateStatusBar, 1000);
 });
+
+// ─── Status Bar ───────────────────────────────────────
+function updateStatusBar() {
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  document.getElementById('currentTime').textContent = timeStr;
+  document.getElementById('stockCount').textContent = stockPool.length + '/12 只';
+  
+  const h = now.getHours(), m = now.getMinutes();
+  const isTrading = (h >= 9 && h < 15) || (h === 9 && m >= 30) || (h >= 13 && h < 15);
+  const status = isTrading ? '🟢 交易中' : '⚫ 已收盘';
+  document.getElementById('marketStatus').textContent = status;
+}
 
 // ─── Search ────────────────────────────────────────────
 function searchStocks(query) {
@@ -170,7 +209,7 @@ function addStock(code, name) {
   if (stockPool.length >= 12) { showToast('最多同列12只'); return; }
 
   const color = COLORS[stockPool.length % COLORS.length];
-  const stock = { name, code, color, data: new Array(tradingTimes.length).fill(null), changePercent: 0 };
+  const stock = { name, code, color, data: new Array(tradingTimes.length).fill(null), changePercent: 0, openPrice: 0 };
   stockPool.push(stock);
   fetchStockData(stock);
   renderChart();
@@ -192,86 +231,91 @@ function toMarketCode(code) {
 }
 
 async function fetchStockData(stock) {
-  try {
+    try {
     const marketCode = toMarketCode(stock.code);
     const res = await fetch(`https://api-ddc-wscn.xuangubao.com.cn/market/trend?fields=tick_at,close_px&prod_code=${marketCode}&period=1m`);
     const json = await res.json();
 
     let trends = [];
-    if (json.data?.trends) {
-      trends = json.data.trends.map(t => ({ ...t, tick_at: parseInt(t.tick_at) * 1000 }));
-    } else if (json.data?.candle?.[marketCode]?.lines) {
-      trends = json.data.candle[marketCode].lines.map(line => ({ tick_at: line[0] * 1000, close_px: line[1] }));
+    let preClosePrice = 0;
+    
+    if (json.data?.candle?.[marketCode]?.lines) {
+    trends = json.data.candle[marketCode].lines.map(line => ({ tick_at: line[0] * 1000, close_px: line[1] }));
+    preClosePrice = parseFloat(json.data.candle[marketCode].pre_close_px) || 0;
+    } else if (json.data?.trends) {
+    trends = json.data.trends.map(t => ({ ...t, tick_at: parseInt(t.tick_at) * 1000 }));
     }
 
     if (trends.length > 0) {
-      const result = processApiData(trends, [...stock.data]);
+      console.log(`[DEBUG] ${stock.name} trends count:`, trends.length, 'first:', trends[0], 'last:', trends[trends.length-1]);
+      const result = processApiData(trends, [...stock.data], preClosePrice);
+      console.log(`[DEBUG] ${stock.name} result:`, 'openPrice:', result.openPrice, 'changePercent:', result.changePercent, 'data sample:', result.data.slice(0, 5));
       stock.data = result.data;
       stock.changePercent = result.changePercent;
+      stock.openPrice = result.openPrice;
       renderChart();
       renderLegends();
+    } else {
+      console.warn(`[DEBUG] ${stock.name} no trends data, json:`, json);
     }
   } catch (e) {
     console.error(`获取 ${stock.name} 数据失败:`, e);
   }
 }
 
-function processApiData(trends, data) {
+function processApiData(trends, data, preClosePrice = 0) {
   if (!Array.isArray(trends) || trends.length === 0) {
-    return { data, changePercent: 0, lastValidValueIndex: -1 };
+    return { data, changePercent: 0, openPrice: 0, lastValidValueIndex: -1 };
   }
 
-  const baseValue = parseFloat(trends[0]?.close_px) || 1;
-  let lastValidValue = baseValue;
+ const firstTradePrice = parseFloat(trends[0]?.close_px) || 0;
+ const basePrice = preClosePrice || firstTradePrice; // 用昨日收盘价作为基准
+ const openPrice = firstTradePrice; // 今日开盘价
+  let lastPrice = openPrice;
   let lastValidValueIndex = -1;
   const morning11_29Index = tradingTimes.indexOf('11:29');
   const afternoon13_00Index = tradingTimes.indexOf('13:00');
 
   const newData = [...data];
-  const morningData = {};
-  const afternoonData = {};
 
   trends.forEach(item => {
     const timestamp = parseInt(item.tick_at);
     const closePrice = parseFloat(item.close_px);
-    const value = Number(((closePrice - baseValue) / baseValue * 100).toFixed(2));
 
-    if (isNaN(timestamp) || timestamp <= 0 || isNaN(value)) return;
+    if (isNaN(timestamp) || timestamp <= 0 || isNaN(closePrice)) return;
 
     const time = new Date(timestamp);
-    const hours = time.getHours();
-    const minutes = time.getMinutes();
+    // 强制使用上海时区 (UTC+8)
+    const shanghaiTime = new Date(time.toLocaleString('en-US', { timeZone: 'Asia/Shanghai' }));
+    const hours = shanghaiTime.getHours();
+    const minutes = shanghaiTime.getMinutes();
     const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
     const index = tradingTimes.indexOf(timeStr);
 
-    if (index !== -1) {
-      newData[index] = value;
-      if (!isNaN(closePrice) && closePrice > 0) {
-        lastValidValue = closePrice;
+    if (index !== -1 && openPrice > 0) {
+      const pct = Number(((closePrice - basePrice) / basePrice * 100).toFixed(2));
+      newData[index] = pct;
+      if (closePrice > 0) {
+        lastPrice = closePrice;
         lastValidValueIndex = index;
       }
-      if (hours < 12) morningData[index] = value;
-      else if (hours >= 13) afternoonData[index] = value;
     }
   });
 
-  // Remove lunch gap nulls
-  for (let i = morning11_29Index + 1; i < afternoon13_00Index; i++) {
-    newData[i] = null;
-  }
+  // No lunch gap nulls needed - tradingTimes already skips 11:31-12:59
 
-  const changePercent = lastValidValueIndex !== -1
-    ? Number(((lastValidValue - baseValue) / baseValue * 100).toFixed(2))
-    : 0;
+  const changePercent = (basePrice > 0 && lastValidValueIndex !== -1)
+  ? Number(((lastPrice - basePrice) / basePrice * 100).toFixed(2))
+  : 0;
 
-  return { data: newData, changePercent, lastValidValueIndex };
+  return { data: newData, changePercent, openPrice, lastValidValueIndex };
 }
 
 // ─── Chart ─────────────────────────────────────────────
 function renderChart() {
   if (!myChart) return;
 
-  const series = stockPool.map(stock => ({
+  const series = stockPool.map((stock, idx) => ({
     name: stock.name,
     type: 'line',
     smooth: true,
@@ -287,6 +331,7 @@ function renderChart() {
       focus: 'series',
       lineStyle: { width: 3, shadowBlur: 10, shadowColor: stock.color }
     },
+    connectNulls: true,
     data: stock.data
   }));
 
@@ -300,17 +345,24 @@ function renderChart() {
       formatter: function(params) {
         if (!params || !params.length) return '';
         const time = params[0].axisValue;
+        // 过滤有效数据并按涨跌幅降序排序
+        const valid = params.filter(p => p.value !== null && p.value !== undefined)
+          .map(p => ({
+            name: p.seriesName,
+            value: parseFloat(p.value),
+            stock: stockPool.find(s => s.name === p.seriesName)
+          }))
+          .sort((a, b) => b.value - a.value);
+        
         let html = `<div style="font-weight:600;margin-bottom:4px">${time}</div>`;
-        params.forEach(p => {
-          if (p.value !== null && p.value !== undefined) {
-            const stock = stockPool.find(s => s.name === p.seriesName);
-            const c = stock ? stock.color : '#fff';
-            const v = parseFloat(p.value).toFixed(2);
-            html += `<div style="display:flex;justify-content:space-between;align-items:center;margin:2px 0">
-              <span style="display:flex;align-items:center"><span style="color:${c};margin-right:4px">●</span><span style="color:${c}">${p.seriesName}</span></span>
-              <span style="color:${v>=0?'#f85149':'#3fb950'};margin-left:8px;font-family:'SF Mono',Consolas,monospace">${v>=0?'+':''}${v}%</span>
-            </div>`;
-          }
+        valid.forEach(item => {
+          const c = item.stock ? item.stock.color : '#fff';
+          const chgColor = item.value >= 0 ? '#f85149' : '#3fb950';
+          const sign = item.value >= 0 ? '+' : '';
+          html += `<div style="display:flex;justify-content:space-between;align-items:center;margin:2px 0">
+            <span style="display:flex;align-items:center"><span style="color:${c};margin-right:4px">●</span><span style="color:${c}">${item.name}</span></span>
+            <span style="margin-left:8px;font-family:'SF Mono',Consolas,monospace;color:${chgColor}">${sign}${item.value.toFixed(2)}%</span>
+          </div>`;
         });
         return html;
       }
@@ -340,8 +392,7 @@ function renderChart() {
       axisLine: { lineStyle: { color: 'rgba(255,255,255,0.15)' } },
       axisLabel: { color: 'rgba(255,255,255,0.5)', formatter: '{value}%' },
       splitLine: { show: true, lineStyle: { color: 'rgba(255,255,255,0.06)', type: 'dashed' } },
-      splitNumber: 4,
-      minInterval: 1
+      splitNumber: 6
     }],
     series
   };

@@ -617,13 +617,23 @@ function hideTooltip() { document.getElementById('tooltip').style.display='none'
 
 // ─── Copy / Export ──────────────────────────────────────
 function copyCodes() {
-  if (!currentCode || !stockCache[currentCode]) return;
-  const codes = stockCache[currentCode].map(s=>(s.securityCode||s.code||'')).filter(Boolean).join(', ');
+  // 复制选中的股票代码，如果没有选中则复制全部
+  const allCks = document.querySelectorAll('.stock-ck:checked');
+  let codes, count;
+  if (allCks.length > 0) {
+    codes = [...allCks].map(c => c.dataset.code).join(', ');
+    count = allCks.length;
+  } else if (currentCode && stockCache[currentCode]) {
+    codes = stockCache[currentCode].map(s=>(s.securityCode||s.code||'')).filter(Boolean).join(', ');
+    count = stockCache[currentCode].length;
+  } else {
+    return;
+  }
   navigator.clipboard?.writeText(codes).catch(()=>{
     const ta=document.createElement('textarea'); ta.value=codes;
     document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
   });
-  showToast(`已复制 ${stockCache[currentCode].length} 只股票代码`);
+  showToast(`已复制 ${count} 只股票代码`);
 }
 
 function exportCsv() {

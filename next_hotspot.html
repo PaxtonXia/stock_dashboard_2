@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DC明天炒什么</title>
+<title>AI事件驱动投研系统</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -194,7 +194,7 @@
 
 <header class="header">
   <div class="header-left">
-    <h1>🔮 <span class="h1-tag">明天炒什么</span></h1>
+    <h1>🔮 <span class="h1-tag">AI事件驱动投研系统</span></h1>
     <span class="market-label">
       <span class="market-dot closed" id="mDot"></span>
       <span id="mText">检测中…</span>
@@ -282,17 +282,23 @@ updateMarketUI();
 setInterval(updateMarketUI, 30000);
 
 // ─── Load themes ────────────────────────────────────────
-async function loadThemes() {
+async function loadThemes(silent = false) {
   const btn = document.getElementById('refreshBtn');
   const panel = document.getElementById('panelLeft');
-  btn.disabled = true; btn.textContent = '刷新中…';
-  panel.innerHTML = '<div class="loading-wrap"><div class="spinner"></div>加载中...</div>';
+  if (!silent) {
+    btn.disabled = true; btn.textContent = '刷新中…';
+    panel.innerHTML = '<div class="loading-wrap"><div class="spinner"></div>加载中...</div>';
+  }
 
   try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 10000);
     const res = await fetch(`${API}/getFryTomorrowList`, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ args:{ pageSize:50, lastTradeDate:'' }, ...AUTH_WAP })
+      body: JSON.stringify({ args:{ pageSize:50, lastTradeDate:'' }, ...AUTH_WAP }),
+      signal: ctrl.signal
     });
+    clearTimeout(timer);
     const json = await res.json();
     if (json.code === 0 && json.data) {
       allThemes = json.data;
@@ -303,7 +309,11 @@ async function loadThemes() {
       throw new Error(`错误码 ${json.code} ${json.message||''}`);
     }
   } catch (e) {
-    panel.innerHTML = `<div class="error-msg">加载失败<div class="err-detail">${e.message}</div></div>`;
+    const msg = e.name === 'AbortError' ? '请求超时(10s)，可能被CORS阻止，请通过http://localhost访问' : e.message;
+    if (!silent) {
+      panel.innerHTML = `<div class="error-msg">加载失败<div class="err-detail">${msg}</div></div>`;
+    }
+    console.error('[loadThemes]', e);
   } finally {
     btn.disabled = false; btn.textContent = '刷新';
   }
@@ -409,13 +419,17 @@ async function selectTheme(code, el) {
     <div class="loading-wrap"><div class="spinner"></div>加载成分股...</div>`;
 
   try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 10000);
     const res = await fetch(`${API}/getStockList`, {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         args:{ themeCode:code, pageSize:1000, pageNum:1, sort:-1, sortField:'f3' },
         ...AUTH_WEB, timestamp: Date.now()
-      })
+      }),
+      signal: ctrl.signal
     });
+    clearTimeout(timer);
     const json = await res.json();
     if (json.code === 0 && json.data) {
       stockCache[code] = json.data.stockList || [];
@@ -1088,6 +1102,7 @@ function openCompare() {
 // ─── Boot ───────────────────────────────────────────────
 initMindmapDrag();
 loadThemes();
+setInterval(() => loadThemes(true), 5 * 60 * 1000); // 每5分钟静默刷新概念列表
 </script>
 </body>
 </html>

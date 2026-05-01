@@ -772,6 +772,10 @@ function renderBankuaiScatterChart(stocks) {
     const container = document.getElementById('scatterChartContainer');
     if (!container) { console.error('[scatter] container not found'); return; }
     if (!stocks || stocks.length === 0) { console.warn('[scatter] no data'); return; }
+    if (window.bankuaiScatterChart) {
+        try { window.bankuaiScatterChart.dispose(); } catch(e) {}
+        window.bankuaiScatterChart = null;
+    }
     container.innerHTML = '';
     container.style.backgroundColor = '#0d1117';
     window.bankuaiScatterChart = echarts.init(container);

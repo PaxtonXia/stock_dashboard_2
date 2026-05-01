@@ -180,7 +180,18 @@
 .modal-close{position:absolute;top:10px;right:15px;cursor:pointer;color:#aaa;font-size:24px;z-index:10}
 .modal-close:hover{color:#fff}
 .modal-iframe{width:100%;height:calc(80vh - 60px);border:none;border-radius:4px;background:#fff}
+
+/* ── Right panel view tabs ── */
+.view-tabs{position:absolute;top:8px;right:12px;z-index:20;display:flex;gap:4px}
+.view-tab{background:var(--card);border:1px solid var(--border);color:var(--muted);padding:3px 10px;border-radius:4px;cursor:pointer;font-size:11px;transition:.2s}
+.view-tab:hover{border-color:var(--accent);color:var(--text)}
+.view-tab.active{border-color:var(--accent);color:var(--accent);background:rgba(88,166,255,.1)}
+.scatter-container{width:100%;height:100%;display:none}
+.scatter-container.active{display:block}
+.mindmap-canvas.hidden{display:none}
+
 </style>
+<script src="https://cdn.jsdelivr.net/npm/echarts@4.8.0/dist/echarts.min.js"></script>
 </head>
 <body>
 
@@ -214,9 +225,14 @@
   </div>
   <div class="panel-mid empty" id="panelMid">👈 点击左侧板块查看成分股</div>
   <div class="panel-right empty" id="panelRight">
+    <div class="view-tabs">
+      <button class="view-tab active" id="tabMindmap" onclick="switchRightView('mindmap')">🧠 脑图</button>
+      <button class="view-tab" id="tabScatter" onclick="switchRightView('scatter')">📊 散点图</button>
+    </div>
     <div class="mindmap-title" id="mindmapTitle">概念脑图</div>
     <canvas class="mindmap-canvas" id="mindmapCanvas"></canvas>
-    <div class="mindmap-tip">拖拽可移动</div>
+    <div class="mindmap-tip" id="mindmapTip">拖拽可移动</div>
+    <div class="scatter-container" id="scatterContainer"></div>
   </div>
 </div>
 
@@ -437,6 +453,7 @@ async function selectTheme(code, el) {
       panel.innerHTML = buildPanelHtml(theme, stockCache[code], json.data.statistic || {});
       // 渲染脑图
       renderMindmap(theme, stockCache[code]);
+      if (currentRightView === "scatter") renderScatterChart(theme, stockCache[code]);
     } else {
       throw new Error(`错误码 ${json.code} ${json.message||''}`);
     }
@@ -1103,6 +1120,171 @@ function openCompare() {
 initMindmapDrag();
 loadThemes();
 setInterval(() => loadThemes(true), 5 * 60 * 1000); // 每5分钟静默刷新概念列表
+
+// ─── Right Panel View Switch ────────────────────────────
+let currentRightView = 'mindmap';
+
+function switchRightView(view) {
+  currentRightView = view;
+  const tabMM = document.getElementById('tabMindmap');
+  const tabSC = document.getElementById('tabScatter');
+  const canvas = document.getElementById('mindmapCanvas');
+  const tip = document.getElementById('mindmapTip');
+  const scatterEl = document.getElementById('scatterContainer');
+
+  if (view === 'mindmap') {
+    tabMM.classList.add('active'); tabSC.classList.remove('active');
+    canvas.classList.remove('hidden'); if(tip) tip.style.display='';
+    scatterEl.classList.remove('active');
+  } else {
+    tabSC.classList.add('active'); tabMM.classList.remove('active');
+    canvas.classList.add('hidden'); if(tip) tip.style.display='none';
+    scatterEl.classList.add('active');
+    // render scatter if we have data
+    if (currentCode && stockCache[currentCode]) {
+      const theme = allThemes.find(t => t.themeCode === currentCode);
+      renderScatterChart(theme, stockCache[currentCode]);
+    }
+  }
+}
+
+// ─── Scatter Chart ──────────────────────────────────────
+let hotspotScatterChart = null;
+
+function renderScatterChart(theme, stocks) {
+  const container = document.getElementById('scatterContainer');
+  if (!container || !stocks || stocks.length === 0) return;
+
+  // Ensure container size
+  const panel = document.getElementById('panelRight');
+  container.style.width = panel.clientWidth + 'px';
+  container.style.height = panel.clientHeight + 'px';
+
+  // Dispose old instance
+  if (hotspotScatterChart && !hotspotScatterChart.isDisposed()) {
+    hotspotScatterChart.dispose();
+  }
+  hotspotScatterChart = echarts.init(container);
+
+  // Build data points
+  const pts = [];
+  const sorted = [...stocks].sort((a, b) => Math.abs(b.f62 || 0) - Math.abs(a.f62 || 0));
+  const maxAmount = Math.max(...sorted.map(s => Math.abs(s.f62 || 0)), 1);
+
+  sorted.forEach(function(s, i) {
+    const f3 = s.f3 != null ? parseFloat(s.f3) : 0;
+    const f62 = s.f62 != null ? parseFloat(s.f62) : 0;
+    const name = s.securityName || s.name || '';
+    const code = s.securityCode || s.code || '';
+
+    // Percentile rank for size
+    const rank = i;
+    const total = sorted.length;
+    const pct = total > 1 ? 1 - rank / (total - 1) : 1;
+    const r = 6 + 64 * pct * pct; // 6~70px, square curve
+
+    // Color by change
+    const color = f3 >= 0 ? '#f85149' : '#3fb950';
+
+    pts.push({
+      value: [f62, f3],
+      symbolSize: r,
+      itemStyle: { color: color, opacity: 0.85 },
+      _name: name,
+      _code: code
+    });
+  });
+
+  const themeName = theme ? theme.themeName : '板块';
+
+  hotspotScatterChart.setOption({
+    backgroundColor: '#0d1117',
+    title: {
+      text: themeName + ' 资金流 vs 涨跌幅',
+      top: 8, left: 'center',
+      textStyle: { color: '#8b949e', fontSize: 13, fontWeight: 500 }
+    },
+    grid: { top: 50, right: 30, bottom: 50, left: 70 },
+    tooltip: {
+      trigger: 'item',
+      formatter: function(p) {
+        if (!p.data) return '';
+        const d = p.data;
+        const f62 = d.value[0];
+        const f3 = d.value[1];
+        const flowAbs = Math.abs(f62);
+        let flowStr = '';
+        if (flowAbs >= 1e8) flowStr = (f62/1e8).toFixed(2) + '亿';
+        else if (flowAbs >= 1e4) flowStr = (f62/1e4).toFixed(0) + '万';
+        else flowStr = f62.toFixed(0);
+        const f3Str = (f3 > 0 ? '+' : '') + f3.toFixed(2) + '%';
+        return '<b>' + d._name + '</b> (' + d._code + ')<br/>' +
+               '主力净流入: <b>' + flowStr + '</b><br/>' +
+               '涨跌幅: <b>' + f3Str + '</b>';
+      },
+      backgroundColor: 'rgba(22,27,34,0.95)',
+      borderColor: '#30363d',
+      textStyle: { color: '#e6edf3', fontSize: 12 }
+    },
+    xAxis: {
+      name: '主力净流入',
+      nameTextStyle: { color: '#8b949e', fontSize: 11 },
+      type: 'value',
+      axisLabel: {
+        color: '#8b949e', fontSize: 10,
+        formatter: function(v) {
+          const a = Math.abs(v);
+          if (a >= 1e8) return (v/1e8).toFixed(1) + '亿';
+          if (a >= 1e4) return (v/1e4).toFixed(0) + '万';
+          return v.toFixed(0);
+        }
+      },
+      splitLine: { lineStyle: { color: 'rgba(48,54,61,0.5)', type: 'dashed' } },
+      axisLine: { lineStyle: { color: '#30363d' } }
+    },
+    yAxis: {
+      name: '涨跌幅(%)',
+      nameTextStyle: { color: '#8b949e', fontSize: 11 },
+      type: 'value',
+      axisLabel: {
+        color: '#8b949e', fontSize: 10,
+        formatter: function(v) { return (v > 0 ? '+' : '') + v.toFixed(1) + '%'; }
+      },
+      splitLine: { lineStyle: { color: 'rgba(48,54,61,0.5)', type: 'dashed' } },
+      axisLine: { lineStyle: { color: '#30363d' } }
+    },
+    series: [{
+      type: 'scatter',
+      data: pts,
+      label: {
+        show: true,
+        formatter: function(p) { return p.data._name; },
+        position: 'inside',
+        fontSize: function(p) { return (p.data.symbolSize || 0) > 35 ? 11 : 9; },
+        color: '#fff',
+        fontWeight: 'bold',
+        textShadowColor: 'rgba(0,0,0,0.7)',
+        textShadowBlur: 3
+      },
+      emphasis: { itemStyle: { shadowBlur: 12 } }
+    }]
+  });
+
+  // Click bubble → open stock modal (smart_money page)
+  hotspotScatterChart.on('click', function(params) {
+    if (params.data && params.data._code) {
+      openStockModal('smart_money.html##' + params.data._code + '##');
+    }
+  });
+}
+
+// Resize scatter chart with window
+window.addEventListener('resize', function() {
+  if (hotspotScatterChart && !hotspotScatterChart.isDisposed() && currentRightView === 'scatter') {
+    hotspotScatterChart.resize();
+  }
+});
+
 </script>
 </body>
 </html>

@@ -7,6 +7,60 @@ body {
     color: #e0e0e0;
 }
 
+/* Tab 切换样式 */
+.card-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 15px;
+}
+
+.tab-btn {
+    padding: 6px 16px;
+    cursor: pointer;
+    color: #888;
+    border-radius: 4px;
+    transition: all 0.2s;
+    font-size: 14px;
+}
+
+.tab-btn:hover {
+    color: #4a9eff;
+    background: rgba(74, 158, 255, 0.1);
+}
+
+.tab-btn.active {
+    color: #4a9eff;
+    background: rgba(74, 158, 255, 0.15);
+    border-bottom: 2px solid #4a9eff;
+}
+
+.tab-sep {
+    color: #444;
+    margin: 0 8px;
+}
+
+/* 散点图视图 */
+.scatter-view {
+    width: 100%;
+    min-height: 400px;
+}
+
+/* ECharts 容器 */
+#scatterChartContainer {
+    width: 100%;
+    height: 450px;
+    background: #1e1e30;
+    border-radius: 6px;
+    padding: 10px;
+}
+
+/* 列表视图 */
+.list-view {
+    width: 100%;
+}
+
+/* 表格通用样式 */
 .sortable {
     cursor: pointer;
     position: relative;
@@ -20,7 +74,7 @@ body {
 .sortable::after {
     content: "↕";
     position: absolute;
-    right:5px;
+    right: 5px;
     opacity: 0.5;
     font-size: 14px;
 }

@@ -1,4 +1,4 @@
-// bankuai.js - 板块股票列表功能脚本
+﻿// bankuai.js - 板块股票列表功能脚本
 const TRADING_TIMES = {
     morning: {
         start: '09:30',
@@ -459,7 +459,7 @@ function isInStockPool(stockCode) {
 
 function getBlockCodeFromUrl() {
     const urlParams = new URLSearchParams(window.location.search);
-    const blockCode = urlParams.get('blockCode');
+    const blockCode = urlParams.get('code') || urlParams.get('blockCode');
     if (blockCode && !blockCode.startsWith('BK')) {
         return 'BK' + blockCode;
     }
@@ -732,6 +732,10 @@ async function displayStockList(data) {
         console.error('显示股票列表时出错:', error);
         $('#result').html('<p>显示数据时出错，请重试</p>');
     }
+    console.log('[displayStockList] stocks count:', data.data.diff?.length);
+    window.bankuaiStockData = data.data.diff;
+    console.log('[displayStockList] bankuaiStockData set, length:', window.bankuaiStockData.length);
+    renderBankuaiScatterChart(window.bankuaiStockData);
 }
 
 function sortTable(field) {
@@ -758,4 +762,121 @@ function sortTable(field) {
     });
     
     displayStockList(currentData);
+}
+
+// ==================== 散点图视图 ====================
+window.bankuaiStockData = [];
+window.bankuaiScatterChart = null;
+
+function renderBankuaiScatterChart(stocks) {
+    const container = document.getElementById('scatterChartContainer');
+    if (!container) { console.error('[scatter] container not found'); return; }
+    if (!stocks || stocks.length === 0) { console.warn('[scatter] no data'); return; }
+    container.innerHTML = '';
+    container.style.backgroundColor = '#0d1117';
+    window.bankuaiScatterChart = echarts.init(container);
+    var wrapper = container.firstChild;
+    if (wrapper && wrapper.style) { wrapper.style.width = '100%'; wrapper.style.height = '100%'; }
+    console.log('[scatter] container rect:', container.offsetWidth, container.offsetHeight, 'stocks count:', stocks?.length);
+    // 找最大成交额用于气泡大小缩放兜底
+    var rawAmounts = stocks.map(function(s) { return Math.abs(s.f62 || 0); }).filter(function(v) { return v > 0; });
+    var maxAmount = rawAmounts.length > 0 ? Math.max.apply(null, rawAmounts) : 1;
+    // percentile rank 方案：强制拉开大小差异，避免相近值挤在窄带
+    var sorted = rawAmounts.slice().sort(function(a, b) { return a - b; });
+    var toRadius = function(v) {
+        if (v <= 0) return 8;
+        var rank = 0;
+        for (var i = 0; i < sorted.length; i++) { if (sorted[i] <= v) rank = i + 1; else break; }
+        var pct = rank / sorted.length; // 0~1
+        return 6 + 64 * pct * pct; // 6~70px, square curve: head stocks much larger
+    };
+    // ECharts 5.x scatter expects [x, y] or [x, y, size], store extra in dataset
+    var pts = stocks.map(function(s) {
+        var netInflow = (s.f62 || 0) / 10000;
+        var changePct = parseFloat(s.f3 || 0);
+        var amount = Math.abs(s.f62 || 0) || 10;
+        var rise = changePct >= 0;
+        return {
+            value: [netInflow, changePct],
+            symbolSize: toRadius(amount),
+            itemStyle: { color: rise ? '#ef4444' : '#34d058', opacity: 0.88 },
+            _name: s.f14 || '',
+            _code: s.f12 || ''
+        };
+    });
+    console.log('[scatter] pts[0]:', JSON.stringify(pts[0]));
+    console.log('[scatter] chart inited, w:', container.offsetWidth, 'h:', container.offsetHeight);
+    window.bankuaiScatterChart.setOption({
+        animation: false,
+        grid: { left: 68, right: 40, top: 20, bottom: 50 },
+        xAxis: {
+            type: 'value', name: '主力净流入(万)',
+            nameTextStyle: { color: '#889', fontSize: 12 },
+            splitLine: { lineStyle: { color: '#2a3444', type: 'dashed' } },
+            axisLabel: { color: '#667' }
+        },
+        yAxis: {
+            type: 'value', name: '涨跌幅%',
+            nameTextStyle: { color: '#889', fontSize: 12 },
+            splitLine: { lineStyle: { color: '#2a3444', type: 'dashed' } },
+            axisLabel: { color: '#667' }
+        },
+        tooltip: {
+            trigger: 'item',
+            backgroundColor: 'rgba(17,24,39,0.95)',
+            borderColor: '#2e3c51',
+            textStyle: { color: '#e2e8f0' },
+            formatter: function(p) {
+                var d = p.data || {};
+                var name = d._name || '', code = d._code || '';
+                var v = d.value || [0, 0];
+                var color = v[1] >= 0 ? '#ef4444' : '#34d058';
+                return '<b>' + name + '</b><br/>' + code + '<br/>净流入: ' + v[0].toFixed(0) + '万<br/>涨跌幅: <span style="color:' + color + '">' + v[1].toFixed(2) + '%</span>';
+            }
+        },
+        series: [{
+            type: 'scatter', data: pts,
+            label: {
+                show: function(p) { return (p.data.symbolSize || 0) >= 18; },
+                formatter: function(p) { return p.data._name || ''; },
+                position: 'inside',
+                color: '#fff',
+                fontSize: function(p) { return (p.data.symbolSize || 10) > 35 ? 11 : 9; },
+                fontWeight: 'bold',
+                textShadowColor: 'rgba(0,0,0,0.7)',
+                textShadowBlur: 3
+            },
+            emphasis: { itemStyle: { shadowBlur: 12 } }
+        }]
+    });
+    // 点击气泡显示分时走势图
+    window.bankuaiScatterChart.on('click', function(params) {
+        if (params.data && params.data._code) {
+            showTimeChart(params.data._code, params.data._name);
+        }
+    });
+    console.log('[scatter] chart setOption done, pts.length:', pts.length);
+    }
+
+// Tab 切换：散点图 / 列表
+function switchBankuaiView(view) {
+    const scatterEl = document.getElementById('scatterView');
+    const tableEl = document.getElementById('result');
+    const scatterBtn = document.getElementById('btn-scatter');
+    const tableBtn = document.getElementById('btn-table');
+
+    if (view === 'scatter') {
+        if (scatterEl) scatterEl.style.display = 'block';
+        if (tableEl) tableEl.style.display = 'none';
+        if (scatterBtn) scatterBtn.classList.add('active');
+        if (tableBtn) tableBtn.classList.remove('active');
+        if (window.bankuaiStockData.length > 0) {
+            setTimeout(() => renderBankuaiScatterChart(window.bankuaiStockData), 100);
+        }
+    } else {
+        if (scatterEl) scatterEl.style.display = 'none';
+        if (tableEl) tableEl.style.display = 'block';
+        if (tableBtn) tableBtn.classList.add('active');
+        if (scatterBtn) scatterBtn.classList.remove('active');
+    }
 }

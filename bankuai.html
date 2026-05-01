@@ -6,21 +6,68 @@
     <title>板块股票列表</title>
     <link rel="stylesheet" href="css/font-awesome/all.min.css">
     <link rel="stylesheet" href="css/bankuai.css">
+    <script src="js/echarts.js"></script>
+    <script src="js/chart/Chart.min.js"></script>
+    <script src="js/plugins/chartjs-plugin-zoom.min.js"></script>
+    <script src="js/plugins/chartjs-plugin-datalabels.min.js"></script>
+    <script src="js/plugins/core-js-bundle.min.js"></script>
+    <script type="text/javascript" src="js/jquery.min.js"></script>
+    <script src="js/bankuai.js"></script>
+    <script>
+        $(document).ready(function() {
+            const blockCode = getBlockCodeFromUrl();
+            if (blockCode) {
+                fetchStockList(blockCode);
+            }
+
+            // Tab 切换：散点图 / 列表
+            document.getElementById('scatterTabBtn').onclick = function() {
+                document.getElementById('scatterView').style.display = 'block';
+                document.getElementById('listView').style.display = 'none';
+                this.classList.add('active');
+                document.getElementById('listTabBtn').classList.remove('active');
+                // canvas 可见后通知 chart resize
+                if (window.bankuaiScatterChart) {
+                    setTimeout(() => window.bankuaiScatterChart?.resize(), 0);
+                }
+            };
+            document.getElementById('listTabBtn').onclick = function() {
+                document.getElementById('scatterView').style.display = 'none';
+                document.getElementById('listView').style.display = 'block';
+                this.classList.add('active');
+                document.getElementById('scatterTabBtn').classList.remove('active');
+            };
+        });
+    </script>
 </head>
 <body>
     <div class="dashboard">
         <div class="card">
-            <div class="card-title">
-                <i class="fas fa-chart-line"></i>
-                板块股票列表
+            <div class="card-title-row">
+                <span class="card-title">
+                    <i class="fas fa-chart-line"></i>
+                    <span id="scatterTabBtn" class="tab-btn active">散点图</span>
+                    <span class="tab-sep">|</span>
+                    <span id="listTabBtn" class="tab-btn">列表</span>
+                </span>
             </div>
-            <div>
-                板块：<span id="blockName"></span>
+
+            <!-- 散点图视图（默认显示） -->
+            <div id="scatterView" class="scatter-view">
+                <div id="scatterChartContainer" class="echart"></div>
+            </div>
+
+            <!-- 列表视图（默认隐藏） -->
+            <div id="listView" class="list-view" style="display:none;">
+                <div>
+                    板块：<span id="blockName"></span>
+                </div>
+                <div id="result"></div>
             </div>
         </div>
     </div>
-    <div id="result"></div>
-    <!-- 模态框 -->
+
+    <!-- 分时图模态框 -->
     <div id="chartModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:1000;">
         <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:90%;max-width:800px;background:#252538;padding:20px;border-radius:8px;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
@@ -30,16 +77,5 @@
             <div id="modalChartContainer" style="width:100%;height:400px;"></div>
         </div>
     </div>
-    <script src="js/jquery.min.js"></script>
-    <script src="js/echarts.js"></script>
-    <script src="js/bankuai.js"></script>
-    <script>
-        $(document).ready(function() {
-            const blockCode = getBlockCodeFromUrl();
-            if (blockCode) {
-                fetchStockList(blockCode);
-            }
-        });
-    </script>
 </body>
 </html>

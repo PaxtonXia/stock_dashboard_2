@@ -67,11 +67,15 @@
 /* --- 板块卡片头部 --- */
 .plate-card-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   margin-bottom: var(--sp-3, 12px);
   padding-bottom: var(--sp-2, 8px);
   border-bottom: 1px solid var(--c-border, #2e3c51);
+}
+
+.plate-card-header::before {
+  content: '';
+  flex: 1;
 }
 
 .plate-card-title {
@@ -81,6 +85,11 @@
   font-weight: bold;
   color: var(--c-text-heading, #f3f4f6);
   flex: 1;
+  text-decoration: none;
+  cursor: pointer;
+}
+.plate-card-title:hover {
+  color: #34d058;
 }
 
 .plate-card-change {

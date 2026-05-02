@@ -1,0 +1,10 @@
+.plate-scatter-link {
+    color: #667;
+    font-size: 14px;
+    margin-right: 8px;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+.plate-scatter-link:hover {
+    color: #34d058;
+}

@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日K线图</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: #0d1117;
+    color: #c9d1d9;
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    display: flex;
+    flex-direction: column;
+  }
+  /* === Header === */
+  #header {
+    height: 48px;
+    background: #161b22;
+    border-bottom: 1px solid #2e3c51;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  #stockName {
+    font-size: 15px;
+    font-weight: 600;
+    color: #e6edf3;
+    min-width: 80px;
+  }
+  #stockCode {
+    font-size: 12px;
+    color: #8b949e;
+  }
+  #searchInput {
+    height: 30px;
+    background: #0d1117;
+    border: 1px solid #2e3c51;
+    border-radius: 4px;
+    color: #c9d1d9;
+    font-size: 13px;
+    padding: 0 10px;
+    width: 110px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  #searchInput:focus { border-color: #34d058; }
+  #searchInput::placeholder { color: #484f58; }
+  #searchBtn {
+    height: 30px;
+    padding: 0 14px;
+    background: #238636;
+    border: none;
+    border-radius: 4px;
+    color: #fff;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  #searchBtn:hover { background: #2ea043; }
+  #loading {
+    font-size: 13px;
+    color: #8b949e;
+    margin-left: 12px;
+    display: none;
+  }
+  #errorMsg {
+    font-size: 12px;
+    color: #f85149;
+    margin-left: 12px;
+    display: none;
+  }
+  /* === Chart Area === */
+  #chart-area {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+  }
+  #chart {
+    width: 100%;
+    height: 100%;
+  }
+  /* === Loading overlay === */
+  #overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(13,17,23,0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 10px;
+    font-size: 14px;
+    color: #8b949e;
+    z-index: 10;
+  }
+  #overlay.hidden { display: none; }
+  .spinner {
+    width: 32px; height: 32px;
+    border: 3px solid #2e3c51;
+    border-top-color: #34d058;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+<script type="text/javascript" src="js/echarts.js"></script>
+</head>
+<body>
+
+<div id="header">
+  <span id="stockName">--</span>
+  <span id="stockCode">--</span>
+  <input id="searchInput" type="text" placeholder="股票代码，如 300042" value="">
+  <button id="searchBtn" onclick="doSearch()">查询</button>
+  <span id="loading">加载中...</span>
+  <span id="errorMsg"></span>
+</div>
+
+<div id="chart-area">
+  <div id="chart"></div>
+  <div id="overlay">
+    <div class="spinner"></div>
+    <span>正在加载K线数据...</span>
+  </div>
+</div>
+
+<script>
+// ===========================
+// 全局变量
+// ===========================
+var daykChart = null;
+var currentCode = '';
+var rawData = [];  // [{date, open, high, low, close, volume}]
+
+// ===========================
+// 工具函数
+// ===========================
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function getQueryCode() {
+  var m = location.search.match(/[?&]code=([^&]+)/);
+  return m ? m[1] : '';
+}
+
+function showLoading(flag) {
+  document.getElementById('overlay').className = flag ? '' : 'hidden';
+  document.getElementById('loading').style.display = flag ? 'inline' : 'none';
+}
+
+function showError(msg) {
+  var el = document.getElementById('errorMsg');
+  el.textContent = msg;
+  el.style.display = msg ? 'inline' : 'none';
+}
+
+// 回车触搜索
+document.getElementById('searchInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') doSearch();
+});
+
+// ===========================
+// 搜索
+// ===========================
+function doSearch() {
+  var code = document.getElementById('searchInput').value.trim();
+  if (!code) return;
+  location.href = 'dayk_chart.html?code=' + encodeURIComponent(code);
+}
+
+// ===========================
+// 数据获取：api.9yee.com 日K代理接口
+// URL: https://api.9yee.com/dayk_proxy
+// 参数: code(股票代码), datalen(天数)
+// 返回: JSON数组 [{day,open,high,low,close,volume,...}]
+// ===========================
+function fetchDayKData(code) {
+  return new Promise(function(resolve, reject) {
+    var timer = setTimeout(function() {
+      reject(new Error('请求超时'));
+    }, 15000);
+
+    fetch('https://api.9yee.com/dayk_proxy?code=' + code + '&datalen=240')
+      .then(function(r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function(data) {
+        clearTimeout(timer);
+        if (!data || !Array.isArray(data) || data.length === 0) {
+          reject(new Error('未获取到K线数据，请检查股票代码'));
+        } else {
+          resolve(data);
+        }
+      })
+      .catch(function(e) {
+        clearTimeout(timer);
+        reject(new Error('网络请求失败: ' + (e.message || '')));
+      });
+  });
+}
+
+// ===========================
+// 数据解析
+// data: 新浪财经 JSON数组 [{day,open,high,low,close,volume,ma_price5,...}]
+// 数据已经按时间正序（最早在前，最新在后）
+// ===========================
+function parseDayKLines(data) {
+  if (!Array.isArray(data)) return [];
+  var result = [];
+  for (var i = 0; i < data.length; i++) {
+    var item = data[i];
+    if (!item.day) continue;
+    var date  = item.day.replace(/-/g, '');   // '2026-01-28' -> '20260128'
+    var open  = parseFloat(item.open);
+    var high  = parseFloat(item.high);
+    var low   = parseFloat(item.low);
+    var close = parseFloat(item.close);
+    var vol   = parseFloat(item.volume) || 0;
+    if (isNaN(open) || isNaN(high) || isNaN(low) || isNaN(close)) continue;
+    result.push({ date: date, open: open, high: high, low: low, close: close, volume: vol });
+  }
+  return result;
+}
+
+// ===========================
+// 格式化日期显示
+// ===========================
+function fmtDate(d) {
+  // d: '20260428' -> '04-28'
+  if (d.length === 8) return d.slice(4, 6) + '-' + d.slice(6, 8);
+  return d;
+}
+
+// ===========================
+// 计算均线
+// ===========================
+function calcMA(closeArr, n) {
+  var result = [];
+  for (var i = 0; i < closeArr.length; i++) {
+    if (i < n - 1) {
+      result.push('-');
+    } else {
+      var sum = 0;
+      for (var j = 0; j < n; j++) sum += closeArr[i - j];
+      result.push((sum / n).toFixed(2));
+    }
+  }
+  return result;
+}
+
+// ===========================
+// ECharts 日K渲染
+// ===========================
+function renderDayKChart(data) {
+  var chartDom = document.getElementById('chart');
+  if (!chartDom) return;
+
+  if (!daykChart || !daykChart.id) {
+    daykChart = echarts.init(chartDom, null, { renderer: 'canvas' });
+  } else {
+    daykChart.clear();
+  }
+
+  // 准备数据
+  var dates = data.map(function(d) { return d.date; });
+  var ohlc  = data.map(function(d) { return [d.open, d.close, d.low, d.high]; });
+  var vols  = data.map(function(d) { return d.volume; });
+  var closes = data.map(function(d) { return d.close; });
+
+  var ma5  = calcMA(closes, 5);
+  var ma10 = calcMA(closes, 10);
+  var ma20 = calcMA(closes, 20);
+
+  // 涨跌颜色
+  function candleColor(d) {
+    return d.close >= d.open ? '#ef4444' : '#34d058';
+  }
+  var candleColors = data.map(candleColor);
+
+  // Y轴范围：价格区域
+  var minClose = Math.min.apply(null, closes.filter(function(v) { return !isNaN(v); }));
+  var maxClose = Math.max.apply(null, closes.filter(function(v) { return !isNaN(v); }));
+  var priceRange = maxClose - minClose;
+  var pad = priceRange * 0.08 || 2;
+
+  var option = {
+    backgroundColor: '#0d1117',
+    animation: false,
+
+    // ===== 网格 =====
+    grid: [
+      // 主图
+      { left: 60, right: 50, top: 30, bottom: '30%' },
+      // 成交量
+      { left: 60, right: 50, top: '72%', bottom: 40 }
+    ],
+
+    // ===== X轴 =====
+    xAxis: [
+      {
+        type: 'category', data: dates,
+        gridIndex: 0, boundaryGap: false,
+        axisLine: { lineStyle: { color: '#2e3c51' } },
+        axisTick: { show: false },
+        axisLabel: {
+          color: '#8b949e', fontSize: 10,
+          formatter: fmtDate,
+          interval: Math.floor(dates.length / 8)
+        },
+        splitLine: { show: false }
+      },
+      {
+        type: 'category', data: dates,
+        gridIndex: 1, boundaryGap: false,
+        axisLine: { lineStyle: { color: '#2e3c51' } },
+        axisTick: { show: false },
+        axisLabel: { show: false },
+        splitLine: { show: false }
+      }
+    ],
+
+    // ===== Y轴 =====
+    yAxis: [
+      {
+        scale: true, gridIndex: 0,
+        position: 'left',
+        min: (minClose - pad).toFixed(2),
+        max: (maxClose + pad).toFixed(2),
+        axisLine: { show: false },
+        axisTick: { show: false },
+        axisLabel: { color: '#8b949e', fontSize: 11, inside: false },
+        splitLine: { lineStyle: { color: '#1c2128', type: 'dashed' } }
+      },
+      {
+        scale: true, gridIndex: 1,
+        position: 'left',
+        axisLine: { show: false },
+        axisTick: { show: false },
+        axisLabel: { color: '#8b949e', fontSize: 10, formatter: function(v) { return (v / 10000).toFixed(0) + 'w'; } },
+        splitLine: { show: false }
+      }
+    ],
+
+    // ===== 数据缩放 =====
+    dataZoom: [
+      {
+        type: 'inside', xAxisIndex: [0, 1],
+        start: 60, end: 100
+      },
+      {
+        type: 'slider', xAxisIndex: [0, 1],
+        bottom: 4, height: 20,
+        borderColor: '#2e3c51',
+        fillerColor: 'rgba(52,211,88,0.1)',
+        handleStyle: { color: '#34d058' },
+        textStyle: { color: '#8b949e', fontSize: 10 },
+        dataBackground: {
+          lineStyle: { color: '#2e3c51' },
+          areaStyle: { color: '#161b22' }
+        },
+        start: 60, end: 100
+      }
+    ],
+
+    // ===== tooltip =====
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'cross',
+        crossStyle: { color: '#484f58' },
+        lineStyle: { color: '#484f58', type: 'dashed' }
+      },
+      backgroundColor: 'rgba(22,27,34,0.95)',
+      borderColor: '#2e3c51',
+      borderWidth: 1,
+      textStyle: { color: '#c9d1d9', fontSize: 12 },
+      formatter: function(params) {
+        var d = params[0];
+        if (!d || !d.axisValue) return '';
+        var idx = dates.indexOf(d.axisValue);
+        if (idx < 0) return d.axisValue;
+        var row = data[idx];
+        var color = row.close >= row.open ? '#ef4444' : '#34d058';
+        var pct = row.open > 0 ? (((row.close - row.open) / row.open) * 100).toFixed(2) + '%' : '--';
+        return [
+          '<div style="font-size:11px;color:#8b949e;margin-bottom:4px">' + d.axisValue + '</div>',
+          '<div style="color:' + color + '">开盘: ' + row.open + '&nbsp;&nbsp;收盘: ' + row.close + ' (' + pct + ')</div>',
+          '<div style="color:#c9d1d9">最高: ' + row.high + '&nbsp;&nbsp;最低: ' + row.low + '</div>',
+          '<div style="color:#8b949e">成交量: ' + (row.volume > 0 ? (row.volume / 10000).toFixed(2) + '万手' : '--') + '</div>'
+        ].join('');
+      }
+    },
+
+    // ===== 系列 =====
+    series: [
+      // K线
+      {
+        name: '日K',
+        type: 'candlestick',
+        xAxisIndex: 0, yAxisIndex: 0,
+        data: ohlc,
+        itemStyle: {
+          color: '#ef4444',
+          color0: '#34d058',
+          borderColor: '#ef4444',
+          borderColor0: '#34d058'
+        }
+      },
+      // MA5
+      {
+        name: 'MA5', type: 'line', xAxisIndex: 0, yAxisIndex: 0,
+        data: ma5, smooth: false, symbol: 'none',
+        lineStyle: { color: '#f5c842', width: 1 },
+        z: 10
+      },
+      // MA10
+      {
+        name: 'MA10', type: 'line', xAxisIndex: 0, yAxisIndex: 0,
+        data: ma10, smooth: false, symbol: 'none',
+        lineStyle: { color: '#60a5fa', width: 1 },
+        z: 10
+      },
+      // MA20
+      {
+        name: 'MA20', type: 'line', xAxisIndex: 0, yAxisIndex: 0,
+        data: ma20, smooth: false, symbol: 'none',
+        lineStyle: { color: '#a78bfa', width: 1 },
+        z: 10
+      },
+      // 成交量柱状
+      {
+        name: '成交量',
+        type: 'bar', xAxisIndex: 1, yAxisIndex: 1,
+        data: vols,
+        barMaxWidth: 8,
+        itemStyle: {
+          color: function(p) {
+            var idx = p.dataIndex;
+            if (idx >= data.length) return '#34d058';
+            return data[idx].close >= data[idx].open ? 'rgba(239,68,68,0.6)' : 'rgba(52,208,88,0.6)';
+          }
+        }
+      }
+    ]
+  };
+
+  daykChart.setOption(option, true);
+}
+
+// ===========================
+// 主初始化
+// ===========================
+async function init() {
+  var code = getQueryCode();
+  if (!code) {
+    showLoading(false);
+    document.getElementById('chart-area').innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#8b949e;font-size:14px;">请在上方输入股票代码后回车或点击"查询"</div>';
+    return;
+  }
+
+  currentCode = code;
+  document.getElementById('searchInput').value = code;
+  showLoading(true);
+  showError('');
+
+  try {
+    // 新浪接口直接返回 JSON 数组，无需额外解析
+    var rawDataList = await fetchDayKData(code);
+    rawData = parseDayKLines(rawDataList);
+
+    if (rawData.length === 0) throw new Error('未解析到有效K线数据');
+
+    // 显示股票名称/代码
+    document.getElementById('stockCode').textContent = code;
+
+    renderDayKChart(rawData);
+
+  } catch (e) {
+    showError(e.message || '加载失败');
+    console.error('[dayk]', e);
+  } finally {
+    showLoading(false);
+  }
+}
+
+// ===========================
+// Resize
+// ===========================
+window.addEventListener('resize', function() {
+  if (daykChart) daykChart.resize();
+});
+
+// 启动
+init();
+</script>
+</body>
+</html>

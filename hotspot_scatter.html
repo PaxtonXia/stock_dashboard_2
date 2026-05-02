@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>板块资金流向散点图</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/hotspot.css">
+    <script src="js/echarts.js"></script>
+    <style>
+        body { background: #0d1117; color: #e2e8f0; margin: 0; padding: 20px; }
+        .header { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+        .header h1 { font-size: 20px; font-weight: 500; margin: 0; }
+        #plate-title { color: #34d058; }
+        #scatter-container { width: 100%; height: calc(100vh - 120px); min-height: 500px; }
+        .loading { text-align: center; padding: 60px; color: #889; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="hotspot.html" style="color:#889;text-decoration:none;font-size:14px;">← 返回</a>
+        <h1>板块资金流向：<span id="plate-title">加载中...</span></h1>
+    </div>
+    <div id="scatter-container">
+        <div class="loading">正在加载资金流向数据...</div>
+    </div>
+
+<script>
+function getPlateIdFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('plateId') || params.get('id');
+}
+
+function getPlateNameFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('name') || '';
+}
+
+// 优先从 localStorage 读成分股（hotspot.js 在渲染卡片时已存入）
+function loadStocksFromStorage(plateId) {
+    try {
+        const raw = localStorage.getItem('scatter_stocks_' + plateId);
+        if (raw) {
+            const stocks = JSON.parse(raw);
+            if (Array.isArray(stocks) && stocks.length > 0) {
+                console.log('[loadStocksFromStorage] plateId:', plateId, 'stocks:', stocks.length);
+                return stocks;
+            }
+        }
+    } catch(e) {
+        console.error('[loadStocksFromStorage] error:', e);
+    }
+    return null;
+}
+
+// 降级：从选股宝 API 获取（行业板块可用，概念板块可能匹配不到）
+async function fetchPlateStocksFallback(plateId) {
+    try {
+        const response = await fetch('https://flash-api.xuangubao.com.cn/api/surge_stock/stocks?normal=true&uplimit=true');
+        const data = await response.json();
+        if (data && data.code === 20000 && data.data && data.data.items) {
+            const stocks = [];
+            data.data.items.forEach(stock => {
+                if (stock[8]) {
+                    stock[8].forEach(plate => {
+                        if (String(plate.id) === String(plateId)) {
+                            const rawCode = stock[0];
+                            const code = rawCode.split('.')[0];
+                            stocks.push({
+                                name: stock[1],
+                                code: code,
+                                change: stock[3] * 100,
+                                price: stock[2]
+                            });
+                        }
+                    });
+                }
+            });
+            console.log('[fetchPlateStocksFallback] plateId:', plateId, 'found:', stocks.length);
+            return stocks;
+        }
+    } catch (e) {
+        console.error('fetchPlateStocksFallback error:', e);
+    }
+    return [];
+}
+
+// 批量获取个股资金流向（东方财富 API）
+async function fetchStockFundFlows(stocks) {
+    if (!stocks || stocks.length === 0) return [];
+    
+    // 生成 secids：1=上海，0=深圳
+    const stocksWithMarket = stocks.map(s => {
+        let market = '0';
+        const c = s.code;
+        if (c.startsWith('6') || c.startsWith('9')) market = '1';   // 沪市
+        else if (c.startsWith('0') || c.startsWith('3')) market = '0'; // 深市
+        else if (c.startsWith('8') || c.startsWith('4')) market = '0'; // 北交所
+        return { ...s, market: market, secid: market + '.' + c };
+    });
+    
+    const batchSize = 80;
+    const allData = [];
+    const FUND_FIELDS = 'f2,f3,f4,f12,f14,f62';
+    
+    for (let i = 0; i < stocksWithMarket.length; i += batchSize) {
+        const batch = stocksWithMarket.slice(i, i + batchSize);
+        const secids = batch.map(s => s.secid).join(',');
+        const url = 'https://push2.eastmoney.com/api/qt/ulist.np/get?fltt=2&invt=2&fields=' + FUND_FIELDS + '&secids=' + secids;
+        
+        try {
+            const resp = await fetch(url);
+            const json = await resp.json();
+            if (json.data && json.data.diff) {
+                allData.push(...json.data.diff);
+            }
+        } catch (e) {
+            console.error('fetch fund flow error:', e);
+        }
+    }
+    
+    console.log('[fetchStockFundFlows] requested:', stocks.length, 'returned:', allData.length);
+    return allData;
+}
+
+// 渲染散点图
+function renderScatterChart(stocks, fundData, containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    if (window.scatterChart) {
+        try { window.scatterChart.dispose(); } catch(e) {}
+    }
+    container.innerHTML = '';
+    container.style.backgroundColor = '#0d1117';
+    
+    if (!stocks || stocks.length === 0) {
+        container.innerHTML = '<div class="loading">暂无数据</div>';
+        return;
+    }
+    
+    const chart = echarts.init(container);
+    window.scatterChart = chart;
+    
+    const fundMap = {};
+    (fundData || []).forEach(f => { fundMap[f.f12] = f; });
+    
+    // 构建数据点
+    const validPts = [];
+    stocks.forEach(s => {
+        const f = fundMap[s.code] || {};
+        const netInflow = (f.f62 || 0) / 10000;
+        const changePct = typeof s.change === 'number' ? s.change : parseFloat(s.change) || 0;
+        const amount = Math.abs(f.f62 || 0);
+        const rise = changePct >= 0;
+        
+        validPts.push({
+            value: [netInflow, changePct],
+            _amount: amount,
+            _name: s.name,
+            _code: s.code,
+            _rise: rise
+        });
+    });
+    
+    // percentile rank 气泡大小 (6~70px)
+    const sorted = [...validPts].sort((a, b) => a._amount - b._amount);
+    const total = sorted.length;
+    validPts.forEach(pt => {
+        const rank = sorted.findIndex(s => s._amount === pt._amount);
+        const pct = total > 1 ? rank / (total - 1) : 0;
+        pt.symbolSize = 6 + 64 * pct * pct;
+        pt.itemStyle = {
+            color: pt._rise ? '#ef4444' : '#34d058',
+            opacity: 0.85
+        };
+    });
+    
+    console.log('[scatter] points:', validPts.length);
+    
+    const option = {
+        animation: false,
+        grid: { left: 80, right: 50, top: 30, bottom: 50 },
+        xAxis: {
+            type: 'value',
+            name: '主力净流入(万)',
+            nameTextStyle: { color: '#889', fontSize: 12 },
+            splitLine: { lineStyle: { color: '#2a3444', type: 'dashed' } },
+            axisLabel: { color: '#889' }
+        },
+        yAxis: {
+            type: 'value',
+            name: '涨跌幅%',
+            nameTextStyle: { color: '#889', fontSize: 12 },
+            splitLine: { lineStyle: { color: '#2a3444', type: 'dashed' } },
+            axisLabel: { color: '#889' }
+        },
+        tooltip: {
+            trigger: 'item',
+            backgroundColor: 'rgba(17,24,39,0.95)',
+            borderColor: '#2e3c51',
+            textStyle: { color: '#e2e8f0' },
+            formatter: function(p) {
+                var d = p.data || {};
+                var name = d._name || '';
+                var code = d._code || '';
+                var inflow = d.value ? d.value[0].toFixed(2) : '0';
+                var change = d.value ? d.value[1].toFixed(2) : '0';
+                return '<b>' + name + '</b> (' + code + ')<br/>净流入: ' + inflow + '万<br/>涨跌幅: ' + change + '%';
+            }
+        },
+        series: [{
+            type: 'scatter',
+            data: validPts,
+            label: {
+                show: true,
+                position: 'inside',
+                formatter: function(p) {
+                    return (p.data && p.data.symbolSize >= 18) ? (p.data._name || '') : '';
+                },
+                fontSize: 10,
+                color: '#fff'
+            }
+        }]
+    };
+    
+    chart.setOption(option);
+    window.addEventListener('resize', function() { try { chart.resize(); } catch(e) {} });
+}
+
+async function init() {
+    var plateId = getPlateIdFromUrl();
+    var plateName = getPlateNameFromUrl();
+    
+    if (!plateId) {
+        document.getElementById('scatter-container').innerHTML = '<div class="loading">缺少板块ID参数</div>';
+        return;
+    }
+    
+    document.getElementById('plate-title').textContent = plateName || plateId;
+    
+    // 优先从 localStorage 读取（hotspot.js 已存入）
+    var stocks = loadStocksFromStorage(plateId);
+    
+    // 降级到 API 获取
+    if (!stocks) {
+        stocks = await fetchPlateStocksFallback(plateId);
+    }
+    
+    if (stocks.length === 0) {
+        document.getElementById('scatter-container').innerHTML = '<div class="loading">该板块无成分股数据（请从热点页面点击📊图标进入）</div>';
+        return;
+    }
+    
+    document.getElementById('plate-title').textContent = plateName || plateId;
+    
+    var fundData = await fetchStockFundFlows(stocks);
+    renderScatterChart(stocks, fundData, 'scatter-container');
+}
+
+init();
+</script>
+</body>
+</html>

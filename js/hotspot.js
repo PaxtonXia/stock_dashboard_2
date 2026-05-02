@@ -342,9 +342,17 @@ class HotspotManager {
             </div>
         `;
         
+        const plateScatterUrl = `hotspot_scatter.html?plateId=${plate.id}&name=${encodeURIComponent(plate.name)}`;
+        // 存储板块成分股数据到 localStorage，供散点图页面读取
+        try {
+            const scatterStocks = (plate.stocks || []).map(s => ({
+                name: s.name, code: s.code, change: s.change, price: s.price
+            }));
+            localStorage.setItem('scatter_stocks_' + plate.id, JSON.stringify(scatterStocks));
+        } catch(e) {}
         cardElement.innerHTML = `
             <div class="plate-card-header">
-                <div class="plate-card-title">${plate.name}${mainLineBadge}</div>
+                <a href="${plateScatterUrl}" class="plate-card-title" target="_blank" title="查看资金流向散点图">${plate.name}${mainLineBadge}</a>
                 <div class="plate-card-change ${plate.increase >= 0 ? 'positive' : 'negative'}">
                     ${plate.increase >= 0 ? '+' : ''}${plate.increase.toFixed(2)}%
                 </div>

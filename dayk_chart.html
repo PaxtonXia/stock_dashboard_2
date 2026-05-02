@@ -14,6 +14,20 @@
     display: flex;
     flex-direction: column;
   }
+  /* === Nav Link === */
+  .nav-link {
+    font-size: 13px;
+    color: #4a9eff;
+    text-decoration: none;
+    padding: 4px 10px;
+    border-radius: 4px;
+    background: rgba(74, 158, 255, 0.1);
+    border: 1px solid rgba(74, 158, 255, 0.3);
+    transition: all 0.2s;
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+  .nav-link:hover { background: rgba(74, 158, 255, 0.2); }
   /* === Header === */
   #header {
     height: 48px;
@@ -118,6 +132,7 @@
   <button id="searchBtn" onclick="doSearch()">查询</button>
   <span id="loading">加载中...</span>
   <span id="errorMsg"></span>
+  <a id="daykNavLink" class="nav-link" href="smart_money.html" target="_self">← 分时图</a>
 </div>
 
 <div id="chart-area">
@@ -470,6 +485,7 @@ async function init() {
   }
 
   currentCode = code;
+  document.getElementById('daykNavLink').href = 'smart_money.html?code=' + code;
   document.getElementById('searchInput').value = code;
   showLoading(true);
   showError('');

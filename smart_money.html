@@ -255,6 +255,18 @@
             background: rgba(255, 193, 7, 0.3);
             box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
         }
+		.nav-link {
+			font-size: 12px;
+			color: #4a9eff;
+			text-decoration: none;
+			padding: 3px 10px;
+			border-radius: 3px;
+			background: rgba(74, 158, 255, 0.1);
+			border: 1px solid rgba(74, 158, 255, 0.3);
+			transition: all 0.2s;
+			cursor: pointer;
+		}
+		.nav-link:hover { background: rgba(74, 158, 255, 0.2); }
 		</style>
 		<script type="text/javascript" src="js/json2html.js"></script>
 		<script type="text/javascript" src="js/jquery.min.js"></script>
@@ -283,6 +295,7 @@
         </select>
         <div id="tempTitle"></div>
         <div style="display: flex; align-items: center; gap: 3px; margin-left: auto;">
+          <a id="smartNavLink" class="nav-link" href="dayk_chart.html">日K图 →</a>
           <button class="custom-button" id="aiAnalysisBtn" onclick="aiAnalysis()">AI分析</button>
           <span class="chart-btn" id="favoriteBtn" onclick="toggleFavorite()">+</span>
         </div>
@@ -694,6 +707,11 @@
 					if(gp[3] != undefined){
 						yy = gp[3];
 					}
+				}else if(u.indexOf("code=") > -1){
+					var qs = u.split('?')[1];
+					var params = new URLSearchParams(qs);
+					dm = params.get('code') || '';
+					gpmc = params.get('name') || '';
 				}
 				// 修正默认代码逻辑
 				if (dm == 'xxxxxx' || dm == ''){
@@ -717,6 +735,8 @@
 					}
 					
 					gpdm = dm;
+					var navEl = document.getElementById('smartNavLink');
+					if(navEl) navEl.href = 'dayk_chart.html?code=' + dm;
 					var dms = "";
 					var dmt = "";
 					if(dm.substr(0,1)=="6"){

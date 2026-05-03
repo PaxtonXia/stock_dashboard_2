@@ -1,63 +1,161 @@
-/* bankuai.css - 板块股票列表样式 */
+/* bankuai.css - 板块股票列表样式 - 全屏布局 */
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     margin: 0;
-    padding: 20px;
+    padding: 0;
     background: #1a1a2e;
     color: #e0e0e0;
+    height: 100vh;
+    overflow: hidden;
 }
 
-/* Tab 切换样式 */
+/* 返回链接样式 */
+.back-link {
+    color: #aaa;
+    text-decoration: none;
+    font-size: 14px;
+    padding: 5px 10px;
+    border-radius: 4px;
+    transition: all 0.2s;
+    position: relative;
+    z-index: 10;
+    background: rgba(255,255,255,0.05);
+}
+.back-link:hover {
+    color: #fff;
+    background: rgba(255,255,255,0.1);
+}
+
+/* 左右布局 - 左侧散点图可缩放，右侧列表固定宽度 */
+.split-view {
+    display: flex;
+    gap: 20px;
+    height: calc(100vh - 60px);
+    flex: 1;
+    max-width: 100vw;
+    box-sizing: border-box;
+}
+
+.split-left {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* 右侧列表：固定宽度，适合6列数据展示 */
+.split-right {
+    width: 580px;
+    min-width: 520px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+/* 表格容器 - 仅表格部分滚动，表头固定 */
+.table-wrapper {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;  /* 关键：允许 flex 子元素收缩 */
+}
+
+/* 兼容：如果 #result 直接包含表格 */
+#result {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 表格表头固定 */
+table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+}
+
+/* 防止表格内容溢出 */
+td, th {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #1a1a2e;
+}
+
+/* 名称列允许溢出显示涨停图标 */
+.stock-name-cell {
+    overflow: visible !important;
+    position: relative;
+}
+
+.split-section-title {
+    font-size: 14px;
+    color: #888;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #333;
+    flex-shrink: 0;  /* 标题不滚动 */
+}
+
+/* 主容器全屏 */
+.dashboard {
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.card {
+    background: #252538;
+    border-radius: 0;
+    padding: 15px 20px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    margin: 0;
+    box-shadow: none;
+    box-sizing: border-box;
+    max-width: 100vw;
+}
+
 .card-title-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
     margin-bottom: 15px;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 10;
 }
 
-.tab-btn {
-    padding: 6px 16px;
-    cursor: pointer;
-    color: #888;
-    border-radius: 4px;
-    transition: all 0.2s;
-    font-size: 14px;
+.card-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
-.tab-btn:hover {
-    color: #4a9eff;
-    background: rgba(74, 158, 255, 0.1);
-}
-
-.tab-btn.active {
-    color: #4a9eff;
-    background: rgba(74, 158, 255, 0.15);
-    border-bottom: 2px solid #4a9eff;
-}
-
-.tab-sep {
-    color: #444;
-    margin: 0 8px;
-}
-
-/* 散点图视图 */
-.scatter-view {
-    width: 100%;
-    min-height: 400px;
-}
-
-/* ECharts 容器 */
+/* ECharts 容器 - 填满左侧 */
 #scatterChartContainer {
     width: 100%;
-    height: 450px;
+    flex: 1;
+    min-height: 0;
     background: #1e1e30;
     border-radius: 6px;
     padding: 10px;
-}
-
-/* 列表视图 */
-.list-view {
-    width: 100%;
 }
 
 /* 表格通用样式 */
@@ -89,36 +187,6 @@ body {
     opacity: 1;
 }
 
-.dashboard {
-    max-width: 1200px;
-    margin: 0 auto;
-}
-
-.card {
-    background: #252538;
-    border-radius: 8px;
-    padding: 20px;
-    margin-bottom: 20px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.card-title {
-    font-size: 18px;
-    font-weight: bold;
-    color: #fff;
-    margin-bottom: 20px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    margin-top: 15px;
-}
-
 th, td {
     border: none;
     padding: 8px;
@@ -131,10 +199,37 @@ th {
     background-color: #1a1a2e;
     color: #888;
     font-weight: normal;
-    position: sticky;
-    top: 0;
-    z-index: 1;
     font-size: 0.85rem;
+}
+
+/* 头部板块统计信息 */
+.block-stats {
+    display: flex;
+    gap: 20px;
+    margin-left: auto;
+    padding-right: 10px;
+    flex-shrink: 0;
+}
+
+.block-stats .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.9rem;
+    color: #e0e0e0;
+}
+
+.block-stats .stat-item label {
+    color: #888;
+    font-size: 0.8rem;
+}
+
+.block-stats .stat-item.up {
+    color: #ff4444;
+}
+
+.block-stats .stat-item.down {
+    color: #00dd00;
 }
 
 tr:hover {
@@ -242,7 +337,9 @@ button:hover {
     border-radius: 8px;
     font-size: 13px;
     width: max-content;
-    max-width: 400px;
+    max-width: 240px;
+    word-wrap: break-word;
+    white-space: normal;
     z-index: 1000;
     margin-left: 10px;
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
@@ -294,11 +391,20 @@ button:hover {
 
 @media (max-width: 768px) {
     body {
-        padding: 10px;
+        padding: 0;
     }
     
     th, td {
         padding: 8px;
         font-size: 14px;
+    }
+    
+    .split-view {
+        flex-direction: column;
+        height: auto;
+    }
+    
+    .split-left, .split-right {
+        height: 50vh;
     }
 }

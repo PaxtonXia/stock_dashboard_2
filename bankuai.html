@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>板块股票列表</title>
     <link rel="stylesheet" href="css/font-awesome/all.min.css">
+    <link rel="stylesheet" href="css/base.css">
     <link rel="stylesheet" href="css/bankuai.css">
     <script src="js/echarts.js"></script>
     <script src="js/chart/Chart.min.js"></script>
@@ -19,24 +20,6 @@
             if (blockCode) {
                 fetchStockList(blockCode);
             }
-
-            // Tab 切换：散点图 / 列表
-            document.getElementById('scatterTabBtn').onclick = function() {
-                document.getElementById('scatterView').style.display = 'block';
-                document.getElementById('listView').style.display = 'none';
-                this.classList.add('active');
-                document.getElementById('listTabBtn').classList.remove('active');
-                // canvas 可见后通知 chart resize
-                if (window.bankuaiScatterChart) {
-                    setTimeout(() => window.bankuaiScatterChart?.resize(), 0);
-                }
-            };
-            document.getElementById('listTabBtn').onclick = function() {
-                document.getElementById('scatterView').style.display = 'none';
-                document.getElementById('listView').style.display = 'block';
-                this.classList.add('active');
-                document.getElementById('scatterTabBtn').classList.remove('active');
-            };
         });
     </script>
 </head>
@@ -46,23 +29,26 @@
             <div class="card-title-row">
                 <span class="card-title">
                     <i class="fas fa-chart-line"></i>
-                    <span id="scatterTabBtn" class="tab-btn active">散点图</span>
-                    <span class="tab-sep">|</span>
-                    <span id="listTabBtn" class="tab-btn">列表</span>
+                    <span id="blockName"></span>
                 </span>
+                <a href="main.html" class="back-link" title="返回首页">
+                    <i class="fas fa-arrow-left"></i> 返回
+                </a>
             </div>
 
-            <!-- 散点图视图（默认显示） -->
-            <div id="scatterView" class="scatter-view">
-                <div id="scatterChartContainer" class="echart"></div>
-            </div>
-
-            <!-- 列表视图（默认隐藏） -->
-            <div id="listView" class="list-view" style="display:none;">
-                <div>
-                    板块：<span id="blockName"></span>
+            <!-- 左右布局容器 -->
+            <div class="split-view">
+                <!-- 左侧：散点图 -->
+                <div class="split-left">
+                    <div class="split-section-title">散点图</div>
+                    <div id="scatterChartContainer" class="echart"></div>
                 </div>
-                <div id="result"></div>
+
+                <!-- 右侧：列表 -->
+                <div class="split-right">
+                    <div class="split-section-title">股票列表</div>
+                    <div id="result"></div>
+                </div>
             </div>
         </div>
     </div>

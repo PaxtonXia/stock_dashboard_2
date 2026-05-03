@@ -595,6 +595,8 @@ function fetchStockList(blockCode) {
         type: 'GET',
         dataType: 'json',
         success: function(data) {
+            // 从股票列表计算板块统计
+            fetchBlockDetail(blockCode, data.data);
             displayStockList(data);
         },
         error: function(error) {
@@ -602,6 +604,96 @@ function fetchStockList(blockCode) {
             $('#result').html('<p>获取数据失败，请重试</p>');
         }
     });
+}
+
+function fetchBlockDetail(blockCode, stockData) {
+    // 优先从股票列表数据计算汇总
+    if (stockData && stockData.diff && stockData.diff.length > 0) {
+        const stocks = stockData.diff;
+        let totalInflow = 0;
+        let upCount = 0, downCount = 0;
+        let maxUpStock = null, maxUp = -999;
+        
+        stocks.forEach(s => {
+            if (s.f62) totalInflow += s.f62;
+            if (s.f3 > 0) upCount++;
+            else if (s.f3 < 0) downCount++;
+            if (s.f3 > maxUp) { maxUp = s.f3; maxUpStock = s; }
+        });
+        
+        // 计算板块涨跌幅（平均）
+        const avgChange = stocks.reduce((sum, s) => sum + (s.f3 || 0), 0) / stocks.length;
+        const leadStockName = maxUpStock ? maxUpStock.f14 : '--';
+        const leadStockCode = maxUpStock ? maxUpStock.f12 : '--';
+        
+        updateBlockHeader(blockCode, null, avgChange, totalInflow, upCount, downCount, leadStockName, leadStockCode);
+        return;
+    }
+    
+    // 降级：调用东方财富板块行情接口
+    const secid = blockCode.startsWith('BK') ? `90.${blockCode}` : `90.BK${blockCode}`;
+    const url = `https://push2.eastmoney.com/api/qt/stock/get?secid=${secid}&fields=f12,f14,f2,f3,f62,f184,f66,f69,f72,f75,f78,f81,f84,f87,f124`;
+    
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            console.log('板块详情:', data);
+            if (data && data.data) {
+                const d = data.data;
+                updateBlockHeader(blockCode, d.f14, d.f3, d.f62, null, null, null, null, d.f2);
+            }
+        })
+        .catch(err => {
+            console.error('获取板块详情失败:', err);
+        });
+}
+
+function updateBlockHeader(blockCode, name, change, inflow, upCount, downCount, leadStockName, leadStockCode, price) {
+    const changeVal = change || 0;
+    const changeStr = changeVal.toFixed(2) + '%';
+    const inflowStr = inflow ? (inflow / 100000000).toFixed(2) + '亿' : '--';
+    const priceStr = price || '--';
+    
+    // 获取板块名称（从已有标题或参数）
+    const existingName = $('#blockName').text().split(' (')[0];
+    const displayName = name || existingName || blockCode;
+    
+    let statsHtml = `
+        <span class="stat-item ${changeVal >= 0 ? 'up' : 'down'}">
+            <label>涨跌幅:</label> ${changeStr}
+        </span>
+        <span class="stat-item">
+            <label>主力净流入:</label> ${inflowStr}
+        </span>
+    `;
+    
+    if (upCount !== null && downCount !== null) {
+        statsHtml += `
+            <span class="stat-item">
+                <label>涨跌比:</label> ${upCount}/${downCount}
+            </span>
+        `;
+    }
+    
+    if (leadStockName) {
+        statsHtml += `
+            <span class="stat-item">
+                <label>领涨:</label> ${leadStockName} (${leadStockCode})
+            </span>
+        `;
+    }
+    
+    const infoHtml = `
+        <span class="card-title">
+            <i class="fas fa-chart-line"></i>
+            <span id="blockName">${displayName} (${blockCode})</span>
+        </span>
+        <div class="block-stats">${statsHtml}</div>
+        <a href="main.html" class="back-link" title="返回首页">
+            <i class="fas fa-arrow-left"></i> 返回
+        </a>
+    `;
+    $('.card-title-row').html(infoHtml);
 }
 
 async function fetchLimitUpData() {
@@ -664,15 +756,13 @@ async function displayStockList(data) {
         
         currentData = data;
 
-        let html = '<table><tr>' +
+        let html = '<div class="table-wrapper"><table><tr>' +
             '<th>代码</th>' +
             '<th>名称</th>' +
             '<th>最新价</th>' +
             '<th class="sortable" onclick="sortTable(\'f3\')">涨跌幅</th>' +
             '<th class="sortable" onclick="sortTable(\'f62\')">主力净流入(万)</th>' +
             '<th class="sortable" onclick="sortTable(\'f66\')">净流速(万)</th>' +
-            '<th>分时图</th>' +
-            '<th>收藏</th>' +  // New column for favorites
             '</tr>';
         
         data.data.diff.forEach(stock => {
@@ -689,11 +779,11 @@ async function displayStockList(data) {
                 console.log(`为股票${stock.f14}(${stock.f12})添加涨停标记`);
             }
 
-            const stockNameCell = `<td>
+            const stockNameCell = `<td class="stock-name-cell">
                 ${stock.f14}
                 ${limitUpInfo ? `
                     <span class="stock-flag">
-                        <i class="fas fa-info-circle" style="color: #ff5252;"></i>
+                        <i class="fas fa-info-circle" style="color: #4a9eff;"></i>
                         <div class="tooltip">
                             <div class="flag-info"><strong>涨停类型:</strong> ${limitUpInfo.high}</div>
                             <div class="flag-info"><strong>涨停原因:</strong> ${limitUpInfo.reason_type}</div>
@@ -707,25 +797,21 @@ async function displayStockList(data) {
             const inflow = stock.f62 ? (stock.f62 / 10000).toFixed(2) : '--';
             const flowRate = stock.f66 ? (stock.f66 / 10000).toFixed(2) : '--';
             
-            const isInPool = isInStockPool(stock.f12);
-            html += `<tr>
+            html += `<tr class="stock-row" onclick="openSmartMoneyModal('${stock.f12}', '${stock.f14.replace(/'/g, "\\'")}')" style="cursor:pointer;">
                 <td>${stock.f12}</td>
                 ${stockNameCell}
                 <td>${stock.f2}</td>
                 <td style="${stock.f3 > 0 ? 'color:#ff3333' : 'color:#00ff00'}">${stock.f3}%</td>
                 <td style="${stock.f62 > 0 ? 'color:#ff3333' : 'color:#00ff00'}">${inflow}</td>
                 <td style="${stock.f66 > 0 ? 'color:#ff3333' : 'color:#00ff00'}">${flowRate}</td>
-                <td><span class="chart-btn" onclick="showTimeChart('${stock.f12}', '${stock.f14}')">查看</span></td>
-                <td><span class="chart-btn ${isInPool ? 'in-pool' : ''}" 
-                      onclick="toggleStockInPool('${stock.f12}', '${stock.f14.replace(/'/g, "\\'")}', this)">${isInPool ? '-' : '+'}</span></td>
             </tr>`;
         });
 
         if (limitUpMap.size > 0) {
-            html += '</table>';
+            html += '</table></div>';
             $('#result').html(html);
         } else {
-            html += '</table>';
+            html += '</table></div>';
             $('#result').html(html + '<p class="no-limit-up">今日无涨停股票数据（可能是非交易日）</p>');
         }
     } catch (error) {
@@ -795,17 +881,26 @@ function renderBankuaiScatterChart(stocks) {
         return 6 + 64 * pct * pct; // 6~70px, square curve: head stocks much larger
     };
     // ECharts 5.x scatter expects [x, y] or [x, y, size], store extra in dataset
+    // 计算流速范围用于opacity映射
+    var flowRates = stocks.map(function(s) { return Math.abs(s.f66 || 0); }).filter(function(v) { return v > 0; });
+    var maxFlow = flowRates.length > 0 ? Math.max.apply(null, flowRates) : 1;
+    
     var pts = stocks.map(function(s) {
         var netInflow = (s.f62 || 0) / 10000;
         var changePct = parseFloat(s.f3 || 0);
         var amount = Math.abs(s.f62 || 0) || 10;
+        var flowRate = Math.abs(s.f66 || 0);
         var rise = changePct >= 0;
+        // 流速越大opacity越高 (0.4 ~ 1.0)
+        var opacity = flowRate > 0 ? 0.4 + 0.6 * (flowRate / maxFlow) : 0.5;
         return {
             value: [netInflow, changePct],
             symbolSize: toRadius(amount),
-            itemStyle: { color: rise ? '#ef4444' : '#34d058', opacity: 0.88 },
+            itemStyle: { color: rise ? '#ef4444' : '#34d058', opacity: opacity },
             _name: s.f14 || '',
-            _code: s.f12 || ''
+            _code: s.f12 || '',
+            _price: s.f2 || '--',
+            _flowRate: s.f66 ? (s.f66 / 10000).toFixed(2) : '--'
         };
     });
     console.log('[scatter] pts[0]:', JSON.stringify(pts[0]));
@@ -834,8 +929,16 @@ function renderBankuaiScatterChart(stocks) {
                 var d = p.data || {};
                 var name = d._name || '', code = d._code || '';
                 var v = d.value || [0, 0];
+                var price = d._price || '--';
+                var flowRate = d._flowRate || '--';
                 var color = v[1] >= 0 ? '#ef4444' : '#34d058';
-                return '<b>' + name + '</b><br/>' + code + '<br/>净流入: ' + v[0].toFixed(0) + '万<br/>涨跌幅: <span style="color:' + color + '">' + v[1].toFixed(2) + '%</span>';
+                var flowColor = parseFloat(v[0]) >= 0 ? '#ef4444' : '#34d058';
+                var rateColor = parseFloat(flowRate) >= 0 ? '#ef4444' : '#34d058';
+                return '<b style="font-size:14px">' + name + '</b> <span style="color:#889">(' + code + ')</span><br/>' +
+                    '<span style="color:#889">最新价:</span> ' + price + '<br/>' +
+                    '<span style="color:#889">涨跌幅:</span> <span style="color:' + color + ';font-weight:bold">' + v[1].toFixed(2) + '%</span><br/>' +
+                    '<span style="color:#889">主力净流入:</span> <span style="color:' + flowColor + ';font-weight:bold">' + v[0].toFixed(0) + '万</span><br/>' +
+                    '<span style="color:#889">净流速:</span> <span style="color:' + rateColor + '">' + flowRate + '万</span>';
             }
         },
         series: [{
@@ -853,14 +956,43 @@ function renderBankuaiScatterChart(stocks) {
             emphasis: { itemStyle: { shadowBlur: 12 } }
         }]
     });
-    // 点击气泡显示分时走势图
+    // 点击气泡打开smart_money.html弹窗
     window.bankuaiScatterChart.on('click', function(params) {
         if (params.data && params.data._code) {
-            showTimeChart(params.data._code, params.data._name);
+            openSmartMoneyModal(params.data._code, params.data._name);
         }
     });
     console.log('[scatter] chart setOption done, pts.length:', pts.length);
     }
+
+// 打开smart_money.html弹窗
+function openSmartMoneyModal(stockCode, stockName) {
+    let modal = document.getElementById('smartMoneyModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'smartMoneyModal';
+        modal.className = 'modal-overlay';
+        modal.style.display = 'none';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <span class="modal-close" onclick="closeSmartMoneyModal()">&times;</span>
+                <iframe id="smartMoneyFrame" class="modal-iframe"></iframe>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    
+    document.getElementById('smartMoneyFrame').src = 'smart_money.html##' + stockCode;
+    modal.style.display = 'block';
+}
+
+function closeSmartMoneyModal() {
+    const modal = document.getElementById('smartMoneyModal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.getElementById('smartMoneyFrame').src = '';
+    }
+}
 
 // Tab 切换：散点图 / 列表
 function switchBankuaiView(view) {

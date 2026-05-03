@@ -259,12 +259,8 @@ function renderScatterChart(data, canvasId) {
                                             console.log('Found matching block data:', blockData);
                                             if (blockData.板块代码) {
                                                 const url = `bankuai.html?blockCode=${encodeURIComponent(blockData.板块代码)}`;
-                                                console.log('Opening modal with URL:', url);
-                                                if (typeof openStockModal === 'function') {
-                                                    openStockModal(url);
-                                                } else {
-                                                    console.error('openStockModal is not a function');
-                                                }
+                                                console.log('Navigating to bankuai page:', url);
+                                                window.location.href = url;
                                             } else {
                                                 console.warn('Block code missing in:', blockData);
                                             }
@@ -443,7 +439,7 @@ function updateFloatingConceptFlow(data) {
     const inflowsList = document.getElementById('topConceptInflowsList');
     inflowsList.innerHTML = topInflows.map(item => `
         <div class="floating-fund-flow-item">
-            <span class="floating-fund-flow-name" style="cursor:pointer;" onclick="if(typeof openStockModal === 'function' && '${item['板块代码']}'){openStockModal('bankuai.html?blockCode=${item['板块代码']}')}else{console.error('无效的板块代码:', '${item['板块代码']}')}">${item['板块名称']}</span>
+            <span class="floating-fund-flow-name" style="cursor:pointer;" onclick="window.location.href='bankuai.html?blockCode=${item['板块代码']}'">${item['板块名称']}</span>
             <span class="floating-fund-flow-value positive">+${item['主力净流入_亿'].toFixed(2)}亿</span>
         </div>
     `).join('');
@@ -453,7 +449,7 @@ function updateFloatingConceptFlow(data) {
     outflowsList.innerHTML = topOutflows.length > 0
         ? topOutflows.map(item => `
         <div class="floating-fund-flow-item">
-            <span class="floating-fund-flow-name" style="cursor:pointer;" onclick="if(typeof openStockModal === 'function' && '${item['板块代码']}'){openStockModal('bankuai.html?blockCode=${item['板块代码']}')}else{console.error('无效的板块代码:', '${item['板块代码']}')}" >${item['板块名称']}</span>
+            <span class="floating-fund-flow-name" style="cursor:pointer;" onclick="window.location.href='bankuai.html?blockCode=${item['板块代码']}'">${item['板块名称']}</span>
             <span class="floating-fund-flow-value negative">${item['主力净流入_亿'].toFixed(2)}亿</span>
         </div>
     `).join('')

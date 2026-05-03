@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Level2 逐笔成交分析</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@4.9.0/dist/echarts.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #0d1117;
+            color: #e6edf3;
+            min-height: 100vh;
+        }
+        .header {
+            background: #161b22;
+            padding: 16px 24px;
+            border-bottom: 1px solid #30363d;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .stock-info { display: flex; align-items: center; gap: 16px; }
+        .stock-name { font-size: 20px; font-weight: 600; }
+        .stock-code { color: #8b949e; font-size: 14px; }
+        .price-info { display: flex; align-items: center; gap: 12px; }
+        .current-price { font-size: 24px; font-weight: 700; }
+        .price-up { color: #f85149; }
+        .price-down { color: #3fb950; }
+        .change-percent { padding: 4px 8px; border-radius: 4px; font-size: 14px; font-weight: 500; }
+        .change-up { background: rgba(248,81,73,0.15); color: #f85149; }
+        .change-down { background: rgba(63,185,80,0.15); color: #3fb950; }
+        .search-box { display: flex; gap: 8px; }
+        .search-box input {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            color: #e6edf3;
+            padding: 8px 12px;
+            border-radius: 6px;
+            width: 120px;
+        }
+        .search-box input:focus { outline: none; border-color: #58a6ff; }
+        .search-box button {
+            background: #238636;
+            border: none;
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .search-box button:hover { background: #2ea043; }
+        .nav-links { display: flex; gap: 12px; margin-left: 24px; }
+        .nav-link {
+            background: #21262d;
+            color: #58a6ff;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: 1px solid #30363d;
+        }
+        .nav-link:hover { background: #30363d; }
+        .main-content { padding: 24px; max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+        .stat-card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; }
+        .stat-label { color: #8b949e; font-size: 13px; margin-bottom: 4px; }
+        .stat-value { font-size: 20px; font-weight: 600; }
+        .stat-value.positive { color: #f85149; }
+        .stat-value.negative { color: #3fb950; }
+        .chart-container { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; margin-bottom: 24px; }
+        .chart-title { font-size: 16px; font-weight: 500; margin-bottom: 12px; }
+        .chart { width: 100%; height: 400px; }
+        .chart-small { height: 300px; }
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+        .loading { text-align: center; padding: 60px; color: #8b949e; }
+        .trade-list { max-height: 400px; overflow-y: auto; }
+        .trade-item { display: grid; grid-template-columns: 80px 90px 80px 80px 100px; padding: 8px 12px; border-bottom: 1px solid #21262d; font-size: 13px; }
+        .trade-item:hover { background: #21262d; }
+        .trade-header { display: grid; grid-template-columns: 80px 90px 80px 80px 100px; padding: 8px 12px; background: #21262d; font-size: 13px; color: #8b949e; font-weight: 500; }
+        .trade-footer { padding: 12px; text-align: center; color: #8b949e; font-size: 13px; border-top: 1px solid #30363d; background: #161b22; }
+        .buy { color: #f85149; }
+        .sell { color: #3fb950; }
+        
+        /* 成交分类样式 */
+        .main-buy { color: #f85149; font-weight: 600; }      /* 主力主买 - 红色加粗 */
+        .main-sell { color: #3fb950; font-weight: 600; }     /* 主力主卖 - 绿色加粗 */
+        .passive-buy { color: #f97583; }                    /* 主力被买 - 浅红色 */
+        .passive-sell { color: #7ee787; }                   /* 主力被卖 - 浅绿色 */
+        
+        /* 筛选器样式 */
+        .trade-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .filter-group { display: flex; align-items: center; gap: 8px; }
+        .filter-label { color: #8b949e; font-size: 13px; }
+        #categoryFilter { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
+        #categoryFilter:hover { border-color: #58a6ff; }
+        #categoryFilter option { background: #21262d; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div style="display: flex; align-items: center;">
+            <div class="stock-info">
+                <div class="stock-name" id="stockName">加载中...</div>
+                <div class="stock-code" id="stockCode"></div>
+            </div>
+            <div class="price-info" id="priceInfo" style="display: none;">
+                <div class="current-price" id="currentPrice"></div>
+                <div class="change-percent" id="changePercent"></div>
+            </div>
+        </div>
+        <div style="display: flex; align-items: center;">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="股票代码">
+                <button id="searchBtn">查询</button>
+            </div>
+            <div class="nav-links">
+                <a href="#" class="nav-link" id="navIntraday">分时图</a>
+                <a href="#" class="nav-link" id="navDayK">日K图</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="main-content">
+        <div class="stats-row" id="statsRow" style="display: none;">
+            <div class="stat-card">
+                <div class="stat-label">主力净流入</div>
+                <div class="stat-value" id="netInflow">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">主力买入额</div>
+                <div class="stat-value positive" id="buyAmount">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">主力卖出额</div>
+                <div class="stat-value negative" id="sellAmount">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">大单笔数</div>
+                <div class="stat-value" id="tradeCount">--</div>
+            </div>
+        </div>
+        
+        <div class="chart-container">
+            <div class="chart-title">主力资金分类走势（红买绿卖，堆叠面积图）</div>
+            <div class="chart" id="fundCategoryChart"></div>
+        </div>
+        
+        <div class="chart-container">
+            <div class="chart-title">逐笔成交散点图（气泡=金额，红买绿卖）</div>
+            <div class="chart" id="scatterChart"></div>
+        </div>
+        
+        <div class="two-col">
+            <div class="chart-container">
+                <div class="chart-title">分钟级资金流向</div>
+                <div class="chart chart-small" id="flowChart"></div>
+            </div>
+            <div class="chart-container">
+                <div class="chart-title">累计资金净流入</div>
+                <div class="chart chart-small" id="cumulativeChart"></div>
+            </div>
+        </div>
+        
+        <div class="chart-container">
+            <div class="trade-header-row">
+                <div class="chart-title">大单成交明细</div>
+                <div class="filter-group">
+                    <label class="filter-label">筛选：</label>
+                    <select id="categoryFilter" onchange="filterTrades()">
+                        <option value="all">全部</option>
+                        <option value="main-buy">主力主买</option>
+                        <option value="main-sell">主力主卖</option>
+                        <option value="passive-buy">主力被买</option>
+                        <option value="passive-sell">主力被卖</option>
+                    </select>
+                </div>
+            </div>
+            <div class="trade-list" id="tradeList">
+                <div class="loading">加载中...</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentCode = "";
+        let scatterChart = null;
+        let flowChart = null;
+        let cumulativeChart = null;
+        let fundCategoryChart = null;
+        
+        function initCharts() {
+            if (typeof echarts === 'undefined') {
+                console.error('ECharts 未加载');
+                return;
+            }
+            scatterChart = echarts.init(document.getElementById("scatterChart"));
+            flowChart = echarts.init(document.getElementById("flowChart"));
+            cumulativeChart = echarts.init(document.getElementById("cumulativeChart"));
+            fundCategoryChart = echarts.init(document.getElementById("fundCategoryChart"));
+            window.addEventListener("resize", function() {
+                scatterChart && scatterChart.resize();
+                flowChart && flowChart.resize();
+                cumulativeChart && cumulativeChart.resize();
+                fundCategoryChart && fundCategoryChart.resize();
+            });
+        }
+        
+        function getUrlParam(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+        
+        function searchStock() {
+            const input = document.getElementById("searchInput").value.trim();
+            if (input) window.location.href = "?code=" + input;
+        }
+        
+        document.getElementById("searchInput").addEventListener("keypress", function(e) {
+            if (e.key === "Enter") searchStock();
+        });
+        document.getElementById("searchBtn").addEventListener("click", searchStock);
+        
+        function formatMoney(value) {
+            const absVal = Math.abs(value);
+            if (absVal >= 100000000) return (value / 100000000).toFixed(2) + "亿";
+            if (absVal >= 10000) return (value / 10000).toFixed(2) + "万";
+            return value.toFixed(2);
+        }
+        
+        function formatTime(timeStr) {
+            if (timeStr.length === 4) return timeStr.slice(0, 2) + ":" + timeStr.slice(2);
+            return timeStr;
+        }
+        
+        function parseMinuteIndex(timeStr) {
+            // 兼容多种时间格式: "0925", "09:25", "9:25", "09:25:00"
+            const cleaned = String(timeStr).replace(/:/g, '');
+            const hour = parseInt(cleaned.slice(0, 2));
+            // 只取分钟部分（第2-4位），忽略秒
+            const minute = parseInt(cleaned.slice(2, 4));
+            if (isNaN(hour) || isNaN(minute)) {
+                console.warn('时间解析失败:', timeStr, '-> cleaned:', cleaned, '-> hour:', hour, 'minute:', minute);
+                return 120; // 默认返回中午
+            }
+            if (hour < 12) return (hour - 9) * 60 + minute - 30;
+            return 120 + (hour - 13) * 60 + minute;
+        }
+        
+        async function fetchLevel2Data(code) {
+            const url = "https://vaserviece.10jqka.com.cn/Level2/index.php?op=mainMonitorDetail&stockcode=" + code;
+            try {
+                const response = await fetch(url);
+                return await response.json();
+            } catch (e) {
+                console.error("获取 Level2 数据失败:", e);
+                return null;
+            }
+        }
+        
+        function renderScatterChart(trades) {
+            if (!scatterChart || !trades.length) {
+                console.log('散点图跳过:', scatterChart ? '无数据' : '图表未初始化', 'trades:', trades.length);
+                return;
+            }
+            console.log('渲染散点图，数据:', trades.length, '笔');
+            console.log('第一条数据:', trades[0]);
+            const buyData = [], sellData = [];
+            const THRESHOLD = 1000000; // 100万
+            trades.forEach(function(t, i) {
+                // 格式: {value: [分钟索引, 价格, 金额], volume: 成交量, isBuy: true/false}
+                // tradetype: "1"=买入，"2"=卖出
+                let amount = 0;
+                if (t.money && !isNaN(t.money)) amount = parseFloat(t.money);
+                else if (t.value) amount = parseFloat(t.value) * 10000; // "178万" → 1780000
+                const minuteIdx = parseMinuteIndex(t.ctime);
+                const price = parseFloat(t.avgprice || 0);
+                const volume = parseInt(t.volume) || 0;
+                const isBuy = t.tradetype === "1" || t.tradetype === 1;
+                const isLarge = amount >= THRESHOLD;
+                
+                // 分类：主力主买/主力主卖/主力被买/主力被卖
+                let category;
+                if (isBuy) {
+                    category = isLarge ? "主力主买" : "主力被卖";
+                } else {
+                    category = isLarge ? "主力主卖" : "主力被买";
+                }
+                
+                if (i < 3) console.log('数据样例:', i, 'ctime=', t.ctime, 'minuteIdx=', minuteIdx, 'price=', price, 'amount=', amount, 'volume=', volume, 'category=', category);
+                
+                // ECharts 4.x 散点图数据格式
+                const pt = {
+                    value: [minuteIdx, price, amount],
+                    volume: volume,
+                    isBuy: isBuy,
+                    category: category
+                };
+                if (isBuy) buyData.push(pt);
+                else sellData.push(pt);
+            });
+            console.log('买入点:', buyData.length, '卖出点:', sellData.length);
+            
+            // 生成时间轴标签（散点图用 value 轴，需要单独配置 label）
+            const scatterXLabels = [];
+            for (let i = 0; i <= 241; i++) {
+                let hour, minute;
+                if (i < 120) {
+                    hour = 9 + Math.floor((i + 30) / 60);
+                    minute = (i + 30) % 60;
+                } else {
+                    hour = 13 + Math.floor((i - 120) / 60);
+                    minute = (i - 120) % 60;
+                }
+                scatterXLabels.push(String(hour).padStart(2, '0') + ':' + String(minute).padStart(2, '0'));
+            }
+            
+            const option = {
+                backgroundColor: "transparent",
+                tooltip: { 
+                    trigger: "item",
+                    backgroundColor: 'rgba(22, 27, 34, 0.95)',
+                    borderColor: '#30363d',
+                    borderWidth: 1,
+                    padding: [10, 12],
+                    textStyle: { color: '#e6edf3', fontSize: 13 },
+                    formatter: function(params) {
+                        const d = params.data;
+                        const time = scatterXLabels[d.value[0]] || d.value[0];
+                        const price = d.value[1].toFixed(2);
+                        const amount = (d.value[2]/10000).toFixed(2);
+                        const volume = d.volume || '--';
+                        const direction = d.isBuy ? '<span style="color:#f85149;font-weight:600">买入</span>' : '<span style="color:#3fb950;font-weight:600">卖出</span>';
+                        const category = d.category || '--';
+                        const categoryColor = d.category === '主力主买' ? '#f85149' : 
+                                              d.category === '主力主卖' ? '#3fb950' : 
+                                              d.category === '主力被买' ? '#e8860a' : '#58a6ff';
+                        
+                        return '<div style="line-height:1.8">' +
+                            '<div style="font-weight:600;margin-bottom:4px;border-bottom:1px solid #30363d;padding-bottom:6px">' +
+                            '<span style="color:' + categoryColor + '">' + category + '</span></div>' +
+                            '<div>时间: ' + time + '</div>' +
+                            '<div>价格: <span style="color:#58a6ff;font-weight:500">' + price + '</span></div>' +
+                            '<div>金额: <span style="color:#ffd700;font-weight:500">' + amount + '万</span></div>' +
+                            '<div>成交量: ' + volume + '股</div>' +
+                            '<div>方向: ' + direction + '</div>' +
+                            '</div>';
+                    }
+                },
+                grid: { left: "10%", right: "10%", top: "10%", bottom: "15%" },
+                xAxis: {
+                    type: "value", min: 0, max: 241,
+                    axisLabel: { 
+                        color: "#8b949e",
+                        formatter: function(value) {
+                            return scatterXLabels[value] || value;
+                        },
+                        interval: 59
+                    },
+                    splitLine: { lineStyle: { color: "#21262d" } }
+                },
+                yAxis: {
+                    type: "value", scale: true,
+                    axisLabel: { color: "#8b949e" },
+                    splitLine: { lineStyle: { color: "#21262d" } }
+                },
+                // 注意：ECharts 渲染顺序是后面的 series 在上层
+                // 所以把卖出放前面，买入放后面，这样买入（红色）会显示在顶层
+                series: [
+                    { name: "卖出", type: "scatter", data: sellData,
+                      symbolSize: function(d) { 
+                          // d 是对象 {value: [...], volume, isBuy, category}
+                          const amount = d.value ? d.value[2] : d[2];
+                          return Math.max(6, Math.min(50, Math.sqrt(Math.abs(amount))/100)); 
+                      },
+                      itemStyle: { color: "rgba(63,185,80,0.7)" } },
+                    { name: "买入", type: "scatter", data: buyData,
+                      symbolSize: function(d) { 
+                          const amount = d.value ? d.value[2] : d[2];
+                          return Math.max(6, Math.min(50, Math.sqrt(Math.abs(amount))/100)); 
+                      },
+                      itemStyle: { color: "rgba(248,81,73,0.7)" } }
+                ]
+            };
+            scatterChart.setOption(option);
+        }
+        
+        function renderFlowChart(priceChange) {
+            console.log('renderFlowChart 调用, flowChart:', flowChart ? '已初始化' : 'null', '数据:', priceChange ? priceChange.length : 'null');
+            if (!flowChart) {
+                console.error('flowChart 未初始化！');
+                return;
+            }
+            if (!priceChange || !priceChange.length) {
+                console.error('priceChange 数据为空');
+                return;
+            }
+            console.log('资金流向数据:', priceChange.length, '条');
+            console.log('样例数据:', priceChange.slice(0, 3));
+            console.log('第一个元素类型:', typeof priceChange[0], '内容:', priceChange[0]);
+            if (typeof priceChange[0] === 'object' && priceChange[0] !== null) {
+                console.log('第一个元素的键:', Object.keys(priceChange[0]));
+            }
+            const xData = [], yData = [];
+            priceChange.forEach(function(v, i) {
+                var num = 0;
+                if (typeof v === 'object' && v !== null) {
+                    // pricechange 格式: {1: '202604300930', 2525646: 0.0195}
+                    // 键是数字（时间戳和值），值取最大的那个数字键 → flow value
+                    var keys = Object.keys(v).map(Number);
+                    var numericKey = null;
+                    for (var k = 0; k < keys.length; k++) {
+                        if (typeof v[keys[k]] === 'number') {
+                            numericKey = keys[k];
+                            break;
+                        }
+                    }
+                    if (numericKey !== null) {
+                        num = v[numericKey];
+                    }
+                } else {
+                    num = parseFloat(v) || 0;
+                }
+                xData.push(i);
+                yData.push(num);
+            });
+            console.log('转换后 yData 前5条:', yData.slice(0, 5));
+            const option = {
+                backgroundColor: "transparent",
+                tooltip: { trigger: "axis" },
+                grid: { left: "10%", right: "5%", top: "10%", bottom: "15%" },
+                xAxis: {
+                    type: "category", data: xData,
+                    axisLabel: { color: "#8b949e", interval: 59 },
+                    splitLine: { show: false }
+                },
+                yAxis: { type: "value", axisLabel: { color: "#8b949e" }, splitLine: { lineStyle: { color: "#21262d" } } },
+                series: [{
+                    type: "bar", data: yData,
+                    itemStyle: {
+                        color: function(params) {
+                            var val = (params && typeof params === 'object' && 'value' in params) ? params.value : params;
+                            return val >= 0 ? "#f85149" : "#3fb950";
+                        }
+                    },
+                    barWidth: "60%"
+                }]
+            };
+            flowChart.setOption(option);
+        }
+        
+        function renderCumulativeChart(priceChange) {
+            console.log('renderCumulativeChart 调用, cumulativeChart:', cumulativeChart ? '已初始化' : 'null', '数据:', priceChange ? priceChange.length : 'null');
+            if (!cumulativeChart) {
+                console.error('cumulativeChart 未初始化！');
+                return;
+            }
+            if (!priceChange || !priceChange.length) {
+                console.error('priceChange 数据为空');
+                return;
+            }
+            console.log('累计资金数据:', priceChange.length, '条');
+            console.log('第一个元素类型:', typeof priceChange[0], '内容:', priceChange[0]);
+            let cum = 0;
+            const xData = [], yData = [];
+            // 生成时间轴 xData（09:30-11:30, 13:00-15:00）
+            for (let i = 0; i < priceChange.length; i++) {
+                let hour, minute;
+                if (i < 120) {
+                    hour = 9 + Math.floor((i + 30) / 60);
+                    minute = (i + 30) % 60;
+                } else {
+                    hour = 13 + Math.floor((i - 120) / 60);
+                    minute = (i - 120) % 60;
+                }
+                xData.push(String(hour).padStart(2, '0') + ':' + String(minute).padStart(2, '0'));
+            }
+            priceChange.forEach(function(v, i) {
+                var num = 0;
+                if (typeof v === 'object' && v !== null) {
+                    var keys = Object.keys(v).map(Number);
+                    for (var k = 0; k < keys.length; k++) {
+                        if (typeof v[keys[k]] === 'number') {
+                            num = v[keys[k]];
+                            break;
+                        }
+                    }
+                } else {
+                    num = parseFloat(v) || 0;
+                }
+                cum += num;
+                yData.push(cum);
+            });
+            console.log('累计数据前5条:', yData.slice(0, 5));
+            console.log('累计数据样例:', yData.slice(0, 3), '...', yData.slice(-3));
+            const option = {
+                backgroundColor: "transparent",
+                tooltip: { trigger: "axis" },
+                grid: { left: "10%", right: "5%", top: "10%", bottom: "15%" },
+                xAxis: {
+                    type: "category", data: xData,
+                    axisLabel: { color: "#8b949e", interval: 59 },
+                    splitLine: { show: false }
+                },
+                yAxis: { type: "value", axisLabel: { color: "#8b949e" }, splitLine: { lineStyle: { color: "#21262d" } } },
+                series: [{
+                    type: "line", data: yData, smooth: true,
+                    areaStyle: { color: "rgba(248,81,73,0.2)" },
+                    lineStyle: { color: "#f85149", width: 2 },
+                    itemStyle: { color: "#f85149" }
+                }]
+            };
+            cumulativeChart.setOption(option);
+        }
+        
+        function renderFundCategoryChart(trades) {
+            const container = document.getElementById("fundCategoryChart");
+            if (!container) {
+                console.error('fundCategoryChart 容器未找到');
+                return;
+            }
+            if (!fundCategoryChart) {
+                console.error('fundCategoryChart 未初始化');
+                return;
+            }
+            console.log('渲染四类资金走势，数据:', trades.length, '笔');
+            
+            const THRESHOLD = 1000000; // 100万
+            const FUND_COLS = 241;
+            
+            // 按分钟索引聚合分类金额
+            const mainBuyArr = new Array(FUND_COLS).fill(0);
+            const mainSellArr = new Array(FUND_COLS).fill(0);
+            const beiBuyArr = new Array(FUND_COLS).fill(0);
+            const beiSellArr = new Array(FUND_COLS).fill(0);
+            
+            trades.forEach(function(t) {
+                const isBuy = t.tradetype === "1" || t.tradetype === 1;
+                let amount = 0;
+                if (t.money && !isNaN(t.money)) {
+                    amount = parseFloat(t.money);
+                } else if (t.value) {
+                    amount = parseFloat(String(t.value).replace(/[^\d.]/g, '')) * 10000;
+                }
+                if (amount <= 0) return;
+                const isLarge = amount >= THRESHOLD;
+                const idx = parseMinuteIndex(t.ctime);
+                if (idx < 0 || idx >= FUND_COLS) return;
+                if (isBuy) {
+                    if (isLarge) mainBuyArr[idx] += amount;
+                    else beiSellArr[idx] += amount;
+                } else {
+                    if (isLarge) mainSellArr[idx] += amount;
+                    else beiBuyArr[idx] += amount;
+                }
+            });
+            
+            // 转万元单位
+            const toWan = function(arr) {
+                return arr.map(function(v) { return parseFloat((v / 10000).toFixed(2)); });
+            };
+            const mbW = toWan(mainBuyArr);
+            const msW = toWan(mainSellArr);
+            const bbW = toWan(beiBuyArr);
+            const bsW = toWan(beiSellArr);
+            
+            console.log('主力主买总额:', mbW.reduce(function(a,b){return a+b;},0).toFixed(2), '万');
+            console.log('主力主卖总额:', msW.reduce(function(a,b){return a+b;},0).toFixed(2), '万');
+            console.log('主力被买总额:', bbW.reduce(function(a,b){return a+b;},0).toFixed(2), '万');
+            console.log('主力被卖总额:', bsW.reduce(function(a,b){return a+b;},0).toFixed(2), '万');
+            
+            // 生成时间轴 xData（09:30-11:30, 13:00-15:00）
+            const xData = [];
+            for (let i = 0; i < FUND_COLS; i++) {
+                let hour, minute;
+                if (i < 120) {
+                    // 09:30 - 11:30（前120分钟）
+                    hour = 9 + Math.floor((i + 30) / 60);
+                    minute = (i + 30) % 60;
+                } else {
+                    // 13:00 - 15:00（后121分钟）
+                    hour = 13 + Math.floor((i - 120) / 60);
+                    minute = (i - 120) % 60;
+                }
+                xData.push(String(hour).padStart(2, '0') + ':' + String(minute).padStart(2, '0'));
+            }
+            
+            var option = {
+                backgroundColor: "transparent",
+                tooltip: {
+                    trigger: "axis",
+                    formatter: function(params) {
+                        var res = "时间: " + params[0].name + "<br/>";
+                        params.forEach(function(p) {
+                            var val = p.data[1] || p.data;
+                            var color = p.color;
+                            res += '<span style="display:inline-block;margin-right:5px;border-radius:10px;width:10px;height:10px;background:' + color + '"></span>' +
+                                p.seriesName + ": " + (val >= 0 ? "+" : "") + val.toFixed(2) + "万<br/>";
+                        });
+                        return res;
+                    }
+                },
+                legend: {
+                    data: ["主力主买", "主力主卖", "主力被买", "主力被卖"],
+                    textStyle: { color: "#8b949e" },
+                    top: 0
+                },
+                grid: { left: "10%", right: "5%", top: 36, bottom: "15%" },
+                xAxis: {
+                    type: "category", data: xData,
+                    axisLabel: { color: "#8b949e", interval: 59 },
+                    splitLine: { show: false }
+                },
+                yAxis: {
+                    type: "value",
+                    axisLabel: { color: "#8b949e", formatter: function(v) { return v + "万"; } },
+                    splitLine: { lineStyle: { color: "#21262d" } }
+                },
+                series: [
+                    {
+                        name: "主力主买", type: "line", data: mbW,
+                        lineStyle: { color: "#f85149", width: 2 },
+                        areaStyle: { color: "rgba(248,81,73,0.3)" },
+                        itemStyle: { color: "#f85149" },
+                        smooth: true
+                    },
+                    {
+                        name: "主力主卖", type: "line", data: msW.map(function(v) { return -v; }),
+                        lineStyle: { color: "#3fb950", width: 2 },
+                        areaStyle: { color: "rgba(63,185,80,0.3)" },
+                        itemStyle: { color: "#3fb950" },
+                        smooth: true
+                    },
+                    {
+                        name: "主力被买", type: "line", data: bbW.map(function(v) { return -v; }),
+                        lineStyle: { color: "#e8860a", width: 2 },
+                        areaStyle: { color: "rgba(232,134,10,0.3)" },
+                        itemStyle: { color: "#e8860a" },
+                        smooth: true
+                    },
+                    {
+                        name: "主力被卖", type: "line", data: bsW,
+                        lineStyle: { color: "#58a6ff", width: 2 },
+                        areaStyle: { color: "rgba(88,166,255,0.3)" },
+                        itemStyle: { color: "#58a6ff" },
+                        smooth: true
+                    }
+                ]
+            };
+            fundCategoryChart.setOption(option);
+        }
+        
+        let allTradeData = []; // 存储所有成交数据用于筛选
+        
+        function renderTradeList(trades) {
+            const container = document.getElementById("tradeList");
+            const recent = trades.slice().reverse(); // 显示所有数据，倒序排列（最新在前）
+            const THRESHOLD = 1000000; // 100万
+            
+            // 存储分类后的数据
+            allTradeData = recent.map(function(t) {
+                const isBuy = t.tradetype === "1" || t.tradetype === 1;
+                let amount = 0;
+                if (t.money && !isNaN(t.money)) {
+                    amount = parseFloat(t.money);
+                } else if (t.value) {
+                    amount = parseFloat(String(t.value).replace(/[^\d.]/g, '')) * 10000;
+                }
+                const isLarge = amount >= THRESHOLD;
+                
+                // 分类：主力主买/主力主卖/主力被买/主力被卖
+                let category, categoryClass;
+                if (isBuy) {
+                    if (isLarge) {
+                        category = "主力主买";
+                        categoryClass = "main-buy";
+                    } else {
+                        category = "主力被卖";
+                        categoryClass = "passive-sell";
+                    }
+                } else {
+                    if (isLarge) {
+                        category = "主力主卖";
+                        categoryClass = "main-sell";
+                    } else {
+                        category = "主力被买";
+                        categoryClass = "passive-buy";
+                    }
+                }
+                
+                return {
+                    time: formatTime(t.ctime),
+                    category: category,
+                    categoryClass: categoryClass,
+                    price: t.avgprice || "--",
+                    volume: t.volume,
+                    amount: amount,
+                    isBuy: isBuy
+                };
+            });
+            
+            // 渲染全部数据
+            renderFilteredTrades('all');
+        }
+        
+        function renderFilteredTrades(filter) {
+            const container = document.getElementById("tradeList");
+            let filtered = allTradeData;
+            
+            if (filter !== 'all') {
+                filtered = allTradeData.filter(function(t) {
+                    return t.categoryClass === filter;
+                });
+            }
+            
+            let html = '<div class="trade-header"><span>时间</span><span>分类</span><span>价格</span><span>成交量</span><span>金额</span></div>';
+            filtered.forEach(function(t) {
+                html += '<div class="trade-item">' +
+                    '<span>' + t.time + '</span>' +
+                    '<span class="' + t.categoryClass + '">' + t.category + '</span>' +
+                    '<span>' + t.price + '</span>' +
+                    '<span>' + t.volume + '</span>' +
+                    '<span class="' + (t.isBuy ? "buy" : "sell") + '">' + formatMoney(t.amount) + '</span>' +
+                '</div>';
+            });
+            
+            // 显示筛选结果数量
+            html += '<div class="trade-footer">共 ' + filtered.length + ' 笔记录</div>';
+            container.innerHTML = html;
+        }
+        
+        function filterTrades() {
+            const filter = document.getElementById("categoryFilter").value;
+            renderFilteredTrades(filter);
+        }
+        
+        async function init() {
+            initCharts();
+            currentCode = getUrlParam("code") || "300042";
+            document.getElementById("searchInput").value = currentCode;
+            document.getElementById("navIntraday").href = "smart_money.html?code=" + currentCode;
+            document.getElementById("navDayK").href = "dayk_chart.html?code=" + currentCode;
+            
+            const data = await fetchLevel2Data(currentCode);
+            console.log('Level2 API 返回:', data);
+            console.log('title 原始内容:', JSON.stringify(data.title));
+            if (!data || data.errorcode !== 0) {
+                document.getElementById("stockName").textContent = "获取数据失败";
+                return;
+            }
+            
+            const title = data.title || {};
+            console.log('title 对象所有键:', Object.keys(title));
+            console.log('title.mbuy:', title.mbuy, 'title.msell:', title.msell);
+            console.log('title 完整内容前100字符:', JSON.stringify(title).slice(0, 100));
+            const stockName = title.stockname || currentCode;
+            const currentPrice = parseFloat(title.price) || 0;
+            // 注意：API返回profit(涨跌幅%)，不是changepercent
+            const changePercent = parseFloat((title.profit || title.changepercent || '0').replace('%', '')) || 0;
+            const isUp = changePercent >= 0;
+            
+            document.getElementById("stockName").textContent = stockName;
+            document.getElementById("stockCode").textContent = currentCode;
+            document.getElementById("priceInfo").style.display = "flex";
+            document.getElementById("currentPrice").textContent = currentPrice.toFixed(2);
+            document.getElementById("currentPrice").className = "current-price " + (isUp ? "price-up" : "price-down");
+            document.getElementById("changePercent").textContent = (isUp ? "+" : "") + changePercent.toFixed(2) + "%";
+            document.getElementById("changePercent").className = "change-percent " + (isUp ? "change-up" : "change-down");
+            
+            const trades = data.list || [];
+
+            // 从逐笔明细按100万阈值分类计算
+            // 主买=大单买(>100万且买方主动) 主卖=大单卖(>100万且卖方主动)
+            // 被买=小单卖(≤100万且卖方主动，即被动承接大单买方) 被卖=小单买(≤100万且买方主动)
+            const THRESHOLD = 1000000; // 100万
+            let mainBuy = 0, mainSell = 0, beiBuy = 0, beiSell = 0;
+            trades.forEach(function(t) {
+                const isBuy = t.tradetype === "1" || t.tradetype === 1;
+                let amount = 0;
+                if (t.money && !isNaN(t.money)) {
+                    amount = parseFloat(t.money);
+                } else if (t.value) {
+                    amount = parseFloat(String(t.value).replace(/[^\d.]/g, '')) * 10000;
+                }
+                const isLarge = amount >= THRESHOLD;
+                if (isBuy) {
+                    if (isLarge) mainBuy += amount;  // 大单买：主力主动买
+                    else beiSell += amount;           // 小单买：被动承接大单卖方
+                } else {
+                    if (isLarge) mainSell += amount;  // 大单卖：主力主动卖
+                    else beiBuy += amount;            // 小单卖：被动承接大单买方
+                }
+            });
+            const netInflow = mainBuy - mainSell;
+            document.getElementById("statsRow").style.display = "grid";
+            document.getElementById("netInflow").textContent = (netInflow >= 0 ? "+" : "") + formatMoney(netInflow);
+            document.getElementById("netInflow").className = "stat-value " + (netInflow >= 0 ? "positive" : "negative");
+            document.getElementById("buyAmount").textContent = formatMoney(mainBuy);
+            document.getElementById("sellAmount").textContent = formatMoney(mainSell);
+            document.getElementById("tradeCount").textContent = trades.length + "笔";
+            
+            renderScatterChart(trades);
+            renderFlowChart(data.pricechange || []);
+            renderCumulativeChart(data.pricechange || []);
+            renderFundCategoryChart(trades);
+            renderTradeList(trades);
+        }
+        
+        init();
+    </script>
+</body>
+</html>

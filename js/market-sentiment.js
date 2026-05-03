@@ -133,14 +133,14 @@ function updateFloatingFundFlow(data) {
     if (!el1 && !el2) return;
     if (el1) el1.innerHTML = topInflows.map(item => `
         <div class="floating-fund-flow-item">
-            <span class="floating-fund-flow-name" onclick="openStockModal('bankuai.html?blockCode=${encodeURIComponent(item['板块代码'] || '')}')">${item['板块名称']}</span>
+            <a class="floating-fund-flow-name" href="bankuai.html?blockCode=${encodeURIComponent(item['板块代码'] || '')}" style="text-decoration:none;">${item['板块名称']}</a>
             <span class="floating-fund-flow-value positive">+${item['主力净流入_亿'].toFixed(2)}亿</span>
         </div>
     `).join('');
     if (el2) el2.innerHTML = topOutflows.length > 0
         ? topOutflows.map(item => `
             <div class="floating-fund-flow-item">
-                <span class="floating-fund-flow-name" onclick="openStockModal('bankuai.html?blockCode=${encodeURIComponent(item['板块代码'] || '')}')">${item['板块名称']}</span>
+                <a class="floating-fund-flow-name" href="bankuai.html?blockCode=${encodeURIComponent(item['板块代码'] || '')}" style="text-decoration:none;">${item['板块名称']}</a>
                 <span class="floating-fund-flow-value negative">${item['主力净流入_亿'].toFixed(2)}亿</span>
             </div>
         `).join('')

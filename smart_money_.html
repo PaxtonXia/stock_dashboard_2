@@ -255,6 +255,18 @@
             background: rgba(255, 193, 7, 0.3);
             box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
         }
+		.nav-link {
+			font-size: 12px;
+			color: #4a9eff;
+			text-decoration: none;
+			padding: 3px 10px;
+			border-radius: 3px;
+			background: rgba(74, 158, 255, 0.1);
+			border: 1px solid rgba(74, 158, 255, 0.3);
+			transition: all 0.2s;
+			cursor: pointer;
+		}
+		.nav-link:hover { background: rgba(74, 158, 255, 0.2); }
 		</style>
 		<script type="text/javascript" src="js/json2html.js"></script>
 		<script type="text/javascript" src="js/jquery.min.js"></script>
@@ -283,6 +295,7 @@
         </select>
         <div id="tempTitle"></div>
         <div style="display: flex; align-items: center; gap: 3px; margin-left: auto;">
+          <a id="smartNavLink" class="nav-link" href="dayk_chart.html">日K图 →</a>
           <button class="custom-button" id="aiAnalysisBtn" onclick="aiAnalysis()">AI分析</button>
           <span class="chart-btn" id="favoriteBtn" onclick="toggleFavorite()">+</span>
         </div>
@@ -694,6 +707,11 @@
 					if(gp[3] != undefined){
 						yy = gp[3];
 					}
+				}else if(u.indexOf("code=") > -1){
+					var qs = u.split('?')[1];
+					var params = new URLSearchParams(qs);
+					dm = params.get('code') || '';
+					gpmc = params.get('name') || '';
 				}
 				// 修正默认代码逻辑
 				if (dm == 'xxxxxx' || dm == ''){
@@ -717,6 +735,8 @@
 					}
 					
 					gpdm = dm;
+					var navEl = document.getElementById('smartNavLink');
+					if(navEl) navEl.href = 'dayk_chart.html?code=' + dm;
 					var dms = "";
 					var dmt = "";
 					if(dm.substr(0,1)=="6"){
@@ -733,7 +753,15 @@
 						dmt = "0." + dm;
 					}
 					
-					var url ="https://push2his.eastmoney.com/api/qt/stock/trends2/get?fields1=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13&fields2=f51,f52,f53,f54,f55,f56,f57,f58&secid=" + dmt;
+					// 构建选股宝API的股票代码格式
+					var xgbCode = "";
+					if(dm.substr(0,1)=="6"){
+						xgbCode = dm + ".SS";
+					}else{
+						xgbCode = dm + ".SZ";
+					}
+					
+					var url ="https://api-ddc-wscn.xuangubao.com.cn/market/trend?fields=tick_at,close_px,avg_px,turnover_volume,turnover_value,open_px,high_px,low_px,px_change,px_change_rate&prod_code=" + xgbCode;
 					var res = [];
 					$.ajax({
 						type: "get",
@@ -743,39 +771,75 @@
 						cache:false,
 						timeout:3000,
 						success: function(data) {
-							//alert(JSON.stringify(data))
-							//document.write(JSON.stringify(data));
-							preClose = data.data.preClose;
-							var arr = data.data.trends;
-							gpmc = data.data.name;
-                            // Update favorite button
-                            const btn = document.getElementById('favoriteBtn');
-                            if (btn) {
-                                const isInPool = isInStockPool(gpdm);
-                                btn.textContent = isInPool ? '-' : '+';
-                                if (isInPool) {
-                                    btn.classList.add('in-pool');
-                                } else {
-                                    btn.classList.remove('in-pool');
-                                }
-                            }
-							//document.write(JSON.stringify(arr));
-							for (var i = 0; i < arr.length; i++){
-								var aa = arr[i].split(',');
-								if(i == 0){
-									rq = aa[0].split(" ")[0];
+							console.log('选股宝API返回数据:', data);
+							if(data.code === 20000 && data.data && data.data.candle && data.data.candle[xgbCode]) {
+								var stockData = data.data.candle[xgbCode];
+								preClose = stockData.pre_close_px;
+								var lines = stockData.lines;
+								gpmc = gpdm; // 选股宝API不返回股票名称，使用代码作为名称
+								
+								// Update favorite button
+								const btn = document.getElementById('favoriteBtn');
+								if (btn) {
+									const isInPool = isInStockPool(gpdm);
+									btn.textContent = isInPool ? '-' : '+';
+									if (isInPool) {
+										btn.classList.add('in-pool');
+									} else {
+										btn.classList.remove('in-pool');
+									}
 								}
-								var time = aa[0].split(" ")[1];
-								if(jk == 0){
-									if(Number(time.replace(":","")) >= 930){
-										var rc = {"time":aa[0].split(" ")[1],"open":Number(aa[1]),"close":Number(aa[2]),"high":Number(aa[3]),"low":Number(aa[4]),"vol":Number(aa[5]),"jprice":Number(aa[7])}
+								
+								// 处理分时数据
+								for (var i = 0; i < lines.length; i++){
+									var line = lines[i];
+									// 字段顺序: tick_at, close_px, avg_px, turnover_volume, turnover_value, open_px, high_px, low_px, px_change, px_change_rate
+									var timestamp = line[0]; // Unix时间戳
+									var date = new Date(timestamp * 1000);
+									var time = date.getHours().toString().padStart(2, '0') + ":" + date.getMinutes().toString().padStart(2, '0');
+									
+									if(i == 0){
+										rq = date.getFullYear() + "-" + (date.getMonth()+1).toString().padStart(2, '0') + "-" + date.getDate().toString().padStart(2, '0');
+									}
+									
+									if(jk == 0){
+										if(Number(time.replace(":","")) >= 930){
+											var rc = {
+												"time": time,
+												"open": Number(line[5]), // open_px
+												"close": Number(line[1]), // close_px
+												"high": Number(line[6]), // high_px
+												"low": Number(line[7]), // low_px
+												"vol": Number(line[3]), // turnover_volume
+												"jprice": Number(line[2]) // avg_px
+											}
+											res.push(rc);
+										}
+									}else{
+										var rc = {
+											"time": time,
+											"open": Number(line[5]), // open_px
+											"close": Number(line[1]), // close_px
+											"high": Number(line[6]), // high_px
+											"low": Number(line[7]), // low_px
+											"vol": Number(line[3]), // turnover_volume
+											"jprice": Number(line[2]) // avg_px
+										}
 										res.push(rc);
 									}
-								}else{
-									var rc = {"time":aa[0].split(" ")[1],"open":Number(aa[1]),"close":Number(aa[2]),"high":Number(aa[3]),"low":Number(aa[4]),"vol":Number(aa[5]),"jprice":Number(aa[7])}
-									res.push(rc);
 								}
+							} else {
+								console.error('选股宝API返回数据格式错误:', data);
+								// 如果API调用失败，使用默认数据
+								preClose = 0;
+								gpmc = gpdm;
 							}
+						},
+						error: function(xhr, status, errorThrown) {
+							console.error('选股宝API调用失败:', xhr, status, errorThrown);
+							// API调用失败时的处理
+							preClose = 0;
+							gpmc = gpdm;
 						}
 					})
           			getScatterData(dm)
@@ -950,10 +1014,10 @@
 										data.price = c + '价格:' + item.data;
 										data.ratio = c + '涨幅:' + ratioCalculate(item.data, preClose) + "%";
 									}else if(name == "分时均价"){
-										data.avgPrice = c + '均价:' + item.data;
+										data.avgPrice = c + '均价:' + parseFloat(item.data).toFixed(2);
 									}else if(name.indexOf("成交量") > -1){
 										// Show original volume value in tooltip
-										str += c + item.seriesName + " : " + (item.data / 0.00005) + "<br>";
+										str += c + item.seriesName + " : " + (item.data / 0.00005).toFixed(2) + "<br>";
 									} else if(item.componentSubType === 'scatter') {
 										const temp = scatterData.find(v => v.realTime === item.axisValue)
 										if (temp && temp.others) {

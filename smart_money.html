@@ -39,20 +39,16 @@
 				background: rgba(255,255,255,0.2);
 				border-radius: 4px;
 			}
-      .tabs {
-        display: flex;
-        align-items: center;
-        margin-bottom: 4px;
-        padding: 2px 6px;
+      .tabs { display: flex; align-items: center; margin-bottom: 2px; padding: 4px 8px;
         background: rgba(37, 37, 56, 0.5);
         border-radius: 0;
         box-shadow: 0 1px 2px rgba(0,0,0,0.1);
         border: 1px solid rgba(255,255,255,0.06);
-        gap: 3px;
+        gap: 2px;
         margin-top: 0;
       }
       
-      .tabs span {
+      .tabs > * { flex-shrink: 0; } .tabs span {
         cursor: pointer;
         padding: 3px 8px;
         background: rgba(255,255,255,0.04);
@@ -65,14 +61,7 @@
         white-space: nowrap;
         flex-shrink: 0;
       }
-      .filter-dropdown {
-        height: 32px;
-        background: rgba(255,255,255,0.1);
-        border: 1px solid rgba(255,255,255,0.2);
-        border-radius: 6px;
-        color: #e0e0e0;
-        padding: 0 8px;
-        font-size: 14px;
+      .filter-dropdown { height: 26px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: #e0e0e0; padding: 0 6px; font-size: 12px;
         margin-right: 12px;
       }
       .filter-dropdown:focus {
@@ -267,6 +256,37 @@
 			cursor: pointer;
 		}
 		.nav-link:hover { background: rgba(74, 158, 255, 0.2); }
+
+		/* Loading overlay: 数据加载前显示 */
+		#loadingOverlay {
+			position: absolute;
+			top: 80px; left: 0; right: 0; bottom: 0;
+			background: #1a1f2b;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			z-index: 100;
+			transition: opacity 0.3s ease, visibility 0.3s ease;
+		}
+		#loadingOverlay.hidden {
+			display: none;
+		}
+		.loading-spinner {
+			width: 40px; height: 40px;
+			border: 4px solid rgba(74, 158, 255, 0.2);
+			border-top-color: #4a9eff;
+			border-radius: 50%;
+			animation: spin 0.8s linear infinite;
+		}
+		.loading-text {
+			margin-top: 16px;
+			color: #888;
+			font-size: 14px;
+		}
+		@keyframes spin {
+			to { transform: rotate(360deg); }
+		}
 		</style>
 		<script type="text/javascript" src="js/json2html.js"></script>
 		<script type="text/javascript" src="js/jquery.min.js"></script>
@@ -274,14 +294,8 @@
 		<script type="text/javascript" src="js/echarts.js"></script>
 	</head>
 	<body>
-		<div id="towrite" class="fixedBox" style="display:flex;">
-		<div>
-        	<!-- 移除开关按钮和喇叭图片 -->
-        	<!-- <button class="custom-button" onclick="togglePlaySound()"><span id="spanPlaySound" >开</span><img src="res/laba.jpg" class="button-image"></button> -->
-        	<!-- <audio id="buyAudio" src="res/alert1.mp3" preload="auto"></audio>
-        	<audio id="sellAudio" src="res/alert2.mp3" preload="auto"></audio> -->
-		</div>
-      <div class="tabs">
+		<div id="towrite" class="fixedBox" style="display: flex; flex-direction: column; height: 100vh; overflow: hidden; width: 100vw;">
+      <div class="tabs" style="flex-shrink: 0;">
         <span class="tab-main active" onclick="handleClick(0)">全部</span>
         <span class="tab-buy" onclick="handleClick(1)">买单</span>
         <span class="tab-out" onclick="handleClick(2)">卖单</span>
@@ -293,20 +307,23 @@
           <option value="5000000">500万</option>
           <option value="10000000">1000万</option>
         </select>
-        <div id="tempTitle"></div>
-        <div style="display: flex; align-items: center; gap: 3px; margin-left: auto;">
-          <a id="smartNavLink" class="nav-link" href="dayk_chart.html">日K图 →</a>
-          <button class="custom-button" id="aiAnalysisBtn" onclick="aiAnalysis()">AI分析</button>
+        <div id="tempTitle" style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></div>
+        <div style="display: flex; align-items: center; gap: 2px; margin-left: auto; flex-shrink: 0;">
+          <a id="smartNavLink" class="nav-link" style="padding: 2px 6px; font-size: 12px;" href="dayk_chart.html">日K图 →</a>
+          <button class="custom-button" style="padding: 2px 6px; font-size: 12px;" id="aiAnalysisBtn" onclick="aiAnalysis()">AI分析</button>
           <span class="chart-btn" id="favoriteBtn" onclick="toggleFavorite()">+</span>
         </div>
       </div>
-	  
-			<div id="title" style="height:16px;"></div>
-			<div id="chart" style="position:relative; width: 100%; height: calc(40vh - 80px);"></div>
+			<!-- Loading overlay: 数据加载前显示 -->
+			<div id="loadingOverlay" style="flex-shrink: 0;">
+				<div class="loading-spinner"></div>
+				<div class="loading-text">加载中...</div>
+			</div>
+			<div id="title" style="height:16px; flex-shrink: 0; margin:0; padding:0;"></div>
+			<div id="chart" style="flex: 6; min-height: 0; flex-shrink: 0; overflow: hidden;"></div>
 			<!-- <div id="towrite1" class="fixedBox" style="position:relative; float:left;margin-top:-18px;"></div> -->
-			
 			<!-- 主力买卖柱状图 - 放在主容器内部，但在主图下方 -->
-			<div id="tradeChart" style="width: 100%; height: calc(70vh - 80px); margin-top: 0; border: 1px solid #696969; background: #1f1f1f;"></div>
+			<div id="tradeChart" style="flex: 4; min-height: 0; flex-shrink: 0; margin-top: 0; border: 1px solid #696969; background: #1f1f1f; overflow: hidden;"></div>
 		</div>
 		
 		<script>
@@ -627,8 +644,7 @@
 				div.style.height= "100%"; // 自适应容器高度
 				div.style.fontSize= "14px";
 				div.style.padding= "0";
-				div.style.overflow= "auto"; // 允许滚动
-				div.style.gap = "0"; // 移除容器内部间距
+								div.style.gap = "0"; // 移除容器内部间距
 				
 				var chartDiv = document.getElementById("chart");
 				chartDiv.style.border= "1px solid #696969";
@@ -636,15 +652,12 @@
 				chartDiv.style.left= "0px";
 				chartDiv.style.width= "100%";
 				// 主图自适应填充剩余空间
-				chartDiv.style.height= "auto";
-				chartDiv.style.flexGrow = "1";
-				chartDiv.style.flexShrink = "0";
+								chartDiv.style.flexShrink = "0";
 				chartDiv.style.minHeight = "0"; // 重要：允许压缩
 				
 				// 交易图增加高度并移除间距
 				var tradeChartDiv = document.getElementById("tradeChart");
 				tradeChartDiv.style.width= "100%";
-				tradeChartDiv.style.height= "calc(40vh - 80px)"; // 增加高度
 				tradeChartDiv.style.flexShrink = "0"; // 防止压缩
 				tradeChartDiv.style.marginTop= "0"; // 移除顶部间距
 				tradeChartDiv.style.border= "1px solid #696969";
@@ -724,6 +737,8 @@
 				if(dm != gpdm || v == 1 || p != jk){
 					//alert(p)
 					console.log('dm != gpdm || v == 1 || p != jk');
+					// 显示 loading，隐藏图表
+					document.getElementById('loadingOverlay').classList.remove('hidden');
 					v = 0;
 					jk = p;
 					
@@ -776,7 +791,10 @@
 								var stockData = data.data.candle[xgbCode];
 								preClose = stockData.pre_close_px;
 								var lines = stockData.lines;
-								gpmc = gpdm; // 选股宝API不返回股票名称，使用代码作为名称
+								// 如果 gpmc 为空，才使用代码作为名称
+								if (!gpmc || gpmc === '') {
+									gpmc = gpdm;
+								}
 								
 								// Update favorite button
 								const btn = document.getElementById('favoriteBtn');
@@ -832,14 +850,18 @@
 								console.error('选股宝API返回数据格式错误:', data);
 								// 如果API调用失败，使用默认数据
 								preClose = 0;
-								gpmc = gpdm;
+								if (!gpmc || gpmc === '') {
+									gpmc = gpdm;
+								}
 							}
 						},
 						error: function(xhr, status, errorThrown) {
 							console.error('选股宝API调用失败:', xhr, status, errorThrown);
 							// API调用失败时的处理
 							preClose = 0;
-							gpmc = gpdm;
+							if (!gpmc || gpmc === '') {
+								gpmc = gpdm;
+							}
 						}
 					})
           			getScatterData(dm)
@@ -1050,8 +1072,8 @@
 
 											// Add total buy/sell in one line
 											str += `<div style="display:flex;justify-content:space-between;margin:5px 0;color:#fff;">
-												<span>总买: <span style="color:#ff4444;font-weight:bold">${mainBuy + passiveBuy}万</span></span>
-												<span>总卖: <span style="color:#00aa00;font-weight:bold">${mainSell + passiveSell}万</span></span>
+												<span>总买: <span style="color:#e86a6a;font-weight:bold">${mainBuy + passiveBuy}万</span></span>
+												<span>总卖: <span style="color:#4aba6a;font-weight:bold">${mainSell + passiveSell}万</span></span>
 											</div>`;
 
 											// Rest of the bar chart code remains the same
@@ -1092,9 +1114,9 @@
 											};
 
 											// Add bars for each type
-											str += createBar(mainBuy, '#ff4444', '主买');
+											str += createBar(mainBuy, '#e86a6a', '主买');
 											str += createBar(passiveBuy, '#ff9999', '被买');
-											str += createBar(mainSell, '#00aa00', '主卖');
+											str += createBar(mainSell, '#4aba6a', '主卖');
 											str += createBar(passiveSell, '#44ff44', '被卖');
 											
 											str += '</div>';
@@ -1168,7 +1190,7 @@
         axisLine: {
             show: true,
             lineStyle: {
-                color: '#D3D3D3',
+                color: '#ffffff',
                 type: 'dotted',
             },
         },
@@ -1206,7 +1228,7 @@
         axisLine: { 
             show: true,
             lineStyle: {
-                color: '#D3D3D3',
+                color: '#ffffff',
                 type: 'dotted',
             },
         },
@@ -1235,9 +1257,9 @@
 								normal: {
 									lineStyle: {
 										width: 2,//折线宽度
-										color: "#D3D3D3"//折线颜色
+										color: "#ffffff"//折线颜色
 									},
-									color: '#D3D3D3',//拐点颜色
+									color: '#ffffff',//拐点颜色
 								}
 							},
 
@@ -1269,9 +1291,9 @@
 								normal: {
 									lineStyle: {
 										width: 2,//折线宽度
-										color: "#EBEB00"//折线颜色
+										color: "#FF9500"//折线颜色
 									},
-									color: '#EBEB00',//拐点颜色
+									color: '#FF9500',//拐点颜色
 								}
 							}
 						},
@@ -1291,7 +1313,7 @@
 									if (index > 0 && arr[index] && arr[index-1]) {
 										var cur = arr[index].close;
 										var prev = arr[index-1].close;
-										return cur >= prev ? '#ff4444' : '#00aa00';
+										return cur >= prev ? '#e86a6a' : '#4aba6a';
 									}
 									return '#DAA520';
 								},
@@ -1344,6 +1366,8 @@
 				}
 				myChart.setOption(option);
 				$(window).resize(myChart.resize);   //解决Echarts 隐藏再显示后宽度高度变小的问题
+				// 数据加载完毕，隐藏 loading
+				document.getElementById('loadingOverlay').classList.add('hidden');
 			}
 		</script>
 <!-- 在body标签内合适位置添加AI分析弹窗 -->
@@ -1525,7 +1549,7 @@ function getTradeData() {
                 // 显示错误信息
                 var chartDom = document.getElementById('tradeChart');
                 if (chartDom) {
-                    chartDom.innerHTML = '<div style="color: #ff4444; text-align: center; padding: 20px;">获取主力买卖数据失败，请检查网络连接</div>';
+                    chartDom.innerHTML = '<div style="color: #e86a6a; text-align: center; padding: 20px;">获取主力买卖数据失败，请检查网络连接</div>';
                 }
             }
         });
@@ -1760,28 +1784,27 @@ function renderTradeChart(chartData, stockName) {
                 }
             },
             grid: {
-                left: '2%',
-                right: '5%',
-                bottom: '10px',
-                top: '20px',
-                containLabel: true
+                left: '5%',      // 与主图一致
+                right: '8%',     // 与主图一致
+                bottom: '30px', // 增加底部间距，避免文字被遮住
+                top: '20px'
             },
             xAxis: {
                 type: 'category',
                 data: chartData.times,
                 axisLabel: {
+                    // 与主图对齐：每15个tick显示一个标签
                     interval: function(index, value) {
-                        // Only show labels at 15-minute intervals (00, 15, 30, 45 minutes)
-                        var minutes = parseInt(value.split(':')[1]);
-                        return minutes % 15 === 0;
+                        return index % 15 === 0;
                     },
-                    color: '#999',
+                    color: '#FFF',
                     align: 'center',
                     padding: [0, 0, 0, 0]
                 },
                 axisLine: {
                     lineStyle: {
-                        color: '#333'
+                        color: '#808080',
+                        width: 1
                     }
                 },
                 splitLine: {
@@ -1797,6 +1820,19 @@ function renderTradeChart(chartData, stockName) {
                 nameTextStyle: {
                     color: '#999',
                     padding: [0, 0, 0, 20]
+                },
+                // 设置对称的Y轴范围，确保正负区域平衡显示
+                min: function(value) {
+                    var maxAbs = Math.max(Math.abs(value.min), Math.abs(value.max));
+                    return -maxAbs;
+                },
+                max: function(value) {
+                    var maxAbs = Math.max(Math.abs(value.min), Math.abs(value.max));
+                    return maxAbs;
+                },
+                interval: function(value) {
+                    var maxAbs = Math.max(Math.abs(value.min), Math.abs(value.max));
+                    return Math.ceil(maxAbs / 3 / 1000) * 1000;
                 },
                 axisLabel: {
                     color: '#999',
@@ -1824,9 +1860,15 @@ function renderTradeChart(chartData, stockName) {
                 barGap: '2px',
                 barCategoryGap: '2px',
                 itemStyle: {
-                    borderWidth: 1,
-                    borderColor: '#1f1f1f',
-                    borderType: 'solid'
+                    borderWidth: 0,
+                    // 根据数值大小设置透明度，大单更明显
+                    opacity: function(params) {
+                        var value = Math.abs(params.data.value);
+                        var maxVal = Math.max(...chartData.amounts.map(d => Math.abs(d.value)));
+                        if (maxVal === 0) return 0.6;
+                        // 透明度范围 0.4-1.0，数值越大越不透明
+                        return 0.4 + (value / maxVal) * 0.6;
+                    }
                 },
                 label: {
                     show: false
@@ -1856,3 +1898,5 @@ function renderTradeChart(chartData, stockName) {
 </html>
 
 </copilot-edited-file>
+
+

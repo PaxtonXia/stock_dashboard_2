@@ -8,76 +8,79 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
             background: #0d1117;
             color: #e6edf3;
-            min-height: 100vh;
+            font-size: 12px;
         }
         .header {
             background: #161b22;
-            padding: 16px 24px;
+            padding: 8px 12px;
             border-bottom: 1px solid #30363d;
             display: flex;
             align-items: center;
             justify-content: space-between;
         }
-        .stock-info { display: flex; align-items: center; gap: 16px; }
-        .stock-name { font-size: 20px; font-weight: 600; }
-        .stock-code { color: #8b949e; font-size: 14px; }
-        .price-info { display: flex; align-items: center; gap: 12px; }
-        .current-price { font-size: 24px; font-weight: 700; }
+        .stock-info { display: flex; align-items: center; gap: 8px; }
+        .stock-name { font-size: 14px; font-weight: 600; }
+        .stock-code { color: #8b949e; font-size: 11px; }
+        .price-info { display: flex; align-items: center; gap: 6px; }
+        .current-price { font-size: 16px; font-weight: 700; }
         .price-up { color: #f85149; }
         .price-down { color: #3fb950; }
-        .change-percent { padding: 4px 8px; border-radius: 4px; font-size: 14px; font-weight: 500; }
+        .change-percent { padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 500; }
         .change-up { background: rgba(248,81,73,0.15); color: #f85149; }
         .change-down { background: rgba(63,185,80,0.15); color: #3fb950; }
-        .search-box { display: flex; gap: 8px; }
+        .search-box { display: flex; gap: 4px; }
         .search-box input {
             background: #0d1117;
             border: 1px solid #30363d;
             color: #e6edf3;
-            padding: 8px 12px;
-            border-radius: 6px;
-            width: 120px;
+            padding: 4px 8px;
+            border-radius: 3px;
+            width: 80px;
+            font-size: 11px;
         }
         .search-box input:focus { outline: none; border-color: #58a6ff; }
         .search-box button {
             background: #238636;
             border: none;
             color: #fff;
-            padding: 8px 16px;
-            border-radius: 6px;
+            padding: 4px 10px;
+            border-radius: 3px;
             cursor: pointer;
+            font-size: 11px;
         }
         .search-box button:hover { background: #2ea043; }
-        .nav-links { display: flex; gap: 12px; margin-left: 24px; }
+        .nav-links { display: flex; gap: 6px; margin-left: 12px; }
         .nav-link {
             background: #21262d;
             color: #58a6ff;
             text-decoration: none;
-            padding: 8px 16px;
-            border-radius: 6px;
+            padding: 4px 10px;
+            border-radius: 3px;
             border: 1px solid #30363d;
+            font-size: 11px;
         }
         .nav-link:hover { background: #30363d; }
-        .main-content { padding: 24px; max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
-        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-        .stat-card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; }
-        .stat-label { color: #8b949e; font-size: 13px; margin-bottom: 4px; }
-        .stat-value { font-size: 20px; font-weight: 600; }
+        .main-content { padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+        .stat-card { background: #161b22; border: 1px solid #30363d; border-radius: 4px; padding: 6px 8px; }
+        .stat-label { color: #8b949e; font-size: 10px; margin-bottom: 2px; }
+        .stat-value { font-size: 14px; font-weight: 600; }
         .stat-value.positive { color: #f85149; }
         .stat-value.negative { color: #3fb950; }
-        .chart-container { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; margin-bottom: 24px; }
-        .chart-title { font-size: 16px; font-weight: 500; margin-bottom: 12px; }
-        .chart { width: 100%; height: 400px; }
-        .chart-small { height: 300px; }
-        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-        .loading { text-align: center; padding: 60px; color: #8b949e; }
-        .trade-list { max-height: 400px; overflow-y: auto; }
-        .trade-item { display: grid; grid-template-columns: 80px 90px 80px 80px 100px; padding: 8px 12px; border-bottom: 1px solid #21262d; font-size: 13px; }
+        .chart-container { background: #161b22; border: 1px solid #30363d; border-radius: 4px; padding: 8px; margin-bottom: 8px; }
+        .chart-title { font-size: 12px; font-weight: 500; margin-bottom: 6px; }
+        .chart { width: 100%; height: 200px; }
+        .chart-small { height: 160px; }
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .loading { text-align: center; padding: 40px; color: #8b949e; }
+        .trade-list { max-height: 200px; overflow-y: auto; }
+        .trade-item { display: grid; grid-template-columns: 60px 70px 60px 60px 80px; padding: 4px 8px; border-bottom: 1px solid #21262d; font-size: 11px; }
         .trade-item:hover { background: #21262d; }
-        .trade-header { display: grid; grid-template-columns: 80px 90px 80px 80px 100px; padding: 8px 12px; background: #21262d; font-size: 13px; color: #8b949e; font-weight: 500; }
-        .trade-footer { padding: 12px; text-align: center; color: #8b949e; font-size: 13px; border-top: 1px solid #30363d; background: #161b22; }
+        .trade-header { display: grid; grid-template-columns: 60px 70px 60px 60px 80px; padding: 4px 8px; background: #21262d; font-size: 11px; color: #8b949e; font-weight: 500; }
+        .trade-footer { padding: 6px; text-align: center; color: #8b949e; font-size: 10px; border-top: 1px solid #30363d; background: #161b22; }
         .buy { color: #f85149; }
         .sell { color: #3fb950; }
         
@@ -94,6 +97,34 @@
         #categoryFilter { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
         #categoryFilter:hover { border-color: #58a6ff; }
         #categoryFilter option { background: #21262d; }
+        
+        /* 主力动态分析面板样式 - 紧凑版 */
+        .smart-money-panel { background: #161b22; border: 1px solid #30363d; border-radius: 4px; padding: 8px; margin-bottom: 8px; }
+        .smart-money-title { font-size: 12px; font-weight: 600; margin-bottom: 8px; color: #e6edf3; }
+        .smart-money-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-bottom: 6px; }
+        .metric-card { background: #0d1117; border: 1px solid #30363d; border-radius: 3px; padding: 6px; }
+        .metric-label { color: #8b949e; font-size: 10px; margin-bottom: 2px; }
+        .metric-value { font-size: 13px; font-weight: 600; color: #e6edf3; }
+        .metric-value.positive { color: #f85149; }
+        .metric-value.negative { color: #3fb950; }
+        .metric-value.neutral { color: #ffd700; }
+        .metric-hint { font-size: 9px; color: #6e7681; margin-top: 2px; }
+        .score-bar { height: 4px; background: #21262d; border-radius: 2px; margin-top: 4px; overflow: hidden; }
+        .score-fill { height: 100%; border-radius: 2px; transition: width 0.3s ease; }
+        .score-fill.high { background: linear-gradient(90deg, #f85149, #ff7b72); }
+        .score-fill.medium { background: linear-gradient(90deg, #ffd700, #ffea00); }
+        .score-fill.low { background: linear-gradient(90deg, #3fb950, #56d364); }
+        .rating-text { font-size: 10px; font-weight: 600; margin-top: 3px; }
+        .rating-text.high { color: #f85149; }
+        .rating-text.medium { color: #ffd700; }
+        .rating-text.low { color: #3fb950; }
+        .alert-box { background: rgba(255, 217, 0, 0.08); border-left: 2px solid #ffd700; padding: 6px 8px; border-radius: 2px; }
+        .alert-box.alert-buy { background: rgba(248, 81, 73, 0.08); border-left-color: #f85149; }
+        .alert-box.alert-sell { background: rgba(63, 185, 80, 0.08); border-left-color: #3fb950; }
+        .alert-title { font-size: 10px; font-weight: 600; color: #ffd700; margin-bottom: 2px; }
+        .alert-box.alert-buy .alert-title { color: #f85149; }
+        .alert-box.alert-sell .alert-title { color: #3fb950; }
+        .alert-content { font-size: 10px; color: #c9d1d9; line-height: 1.4; }
     </style>
 </head>
 <body>
@@ -121,6 +152,50 @@
     </div>
     
     <div class="main-content">
+        <!-- 主力动态分析面板 -->
+        <div class="smart-money-panel" id="smartMoneyPanel" style="display: none;">
+            <div class="smart-money-title">主力动态分析</div>
+            <div class="smart-money-grid">
+                <div class="metric-card">
+                    <div class="metric-label">综合评分</div>
+                    <div class="metric-value" id="smScore">--</div>
+                    <div class="score-bar">
+                        <div class="score-fill high" id="smScoreFill" style="width: 0%;"></div>
+                    </div>
+                    <div class="rating-text high" id="smRating">--</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">主动买入比率</div>
+                    <div class="metric-value" id="smActiveRatio">--</div>
+                    <div class="metric-hint" id="smActiveHint">--</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">堆积密度</div>
+                    <div class="metric-value" id="smDensity">--</div>
+                    <div class="metric-hint" id="smDensityHint">--</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">净流入速度</div>
+                    <div class="metric-value" id="smFlowSpeed">--</div>
+                    <div class="metric-hint" id="smFlowHint">--</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">波形类型</div>
+                    <div class="metric-value" id="smWaveType">--</div>
+                    <div class="metric-hint" id="smWaveHint">--</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">尾盘异动</div>
+                    <div class="metric-value" id="smTailSignal">--</div>
+                    <div class="metric-hint" id="smTailHint">--</div>
+                </div>
+            </div>
+            <div class="alert-box" id="smAlertBox" style="display: none;">
+                <div class="alert-title" id="smAlertTitle">--</div>
+                <div class="alert-content" id="smAlertContent">--</div>
+            </div>
+        </div>
+        
         <div class="stats-row" id="statsRow" style="display: none;">
             <div class="stat-card">
                 <div class="stat-label">主力净流入</div>
@@ -140,38 +215,39 @@
             </div>
         </div>
         
-        <div class="chart-container">
-            <div class="chart-title">主力资金分类走势（红买绿卖，堆叠面积图）</div>
-            <div class="chart" id="fundCategoryChart"></div>
-        </div>
-        
-        <div class="chart-container">
-            <div class="chart-title">逐笔成交散点图（气泡=金额，红买绿卖）</div>
-            <div class="chart" id="scatterChart"></div>
+        <div class="two-col">
+            <div class="chart-container">
+                <div class="chart-title">逐笔成交（气泡=金额）</div>
+                <div class="chart chart-small" id="scatterChart"></div>
+            </div>
+            <div class="chart-container">
+                <div class="chart-title">资金分类走势</div>
+                <div class="chart chart-small" id="fundCategoryChart"></div>
+            </div>
         </div>
         
         <div class="two-col">
             <div class="chart-container">
-                <div class="chart-title">分钟级资金流向</div>
+                <div class="chart-title">分钟资金流向</div>
                 <div class="chart chart-small" id="flowChart"></div>
             </div>
             <div class="chart-container">
-                <div class="chart-title">累计资金净流入</div>
+                <div class="chart-title">累计净流入</div>
                 <div class="chart chart-small" id="cumulativeChart"></div>
             </div>
         </div>
         
         <div class="chart-container">
             <div class="trade-header-row">
-                <div class="chart-title">大单成交明细</div>
+                <div class="chart-title">大单明细</div>
                 <div class="filter-group">
                     <label class="filter-label">筛选：</label>
                     <select id="categoryFilter" onchange="filterTrades()">
                         <option value="all">全部</option>
-                        <option value="main-buy">主力主买</option>
-                        <option value="main-sell">主力主卖</option>
-                        <option value="passive-buy">主力被买</option>
-                        <option value="passive-sell">主力被卖</option>
+                        <option value="main-buy">主买</option>
+                        <option value="main-sell">主卖</option>
+                        <option value="passive-buy">被买</option>
+                        <option value="passive-sell">被卖</option>
                     </select>
                 </div>
             </div>
@@ -733,6 +809,266 @@
             renderFilteredTrades(filter);
         }
         
+        // ========== 主力动态分析计算函数 ==========
+        function computeSmartMoneyMetrics(trades, priceChange) {
+            const THRESHOLD = 1000000; // 100万
+            const FUND_COLS = 241;
+            
+            // 1. 按分钟索引聚合数据
+            const minuteFlows = new Array(FUND_COLS).fill(0);
+            const minuteBuyAmounts = new Array(FUND_COLS).fill(0);
+            const minuteSellAmounts = new Array(FUND_COLS).fill(0);
+            const minuteTrades = new Array(FUND_COLS).fill(null).map(function() { return []; });
+            
+            let totalBuy = 0, totalSell = 0;
+            let activeBuy = 0, activeSell = 0; // 主动买卖
+            
+            trades.forEach(function(t) {
+                const isBuy = t.tradetype === "1" || t.tradetype === 1;
+                let amount = 0;
+                if (t.money && !isNaN(t.money)) amount = parseFloat(t.money);
+                else if (t.value) amount = parseFloat(String(t.value).replace(/[^\d.]/g, '')) * 10000;
+                if (amount <= 0) return;
+                
+                const idx = parseMinuteIndex(t.ctime);
+                if (idx < 0 || idx >= FUND_COLS) return;
+                
+                minuteTrades[idx].push({ isBuy: isBuy, amount: amount, price: parseFloat(t.avgprice) || 0, time: t.ctime });
+                
+                if (isBuy) {
+                    totalBuy += amount;
+                    minuteBuyAmounts[idx] += amount;
+                    if (amount >= 500000) activeBuy += amount; // 50万以上算主动
+                } else {
+                    totalSell += amount;
+                    minuteSellAmounts[idx] += amount;
+                    if (amount >= 500000) activeSell += amount;
+                }
+                
+                minuteFlows[idx] += isBuy ? amount : -amount;
+            });
+            
+            // 2. 综合评分计算
+            const totalAmount = totalBuy + totalSell;
+            const netInflow = totalBuy - totalSell;
+            
+            // 2.1 净流入强度 (25分)
+            const netFlowRatio = totalAmount > 0 ? netInflow / totalAmount : 0;
+            const netFlowScore = Math.min(25, Math.max(0, 12.5 + netFlowRatio * 125));
+            
+            // 2.2 主动买入比率 (20分)
+            const activeTotal = activeBuy + activeSell;
+            const activeRatio = activeTotal > 0 ? activeBuy / activeTotal : 0.5;
+            const activeScore = activeRatio > 0.5 ? (activeRatio - 0.5) * 40 : 0;
+            
+            // 2.3 堆积密度 (20分)
+            let maxDensity = 0;
+            let densityClusters = [];
+            let currentCluster = { start: -1, amount: 0, count: 0, direction: 0 };
+            
+            for (let i = 0; i < FUND_COLS; i++) {
+                const flow = minuteFlows[i];
+                if (Math.abs(flow) >= 500000) { // 50万以上算有意义的流量
+                    const dir = flow > 0 ? 1 : -1;
+                    if (currentCluster.direction === dir) {
+                        currentCluster.amount += Math.abs(flow);
+                        currentCluster.count++;
+                        currentCluster.end = i;
+                    } else {
+                        if (currentCluster.count >= 3) {
+                            densityClusters.push(currentCluster);
+                        }
+                        currentCluster = { start: i, amount: Math.abs(flow), count: 1, direction: dir, end: i };
+                    }
+                }
+            }
+            if (currentCluster.count >= 3) densityClusters.push(currentCluster);
+            
+            densityClusters.forEach(function(c) {
+                const dur = Math.max(1, c.end - c.start + 1);
+                const density = c.amount / 10000 / dur; // 万元/分钟
+                if (density > maxDensity) maxDensity = density;
+            });
+            
+            const densityScore = Math.min(20, maxDensity / 50); // 1000万/分钟 = 满分
+            
+            // 2.4 波形质量 (20分)
+            // 简化版：统计前/中/后三段的净流入分布
+            const firstThird = minuteFlows.slice(0, 80).reduce(function(a,b){return a+b;}, 0);
+            const middleThird = minuteFlows.slice(80, 160).reduce(function(a,b){return a+b;}, 0);
+            const lastThird = minuteFlows.slice(160).reduce(function(a,b){return a+b;}, 0);
+            const totalFlow = firstThird + middleThird + lastThird;
+            
+            let waveType = 'neutral';
+            let waveScore = 10;
+            
+            if (totalFlow > 0) {
+                if (firstThird > totalFlow * 0.5 && lastThird < totalFlow * 0.2) {
+                    waveType = 'exhaustion';
+                    waveScore = 5;
+                } else if (lastThird > totalFlow * 0.3) {
+                    waveType = 'accumulation';
+                    waveScore = 18;
+                } else if (firstThird > 0 && middleThird > 0 && lastThird > 0) {
+                    waveType = 'steady';
+                    waveScore = 15;
+                }
+            } else {
+                waveType = 'distribution';
+                waveScore = 5;
+            }
+            
+            // 2.5 尾盘信号 (15分)
+            const tailFlow = minuteFlows.slice(210).reduce(function(a,b){return a+b;}, 0);
+            const tailRatio = Math.abs(totalFlow) > 0 ? tailFlow / totalFlow : 0;
+            let tailScore = 10;
+            let tailSignal = 'normal';
+            
+            if (tailFlow > 0 && tailRatio > 0.2) {
+                tailScore = 15;
+                tailSignal = 'strong_tail';
+            } else if (tailFlow < 0 && tailRatio < -0.3) {
+                tailScore = 3;
+                tailSignal = 'tail_selloff';
+            }
+            
+            // 综合评分
+            const totalScore = Math.round(netFlowScore + activeScore + densityScore + waveScore + tailScore);
+            
+            // 3. 净流入速度（最近30分钟）
+            const recent30 = minuteFlows.slice(-30).reduce(function(a,b){return a+b;}, 0);
+            const prev30 = minuteFlows.slice(-60, -30).reduce(function(a,b){return a+b;}, 0);
+            const flowSpeed = recent30 / 10000 / 30; // 万元/分钟
+            const flowTrend = recent30 > prev30 ? 'up' : (recent30 < prev30 ? 'down' : 'flat');
+            
+            // 4. 波形类型文字
+            const waveTypeText = {
+                'accumulation': '阶梯型（吸筹）',
+                'steady': '持续流入（建仓）',
+                'exhaustion': '脉冲-衰竭',
+                'distribution': '派发',
+                'neutral': '中性震荡'
+            };
+            
+            // 5. 异动时段提取
+            let alertInfo = null;
+            if (densityClusters.length > 0) {
+                const biggest = densityClusters.reduce(function(a,b){return a.amount > b.amount ? a : b;});
+                const startHour = 9 + Math.floor((biggest.start + 30) / 60);
+                const startMin = (biggest.start + 30) % 60;
+                const endHour = 9 + Math.floor((biggest.end + 30) / 60);
+                const endMin = (biggest.end + 30) % 60;
+                const timeStr = String(startHour).padStart(2,'0') + ':' + String(startMin).padStart(2,'0') + '-' + 
+                               String(endHour).padStart(2,'0') + ':' + String(endMin).padStart(2,'0');
+                const dirText = biggest.direction > 0 ? '主力主买' : '主力主卖';
+                alertInfo = {
+                    time: timeStr,
+                    direction: biggest.direction,
+                    type: dirText,
+                    amount: biggest.amount,
+                    count: biggest.count
+                };
+            }
+            
+            return {
+                score: totalScore,
+                activeRatio: activeRatio,
+                density: maxDensity,
+                densityLevel: maxDensity > 500 ? 'high' : (maxDensity > 100 ? 'medium' : 'low'),
+                flowSpeed: flowSpeed,
+                flowTrend: flowTrend,
+                waveType: waveType,
+                waveTypeText: waveTypeText[waveType],
+                tailSignal: tailSignal,
+                netInflow: netInflow,
+                totalAmount: totalAmount,
+                alertInfo: alertInfo
+            };
+        }
+        
+        function renderSmartMoneyPanel(metrics) {
+            document.getElementById('smartMoneyPanel').style.display = 'block';
+            
+            // 评分
+            const score = metrics.score;
+            document.getElementById('smScore').textContent = score + '/100';
+            document.getElementById('smScoreFill').style.width = score + '%';
+            
+            let ratingText, ratingClass, fillClass;
+            if (score >= 80) {
+                ratingText = '强势吸筹';
+                ratingClass = 'high';
+                fillClass = 'high';
+            } else if (score >= 60) {
+                ratingText = '偏强吸筹';
+                ratingClass = 'high';
+                fillClass = 'high';
+            } else if (score >= 40) {
+                ratingText = '中性观望';
+                ratingClass = 'medium';
+                fillClass = 'medium';
+            } else if (score >= 20) {
+                ratingText = '偏弱派发';
+                ratingClass = 'low';
+                fillClass = 'low';
+            } else {
+                ratingText = '弱势派发';
+                ratingClass = 'low';
+                fillClass = 'low';
+            }
+            
+            document.getElementById('smRating').textContent = ratingText;
+            document.getElementById('smRating').className = 'rating-text ' + ratingClass;
+            document.getElementById('smScoreFill').className = 'score-fill ' + fillClass;
+            
+            // 主动买入比率
+            const ratioPct = (metrics.activeRatio * 100).toFixed(1);
+            const ratioClass = metrics.activeRatio > 0.55 ? 'positive' : (metrics.activeRatio < 0.45 ? 'negative' : 'neutral');
+            document.getElementById('smActiveRatio').textContent = ratioPct + '%';
+            document.getElementById('smActiveRatio').className = 'metric-value ' + ratioClass;
+            document.getElementById('smActiveHint').textContent = metrics.activeRatio > 0.55 ? '偏强' : (metrics.activeRatio < 0.45 ? '偏弱' : '均衡');
+            
+            // 堆积密度
+            const densityText = metrics.densityLevel === 'high' ? '高' : (metrics.densityLevel === 'medium' ? '中' : '低');
+            document.getElementById('smDensity').textContent = densityText;
+            document.getElementById('smDensityHint').textContent = metrics.density.toFixed(0) + '万/分钟';
+            
+            // 净流入速度
+            const speedVal = metrics.flowSpeed.toFixed(1);
+            const speedClass = metrics.flowSpeed > 0 ? 'positive' : (metrics.flowSpeed < 0 ? 'negative' : 'neutral');
+            document.getElementById('smFlowSpeed').textContent = (metrics.flowSpeed >= 0 ? '+' : '') + speedVal + '万/分钟';
+            document.getElementById('smFlowSpeed').className = 'metric-value ' + speedClass;
+            const trendText = metrics.flowTrend === 'up' ? '↑ 较前30分钟加速' : (metrics.flowTrend === 'down' ? '↓ 较前30分钟减速' : '稳定');
+            document.getElementById('smFlowHint').textContent = trendText;
+            
+            // 波形类型
+            document.getElementById('smWaveType').textContent = metrics.waveTypeText;
+            const waveClass = metrics.waveType === 'accumulation' || metrics.waveType === 'steady' ? 'positive' : 
+                             (metrics.waveType === 'distribution' || metrics.waveType === 'exhaustion' ? 'negative' : 'neutral');
+            document.getElementById('smWaveType').className = 'metric-value ' + waveClass;
+            
+            // 尾盘异动
+            const tailText = metrics.tailSignal === 'strong_tail' ? '强势' : (metrics.tailSignal === 'tail_selloff' ? '出货' : '正常');
+            const tailClass = metrics.tailSignal === 'strong_tail' ? 'positive' : (metrics.tailSignal === 'tail_selloff' ? 'negative' : 'neutral');
+            document.getElementById('smTailSignal').textContent = tailText;
+            document.getElementById('smTailSignal').className = 'metric-value ' + tailClass;
+            document.getElementById('smTailHint').textContent = metrics.tailSignal === 'strong_tail' ? '尾盘放量买入' : 
+                                 (metrics.tailSignal === 'tail_selloff' ? '尾盘放量卖出' : '无明显异动');
+            
+            // 异动提示
+            if (metrics.alertInfo) {
+                document.getElementById('smAlertBox').style.display = 'block';
+                const alertClass = metrics.alertInfo.direction > 0 ? 'alert-buy' : 'alert-sell';
+                document.getElementById('smAlertBox').className = 'alert-box ' + alertClass;
+                document.getElementById('smAlertTitle').textContent = '⚠️ ' + metrics.alertInfo.time + ' ' + metrics.alertInfo.type;
+                const content = '连续' + metrics.alertInfo.count + '笔同向大单，合计' + 
+                               (metrics.alertInfo.amount / 10000).toFixed(0) + '万元';
+                document.getElementById('smAlertContent').textContent = content;
+            } else {
+                document.getElementById('smAlertBox').style.display = 'none';
+            }
+        }
+        
         async function init() {
             initCharts();
             currentCode = getUrlParam("code") || "300042";
@@ -803,6 +1139,10 @@
             renderCumulativeChart(data.pricechange || []);
             renderFundCategoryChart(trades);
             renderTradeList(trades);
+            
+            // 渲染主力动态分析面板
+            const smMetrics = computeSmartMoneyMetrics(trades, data.pricechange || []);
+            renderSmartMoneyPanel(smMetrics);
         }
         
         init();

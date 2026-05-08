@@ -711,20 +711,22 @@
 			function getSource(p) {
 				var u = decodeURI(window.location.href);
 				var dm = "";
-				// 去掉文本输入框相关代码
-				// var dm2 = document.getElementById('inputDm').value;
-				if(u.indexOf("##") > -1){
+				// 支持两种格式: ?code=xxx 或 ##xxx##
+				// 优先解析 ?code= 格式 (标准URL参数)
+				if(u.indexOf("code=") > -1 && u.indexOf("?") > -1){
+					var qs = u.split('?')[1];
+					if(qs){
+						var params = new URLSearchParams(qs);
+						dm = params.get('code') || '';
+						gpmc = params.get('name') || '';
+					}
+				}else if(u.indexOf("##") > -1){
 					var gp = u.split('##');
-					dm = gp[1];
-					gpmc = gp[2];
+					dm = gp[1] || '';
+					gpmc = gp[2] || '';
 					if(gp[3] != undefined){
 						yy = gp[3];
 					}
-				}else if(u.indexOf("code=") > -1){
-					var qs = u.split('?')[1];
-					var params = new URLSearchParams(qs);
-					dm = params.get('code') || '';
-					gpmc = params.get('name') || '';
 				}
 				// 修正默认代码逻辑
 				if (dm == 'xxxxxx' || dm == ''){
@@ -757,6 +759,9 @@
 					if(dm.substr(0,1)=="6"){
 						dms = "SH" + dm;
 						dmt = "1." + dm;
+					}else if(dm.substr(0,1)=="9" || dm.substr(0,1)=="8" || dm.substr(0,1)=="4"){
+						dms = "BJ" + dm;  // 北交所: 8xxxx/4xxxx/9xxxx
+						dmt = "0." + dm;
 					}else{
 						dms = "SZ" + dm;
 						dmt = "0." + dm;
@@ -772,6 +777,8 @@
 					var xgbCode = "";
 					if(dm.substr(0,1)=="6"){
 						xgbCode = dm + ".SS";
+					}else if(dm.substr(0,1)=="9" || dm.substr(0,1)=="8" || dm.substr(0,1)=="4"){
+						xgbCode = dm + ".BJ";  // 北交所
 					}else{
 						xgbCode = dm + ".SZ";
 					}

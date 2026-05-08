@@ -1,4 +1,4 @@
-﻿// bankuai.js - 板块股票列表功能脚本
+// bankuai.js - 板块股票列表功能脚本
 const TRADING_TIMES = {
     morning: {
         start: '09:30',
@@ -748,8 +748,8 @@ async function displayStockList(data) {
         return;
     }
     
-    try {
-        const limitUpMap = await fetchLimitUpData();
+    fetchLimitUpData().then(function(limitUpMap) {
+        window.limitUpMap = limitUpMap;
         console.log('获取到的涨停数据Map:', limitUpMap);
         console.log('涨停数据条数:', limitUpMap.size);
         console.log('股票列表数据:', data.data.diff);
@@ -757,6 +757,7 @@ async function displayStockList(data) {
         currentData = data;
 
         let html = '<div class="table-wrapper"><table><tr>' +
+            '<th style="width:30px;"></th>' +
             '<th>代码</th>' +
             '<th>名称</th>' +
             '<th>最新价</th>' +
@@ -779,9 +780,15 @@ async function displayStockList(data) {
                 console.log(`为股票${stock.f14}(${stock.f12})添加涨停标记`);
             }
 
-            const stockNameCell = `<td class="stock-name-cell">
-                ${stock.f14}
-                ${limitUpInfo ? `
+            const inflow = stock.f62 ? (stock.f62 / 10000).toFixed(2) : '--';
+            const flowRate = stock.f66 ? (stock.f66 / 10000).toFixed(2) : '--';
+            
+            html += `<tr class="stock-row">
+                <td><input type="checkbox" class="stock-ck" value="${stock.f12}" onclick="onStockCk('${stock.f12}', event)"></td>
+                <td>${stock.f12}</td>
+                <td class="stock-name-cell" style="cursor:pointer;" onclick="event.stopPropagation(); openSmartMoneyModal('${stock.f12}', '${stock.f14.replace(/'/g, "\\'")}')">
+                    ${stock.f14}
+                    ${limitUpInfo ? `
                     <span class="stock-flag">
                         <i class="fas fa-info-circle" style="color: #4a9eff;"></i>
                         <div class="tooltip">
@@ -792,14 +799,7 @@ async function displayStockList(data) {
                         </div>
                     </span>
                 ` : ''}
-            </td>`;
-            
-            const inflow = stock.f62 ? (stock.f62 / 10000).toFixed(2) : '--';
-            const flowRate = stock.f66 ? (stock.f66 / 10000).toFixed(2) : '--';
-            
-            html += `<tr class="stock-row" onclick="openSmartMoneyModal('${stock.f12}', '${stock.f14.replace(/'/g, "\\'")}')" style="cursor:pointer;">
-                <td>${stock.f12}</td>
-                ${stockNameCell}
+                </td>
                 <td>${stock.f2}</td>
                 <td style="${stock.f3 > 0 ? 'color:#ff3333' : 'color:#00ff00'}">${stock.f3}%</td>
                 <td style="${stock.f62 > 0 ? 'color:#ff3333' : 'color:#00ff00'}">${inflow}</td>
@@ -814,14 +814,11 @@ async function displayStockList(data) {
             html += '</table></div>';
             $('#result').html(html + '<p class="no-limit-up">今日无涨停股票数据（可能是非交易日）</p>');
         }
-    } catch (error) {
-        console.error('显示股票列表时出错:', error);
-        $('#result').html('<p>显示数据时出错，请重试</p>');
-    }
     console.log('[displayStockList] stocks count:', data.data.diff?.length);
     window.bankuaiStockData = data.data.diff;
     console.log('[displayStockList] bankuaiStockData set, length:', window.bankuaiStockData.length);
     renderBankuaiScatterChart(window.bankuaiStockData);
+    }); // close fetchLimitUpData().then()
 }
 
 function sortTable(field) {
@@ -851,6 +848,7 @@ function sortTable(field) {
 }
 
 // ==================== 散点图视图 ====================
+window.limitUpMap = new Map();
 window.bankuaiStockData = [];
 window.bankuaiScatterChart = null;
 
@@ -893,14 +891,33 @@ function renderBankuaiScatterChart(stocks) {
         var rise = changePct >= 0;
         // 流速越大opacity越高 (0.4 ~ 1.0)
         var opacity = flowRate > 0 ? 0.4 + 0.6 * (flowRate / maxFlow) : 0.5;
+        // 颜色逻辑：涨停→紫色，跌停→深绿，普通涨→红色，普通跌→绿色
+        // 涨停/跌停以 limitUpMap 为准（非 9.9% 阈值）
+        var stockCode = s.f12;
+        var isLimitUp = !!(window.limitUpMap && window.limitUpMap.has(stockCode));
+        var isLimitDown = changePct < 0 && !isLimitUp;
+        var bubbleColor;
+        if (isLimitUp) {
+            bubbleColor = '#A855F7'; // 紫色=涨停
+        } else if (isLimitDown) {
+            bubbleColor = '#15803d'; // 深绿=跌停
+        } else {
+            bubbleColor = rise ? '#ef4444' : '#34d058';
+        }
         return {
             value: [netInflow, changePct],
             symbolSize: toRadius(amount),
-            itemStyle: { color: rise ? '#ef4444' : '#34d058', opacity: opacity },
+            symbol: 'circle',
+            itemStyle: {
+                color: bubbleColor,
+                opacity: opacity
+            },
             _name: s.f14 || '',
             _code: s.f12 || '',
             _price: s.f2 || '--',
-            _flowRate: s.f66 ? (s.f66 / 10000).toFixed(2) : '--'
+            _flowRate: s.f66 ? (s.f66 / 10000).toFixed(2) : '--',
+            _isLimitUp: isLimitUp,
+            _isLimitDown: isLimitDown
         };
     });
     console.log('[scatter] pts[0]:', JSON.stringify(pts[0]));
@@ -931,7 +948,11 @@ function renderBankuaiScatterChart(stocks) {
                 var v = d.value || [0, 0];
                 var price = d._price || '--';
                 var flowRate = d._flowRate || '--';
-                var color = v[1] >= 0 ? '#ef4444' : '#34d058';
+                // 颜色：涨停→紫色，跌停→深绿，普通涨→红色，普通跌→绿色
+                var color = '#A855F7'; // 涨停紫色
+                if (d._isLimitDown) color = '#15803d'; // 跌停深绿
+                else if (v[1] >= 0) color = '#ef4444'; // 普通涨红
+                else color = '#34d058'; // 普通跌绿
                 var flowColor = parseFloat(v[0]) >= 0 ? '#ef4444' : '#34d058';
                 var rateColor = parseFloat(flowRate) >= 0 ? '#ef4444' : '#34d058';
                 return '<b style="font-size:14px">' + name + '</b> <span style="color:#889">(' + code + ')</span><br/>' +
@@ -1015,4 +1036,105 @@ function switchBankuaiView(view) {
         if (tableBtn) tableBtn.classList.add('active');
         if (scatterBtn) scatterBtn.classList.remove('active');
     }
+}
+
+// ========== 多选功能 ==========
+var selectedStocks = new Set();
+
+function onStockCk(code, e) {
+    e.stopPropagation();
+    if (selectedStocks.has(code)) {
+        selectedStocks.delete(code);
+    } else {
+        if (selectedStocks.size >= 12) {
+            showToast('最多选12只股票');
+            e.target.checked = false;
+            return;
+        }
+        selectedStocks.add(code);
+    }
+    updateCompareBtn();
+}
+
+function toggleAllCk() {
+    var allCk = document.getElementById('selectAll');
+    var cks = document.querySelectorAll('.stock-ck');
+    if (allCk && allCk.checked) {
+        cks.forEach(function(ck) {
+            if (selectedStocks.size < 12) {
+                selectedStocks.add(ck.value);
+                ck.checked = true;
+            }
+        });
+    } else {
+        selectedStocks.clear();
+        cks.forEach(function(ck) { ck.checked = false; });
+    }
+    updateCompareBtn();
+}
+
+function updateCompareBtn() {
+    var btn = document.getElementById('compareBtn');
+    var countEl = document.getElementById('selCount');
+    if (btn) {
+        btn.disabled = selectedStocks.size < 2;
+        if (countEl) countEl.textContent = selectedStocks.size;
+    }
+}
+
+function openCompare() {
+    if (selectedStocks.size < 2) { showToast('请至少选2只股票'); return; }
+    var codes = [];
+    var names = [];
+    document.querySelectorAll('.stock-ck:checked').forEach(function(ck) {
+        var row = ck.closest('tr');
+        var nameTd = row ? row.querySelector('.stock-name-cell') : null;
+        var name = nameTd ? nameTd.childNodes[0].textContent.trim() : ck.value;
+        codes.push(ck.value);
+        names.push(name);
+    });
+    var params = codes.map(function(c, i) { return c + ':' + names[i]; }).join(',');
+    var url = 'stock-compare.html?codes=' + encodeURIComponent(params);
+    var modal = document.getElementById('stockModal');
+    var frame = document.getElementById('stockModalFrame');
+    if (modal && frame) {
+        frame.onload = function() {
+            setTimeout(function() {
+                try { frame.contentWindow.postMessage('resize', '*'); } catch(e) {}
+            }, 500);
+        };
+        frame.src = url;
+        modal.style.display = 'block';
+    } else {
+        window.open(url, '_blank');
+    }
+}
+
+function closeStockModal() {
+    document.getElementById('stockModal').style.display = 'none';
+    document.getElementById('stockModalFrame').src = '';
+}
+
+(function() {
+    const c = document.querySelector('.modal-close');
+    if (c) c.addEventListener('click', closeStockModal);
+    const m = document.getElementById('stockModal');
+    if (m) m.addEventListener('click', function(e) { if (e.target === this) closeStockModal(); });
+    document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeStockModal(); });
+})();
+
+function copyCodes() {
+    if (selectedStocks.size === 0) { showToast('请先选择股票'); return; }
+    var codes = Array.from(selectedStocks).join(', ');
+    navigator.clipboard.writeText(codes).then(function() {
+        showToast('已复制: ' + codes);
+    }).catch(function() {
+        var ta = document.createElement('textarea');
+        ta.value = codes;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        showToast('已复制: ' + codes);
+    });
 }

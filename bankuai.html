@@ -46,7 +46,11 @@
 
                 <!-- 右侧：列表 -->
                 <div class="split-right">
-                    <div class="split-section-title">股票列表</div>
+                    <div class="split-section-title">
+                        <label style="cursor:pointer;"><input type="checkbox" id="selectAll" onchange="toggleAllCk()"> 全选</label>
+                        <button class="action-btn primary" id="compareBtn" onclick="openCompare()" disabled>📊 多股同列 (<span id="selCount">0</span>)</button>
+                        <button class="action-btn" onclick="copyCodes()">📋 复制代码</button>
+                    </div>
                     <div id="result"></div>
                 </div>
             </div>
@@ -63,5 +67,19 @@
             <div id="modalChartContainer" style="width:100%;height:400px;"></div>
         </div>
     </div>
+
+    <!-- 多股对比弹窗 -->
+    <div id="stockModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:2000;">
+        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:95%;max-width:1200px;height:90%;background:#252538;padding:20px;border-radius:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+                <h3 style="margin:0;">多股同列</h3>
+                <button onclick="closeStockModal()" style="background:none;border:none;color:#aaa;font-size:20px;cursor:pointer;">×</button>
+            </div>
+            <iframe id="stockModalFrame" style="width:100%;height:calc(80vh - 60px);border:none;"></iframe>
+        </div>
+    </div>
+
+    <!-- Toast提示 -->
+    <div id="toast" style="display:none;position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.8);color:#fff;padding:10px 20px;border-radius:4px;z-index:3000;"></div>
 </body>
 </html>

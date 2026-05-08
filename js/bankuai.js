@@ -766,7 +766,11 @@ async function displayStockList(data) {
             '<th class="sortable" onclick="sortTable(\'f66\')">净流速(万)</th>' +
             '</tr>';
         
-        data.data.diff.forEach(stock => {
+        // 过滤掉北交所股票（8/9/4开头）
+        const filteredStocks = data.data.diff.filter(stock => !/^[894]/.test(stock.f12));
+        console.log('[displayStockList] 过滤前:', data.data.diff.length, '过滤后:', filteredStocks.length);
+        
+        filteredStocks.forEach(stock => {
             const marketPrefix = stock.f12.startsWith('6') ? 'SH' : 'SZ';
             const prefixedCode = marketPrefix + stock.f12;
             
@@ -883,7 +887,11 @@ function renderBankuaiScatterChart(stocks) {
     var flowRates = stocks.map(function(s) { return Math.abs(s.f66 || 0); }).filter(function(v) { return v > 0; });
     var maxFlow = flowRates.length > 0 ? Math.max.apply(null, flowRates) : 1;
     
-    var pts = stocks.map(function(s) {
+    // 过滤掉北交所股票（8/9/4开头）
+    var filteredStocks = stocks.filter(function(s) { return !/^[894]/.test(s.f12); });
+    console.log('[scatter] 过滤前:', stocks.length, '过滤后:', filteredStocks.length);
+    
+    var pts = filteredStocks.map(function(s) {
         var netInflow = (s.f62 || 0) / 10000;
         var changePct = parseFloat(s.f3 || 0);
         var amount = Math.abs(s.f62 || 0) || 10;

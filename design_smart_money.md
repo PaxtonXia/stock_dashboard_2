@@ -118,3 +118,4 @@
 - `level2_trades.html`：新增 `.smart-money-panel` HTML 结构 + 内联 CSS + `computeSmartMoneyMetrics(trades)` 函数 + 调用入口
 - 依赖：ECharts（已有）、jQuery（已有）、原始数据 `trades[]` + `pricechange[]`（已有）
 - 无需新增 API，无新增文件
+

@@ -1,0 +1,3703 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>市场情绪看板</title>
+
+    <link rel="stylesheet" href="css/font-awesome/all.min.css">
+
+    <script src="js/jquery.min.js"></script>
+
+    <script src="js/echarts.js"></script>
+
+    <style>
+
+        /* === 基础变量 === */
+
+        :root {
+
+            --bg: #0d1117;
+
+            --card: #161b22;
+
+            --card-hover: #1c2128;
+
+            --border: #30363d;
+
+            --bullish: #ef4444;
+
+            --bearish: #22c55e;
+
+            --hot: #a855f7;
+
+            --cold: #06b6d4;
+
+            --warn: #f59e0b;
+
+            --text: #e6edf3;
+
+            --text-dim: #8b949e;
+
+            --up-glow: rgba(239,68,68,0.15);
+
+            --down-glow: rgba(34,197,94,0.15);
+
+        }
+
+
+
+        /* === 重置 === */
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+
+            font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+
+            background: var(--bg);
+
+            color: var(--text);
+
+            font-size: 13px;
+
+            min-height: 100vh;
+
+        }
+
+
+
+        /* === 头部 === */
+
+        .header {
+
+            background: var(--card);
+
+            border-bottom: 1px solid var(--border);
+
+            padding: 12px 20px;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            position: sticky;
+
+            top: 0;
+
+            z-index: 100;
+
+        }
+
+        .header-left {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 12px;
+
+        }
+
+        .header-title {
+
+            font-size: 16px;
+
+            font-weight: bold;
+
+            color: var(--text);
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 8px;
+
+        }
+
+        .header-title i { color: var(--hot); }
+
+        .header-right {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 16px;
+
+            font-size: 12px;
+
+            color: var(--text-dim);
+
+        }
+
+        .refresh-btn {
+
+            background: none;
+
+            border: 1px solid var(--border);
+
+            color: var(--text-dim);
+
+            padding: 4px 12px;
+
+            border-radius: 4px;
+
+            cursor: pointer;
+
+            font-size: 12px;
+
+            transition: all 0.2s;
+
+        }
+
+        .refresh-btn:hover { border-color: var(--hot); color: var(--hot); }
+
+        .refresh-btn i { margin-right: 4px; }
+
+        #updateTime { color: var(--text-dim); }
+
+
+
+        /* === 主容器 === */
+
+        .container {
+
+            max-width: 1400px;
+
+            margin: 0 auto;
+
+            padding: 16px;
+
+        }
+
+
+
+        /* === 卡片 === */
+
+        .card {
+
+            background: var(--card);
+
+            border: 1px solid var(--border);
+
+            border-radius: 8px;
+
+            padding: 16px;
+
+            margin-bottom: 16px;
+
+        }
+
+        .card-title {
+
+            font-size: 13px;
+
+            font-weight: bold;
+
+            color: var(--text-dim);
+
+            text-transform: uppercase;
+
+            letter-spacing: 0.5px;
+
+            margin-bottom: 12px;
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 6px;
+
+        }
+
+        .card-title i { color: var(--hot); }
+
+
+
+        /* === 统计卡片行 === */
+
+        .stats-row {
+
+            display: grid;
+
+            grid-template-columns: repeat(6, 1fr);
+
+            gap: 12px;
+
+            margin-bottom: 16px;
+
+        }
+
+        .stat-card {
+
+            background: var(--card);
+
+            border: 1px solid var(--border);
+
+            border-radius: 8px;
+
+            padding: 14px 16px;
+
+            text-align: center;
+
+            position: relative;
+
+            overflow: hidden;
+
+            transition: border-color 0.3s;
+
+        }
+
+        .stat-card:hover { border-color: var(--text-dim); }
+
+        .stat-card.up { border-left: 3px solid var(--bullish); }
+
+        .stat-card.down { border-left: 3px solid var(--bearish); }
+
+        .stat-card.hot { border-left: 3px solid var(--hot); }
+
+        .stat-card.cold { border-left: 3px solid var(--cold); }
+
+        .stat-card.warn { border-left: 3px solid var(--warn); }
+
+        .stat-card.neutral { border-left: 3px solid var(--text-dim); }
+
+
+
+        .stat-label {
+
+            font-size: 11px;
+
+            color: var(--text-dim);
+
+            margin-bottom: 6px;
+
+            text-transform: uppercase;
+
+            letter-spacing: 0.5px;
+
+        }
+
+        .stat-value {
+
+            font-size: 26px;
+
+            font-weight: bold;
+
+            line-height: 1;
+
+            transition: color 0.3s;
+
+        }
+
+        .stat-value.bullish { color: var(--bullish); }
+
+        .stat-value.bearish { color: var(--bearish); }
+
+        .stat-value.hot { color: var(--hot); }
+
+        .stat-value.cold { color: var(--cold); }
+
+        .stat-value.warn { color: var(--warn); }
+
+        .stat-value.neutral { color: var(--text); }
+
+
+
+        .stat-sub {
+
+            font-size: 10px;
+
+            color: var(--text-dim);
+
+            margin-top: 4px;
+
+        }
+
+        .stat-card::after {
+
+            content: '';
+
+            position: absolute;
+
+            top: 0; right: 0;
+
+            width: 60px; height: 60px;
+
+            border-radius: 50%;
+
+            opacity: 0.04;
+
+            transform: translate(20px, -20px);
+
+        }
+
+        .stat-card.up::after { background: var(--bullish); }
+
+        .stat-card.down::after { background: var(--bearish); }
+
+        .stat-card.hot::after { background: var(--hot); }
+
+        .stat-card.cold::after { background: var(--cold); }
+
+
+
+        /* === 图表行 === */
+
+        .chart-row {
+
+            display: grid;
+
+            gap: 16px;
+
+        }
+
+        .chart-row-2 { grid-template-columns: 1fr 1fr; }
+
+        .chart-row-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+
+        .chart-row-main { grid-template-columns: 1fr 1fr 1fr 1fr; }
+
+
+
+        .echart {
+
+            width: 100%;
+
+            height: 260px;
+
+        }
+
+        .echart-lg {
+
+            height: 300px;
+
+        }
+
+        .echart-gauge {
+
+            height: 260px;
+
+        }
+
+
+
+        /* === 涨跌对比图特殊 === */
+
+        .rise-fall-diff {
+
+            font-size: 12px;
+
+            padding: 4px 10px;
+
+            border-radius: 4px;
+
+            font-weight: bold;
+
+            display: inline-block;
+
+            margin-top: 4px;
+
+        }
+
+        .diff-pos { background: var(--up-glow); color: var(--bullish); }
+
+        .diff-neg { background: var(--down-glow); color: var(--bearish); }
+
+        .diff-zero { background: rgba(128,128,128,0.1); color: var(--text-dim); }
+
+
+
+        /* === 涨停榜 === */
+
+        .sector-list {
+
+            display: flex;
+
+            flex-direction: column;
+
+            gap: 6px;
+
+        }
+
+        .sector-item {
+
+            display: flex;
+
+            align-items: center;
+
+            padding: 8px 12px;
+
+            background: var(--card);
+
+            border: 1px solid var(--border);
+
+            border-radius: 6px;
+
+            cursor: pointer;
+
+            transition: all 0.2s;
+
+            gap: 10px;
+
+        }
+
+        .sector-item:hover {
+
+            background: var(--card-hover);
+
+            border-color: var(--hot);
+
+        }
+
+        .sector-rank {
+
+            font-size: 14px;
+
+            font-weight: bold;
+
+            color: var(--text-dim);
+
+            width: 20px;
+
+            text-align: center;
+
+        }
+
+        .sector-rank.top3 { color: var(--hot); }
+
+        .sector-name {
+
+            flex: 1;
+
+            font-size: 13px;
+
+            font-weight: bold;
+
+        }
+
+        .sector-count {
+
+            font-size: 18px;
+
+            font-weight: bold;
+
+            color: var(--bullish);
+
+            min-width: 30px;
+
+            text-align: right;
+
+        }
+
+        .sector-tag {
+
+            font-size: 10px;
+
+            padding: 2px 6px;
+
+            border-radius: 3px;
+
+            background: rgba(168,85,247,0.15);
+
+            color: var(--hot);
+
+            white-space: nowrap;
+
+        }
+
+
+
+        /* === 温度计描述 === */
+
+        .temp-desc {
+
+            font-size: 14px;
+
+            font-weight: bold;
+
+            text-align: center;
+
+            margin-top: -20px;
+
+            padding-bottom: 10px;
+
+        }
+
+
+
+        /* === 状态栏 === */
+
+        .status-bar {
+
+            display: flex;
+
+            justify-content: flex-end;
+
+            align-items: center;
+
+            gap: 16px;
+
+            padding: 8px 16px;
+
+            font-size: 11px;
+
+            color: var(--text-dim);
+
+            border-top: 1px solid var(--border);
+
+            margin-top: 8px;
+
+        }
+
+        .dot {
+
+            width: 6px; height: 6px;
+
+            border-radius: 50%;
+
+            display: inline-block;
+
+            margin-right: 4px;
+
+        }
+
+        .dot-green { background: var(--bearish); }
+
+        .dot-red { background: var(--bullish); }
+
+        .dot-purple { background: var(--hot); }
+
+
+
+        /* === 空状态 === */
+
+        .loading {
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            height: 200px;
+
+            color: var(--text-dim);
+
+            font-size: 14px;
+
+            gap: 8px;
+
+        }
+
+        .loading i { animation: spin 1s linear infinite; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+
+
+        /* === 标签 === */
+
+        .tag {
+
+            display: inline-block;
+
+            padding: 2px 6px;
+
+            border-radius: 3px;
+
+            font-size: 10px;
+
+            font-weight: bold;
+
+        }
+
+        .tag-red { background: rgba(239,68,68,0.15); color: var(--bullish); }
+
+        .tag-green { background: rgba(34,197,94,0.15); color: var(--bearish); }
+
+        .tag-purple { background: rgba(168,85,247,0.15); color: var(--hot); }
+
+        .tag-cyan { background: rgba(6,182,212,0.15); color: var(--cold); }
+
+        .tag-orange { background: rgba(245,158,11,0.15); color: var(--warn); }
+
+
+
+        /* === 雷达图评分面板 === */
+
+        .score-panel {
+
+            display: flex;
+
+            flex-direction: column;
+
+            gap: 12px;
+
+            height: 100%;
+
+            padding: 4px 0;
+
+        }
+
+        .score-main {
+
+            text-align: center;
+
+            padding: 8px 0 4px;
+
+        }
+
+        .score-num {
+
+            font-size: 48px;
+
+            font-weight: 900;
+
+            background: linear-gradient(135deg, #22c55e, #eab308);
+
+            -webkit-background-clip: text;
+
+            -webkit-text-fill-color: transparent;
+
+            line-height: 1;
+
+        }
+
+        .score-label {
+
+            font-size: 12px;
+
+            color: var(--text-dim);
+
+            margin-top: 4px;
+
+        }
+
+        .score-bars {
+
+            display: flex;
+
+            flex-direction: column;
+
+            gap: 6px;
+
+        }
+
+        .score-bar-row {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 6px;
+
+            font-size: 11px;
+
+        }
+
+        .score-bar-label {
+
+            width: 60px;
+
+            color: var(--text-dim);
+
+            text-align: right;
+
+            flex-shrink: 0;
+
+        }
+
+        .score-bar-track {
+
+            flex: 1;
+
+            height: 6px;
+
+            background: var(--bg-2);
+
+            border-radius: 3px;
+
+            overflow: hidden;
+
+        }
+
+        .score-bar-fill {
+
+            height: 100%;
+
+            border-radius: 3px;
+
+            transition: width 0.5s ease;
+
+        }
+
+        .score-bar-val {
+
+            width: 32px;
+
+            color: var(--text);
+
+            text-align: right;
+
+        }
+
+        .market-assessment {
+
+            margin-top: auto;
+
+            border-top: 1px solid var(--border);
+
+            padding-top: 10px;
+
+        }
+
+        .assessment-title {
+
+            font-size: 10px;
+
+            color: var(--text-dim);
+
+            text-transform: uppercase;
+
+            letter-spacing: 1px;
+
+            margin-bottom: 4px;
+
+        }
+
+        .assessment-text {
+
+            font-size: 12px;
+
+            color: var(--text);
+
+            line-height: 1.5;
+
+        }
+
+
+
+        /* === 响应式 === */
+
+        @media (max-width: 1200px) {
+
+            .stats-row-9 { grid-template-columns: repeat(3, 1fr); }
+
+        }
+
+        @media (max-width: 900px) {
+
+            .stats-row { grid-template-columns: repeat(3, 1fr); }
+
+            .stats-row-9 { grid-template-columns: repeat(3, 1fr); }
+
+            .chart-row-2 { grid-template-columns: 1fr; }
+
+            .chart-row-main { grid-template-columns: 1fr; }
+
+            .chart-row-3 { grid-template-columns: 1fr 1fr; }
+
+        }
+
+        @media (max-width: 600px) {
+
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+
+            .stats-row-9 { grid-template-columns: repeat(2, 1fr); }
+
+            .chart-row-3 { grid-template-columns: 1fr; }
+
+        }
+
+
+
+        /* === 外部参考指标 === */
+
+        .stats-row-9 {
+
+            display: grid;
+
+            grid-template-columns: repeat(10, 1fr);
+
+            gap: 8px;
+
+            margin-bottom: 0;
+
+        }
+
+        .stat-card.ext {
+
+            border-left: 3px solid var(--text-dim);
+
+            padding: 10px 12px;
+
+            font-size: 11px;
+
+        }
+
+        .ext-label { color: var(--text-dim); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .ext-value { font-size: 18px; font-weight: bold; color: var(--text); line-height: 1.1; }
+
+        .ext-unit { font-size: 9px; color: var(--text-dim); margin-top: 2px; }
+
+        .ext-card-gold { border-left-color: #f59e0b; }
+
+        .ext-card-oil { border-left-color: #ef4444; }
+
+        .ext-card-forex { border-left-color: #22c55e; }
+
+        .ext-card-hk { border-left-color: #a855f7; }
+
+        .ext-card-spx { border-left-color: #3b82f6; }
+
+        .ext-card-djia { border-left-color: #6366f1; }
+
+        .ext-up { color: var(--bullish); }
+
+        .ext-down { color: var(--bearish); }
+
+        .ext-sep { border-top: 1px solid var(--border); padding-top: 10px; margin-top: 10px; }
+
+
+
+        /* === 分布图例 === */
+
+        .dist-legend {
+
+            display: flex;
+
+            gap: 12px;
+
+            font-size: 11px;
+
+            color: var(--text-dim);
+
+            margin-bottom: 8px;
+
+            flex-wrap: wrap;
+
+        }
+
+        .dist-legend span { display: flex; align-items: center; gap: 4px; }
+
+        .legend-dot {
+
+            width: 8px; height: 8px;
+
+            border-radius: 50%;
+
+            display: inline-block;
+
+        }
+
+
+
+        /* === 更新脉冲动画 === */
+
+        @keyframes pulse {
+
+            0%, 100% { opacity: 1; }
+
+            50% { opacity: 0.5; }
+
+        }
+
+        .updating { animation: pulse 1s infinite; color: var(--warn); }
+
+
+
+        /* === 涨停封板时间线 === */
+
+        .limit-timeline {
+
+            display: flex;
+
+            gap: 4px;
+
+            margin-top: 6px;
+
+            align-items: flex-end;
+
+            height: 20px;
+
+        }
+
+        .timeline-bar {
+
+            flex: 1;
+
+            border-radius: 2px;
+
+            min-width: 3px;
+
+        }
+
+        .bar-sealed { background: var(--hot); }
+
+        .bar-broken { background: var(--bearish); opacity: 0.5; }
+
+
+
+        /* === 无数据占位 === */
+
+        .no-data {
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            height: 200px;
+
+            color: var(--text-dim);
+
+            font-size: 13px;
+
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+
+
+<!-- 头部 -->
+
+<div class="header">
+
+    <div class="header-left">
+
+        <div class="header-title">
+
+            <i class="fas fa-heartbeat"></i>
+
+            市场情绪看板
+
+        </div>
+
+    </div>
+
+    <div class="header-right">
+
+        <span>数据来源：选股宝 · 同花顺 · 新浪财经</span>
+
+        <span id="updateTime">加载中...</span>
+
+        <button class="refresh-btn" onclick="manualRefresh()">
+
+            <i class="fas fa-sync-alt"></i> 刷新
+
+        </button>
+
+    </div>
+
+</div>
+
+
+
+<div class="container">
+
+
+
+    <!-- ===== 统计卡片行 ===== -->
+
+    <div class="stats-row" id="statsRow">
+
+        <div class="stat-card neutral" id="sc-temp">
+
+            <div class="stat-label">大盘温度</div>
+
+            <div class="stat-value neutral" id="v-temp">--</div>
+
+            <div class="stat-sub" id="v-temp-desc">--</div>
+
+        </div>
+
+        <div class="stat-card up" id="sc-rise">
+
+            <div class="stat-label">上涨家数</div>
+
+            <div class="stat-value bullish" id="v-rise">--</div>
+
+            <div class="stat-sub">沪深全市场</div>
+
+        </div>
+
+        <div class="stat-card down" id="sc-fall">
+
+            <div class="stat-label">下跌家数</div>
+
+            <div class="stat-value bearish" id="v-fall">--</div>
+
+            <div class="stat-sub" id="v-diff">--</div>
+
+        </div>
+
+        <div class="stat-card hot" id="sc-limitup">
+
+            <div class="stat-label">涨停家数</div>
+
+            <div class="stat-value hot" id="v-limitup">--</div>
+
+            <div class="stat-sub" id="v-limitup-note">--</div>
+
+        </div>
+
+        <div class="stat-card cold" id="sc-limitdown">
+
+            <div class="stat-label">跌停家数</div>
+
+            <div class="stat-value cold" id="v-limitdown">--</div>
+
+            <div class="stat-sub">全市场</div>
+
+        </div>
+
+        <div class="stat-card warn" id="sc-sealrate">
+
+            <div class="stat-label">涨停封板率</div>
+
+            <div class="stat-value warn" id="v-sealrate">--</div>
+
+            <div class="stat-sub" id="v-broken">炸板 -- 家</div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- ===== 外部参考指标行 ===== -->
+
+    <div class="stats-row-9" id="extRow" style="margin-bottom:16px">
+
+        <div class="stat-card ext ext-card-gold">
+
+            <div class="ext-label">🌟 黄金</div>
+
+            <div class="ext-value" id="v-gold">--</div>
+
+            <div class="ext-unit" id="v-gold-change">--</div>
+
+        </div>
+
+        <div class="stat-card ext ext-card-oil">
+
+            <div class="ext-label">🛢️ 原油</div>
+
+            <div class="ext-value" id="v-oil">--</div>
+
+            <div class="ext-unit" id="v-oil-change">--</div>
+
+        </div>
+
+        <div class="stat-card ext ext-card-forex">
+
+            <div class="ext-label">💱 美元/在岸</div>
+
+            <div class="ext-value" id="v-usdcny">--</div>
+
+            <div class="ext-unit" id="v-usdcny-change">--</div>
+
+        </div>
+
+        <div class="stat-card ext ext-card-hk">
+
+            <div class="ext-label">🇭🇰 恒生指数</div>
+
+            <div class="ext-value" id="v-hk">--</div>
+
+            <div class="ext-unit" id="v-hk-change">--</div>
+
+        </div>
+
+        <div class="stat-card ext">
+
+            <div class="ext-label">📊 上证指数</div>
+
+            <div class="ext-value" id="v-sh000001">--</div>
+
+            <div class="ext-unit" id="v-sh000001-change">--</div>
+
+        </div>
+
+        <div class="stat-card ext">
+
+            <div class="ext-label">📈 沪深300</div>
+
+            <div class="ext-value" id="v-sh000300">--</div>
+
+            <div class="ext-unit" id="v-sh000300-change">--</div>
+
+        </div>
+
+        <div class="stat-card ext">
+
+            <div class="ext-label">🚀 创业板</div>
+
+            <div class="ext-value" id="v-sz399006">--</div>
+
+            <div class="ext-unit" id="v-sz399006-change">--</div>
+
+        </div>
+
+        <div class="stat-card ext">
+
+            <div class="ext-label">🏆 上证50</div>
+
+            <div class="ext-value" id="v-sh000016">--</div>
+
+            <div class="ext-unit" id="v-sh000016-change">--</div>
+
+        </div>
+
+        <div class="stat-card ext ext-card-spx">
+
+            <div class="ext-label">🇺🇸 标普500</div>
+
+            <div class="ext-value" id="v-spx">--</div>
+
+            <div class="ext-unit" id="v-spx-change">--</div>
+
+        </div>
+
+        <div class="stat-card ext ext-card-djia">
+
+            <div class="ext-label">🇺🇸 道琼斯</div>
+
+            <div class="ext-value" id="v-djia">--</div>
+
+            <div class="ext-unit" id="v-djia-change">--</div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- ===== 大盘温度 + 涨跌分布 + 市场雷达 + 综合评分 ===== -->
+
+    <div class="chart-row chart-row-4">
+
+        <div class="card">
+
+            <div class="card-title"><i class="fas fa-temperature-high"></i> 大盘温度</div>
+
+            <div id="gaugeChart" class="echart echart-gauge"></div>
+
+            <div class="temp-desc" id="tempDesc">--</div>
+
+        </div>
+
+        <div class="card">
+
+            <div class="card-title"><i class="fas fa-chart-bar"></i> 涨跌分布</div>
+
+            <div class="dist-legend">
+
+                <span><span class="legend-dot" style="background:#22c55e"></span>上涨</span>
+
+                <span><span class="legend-dot" style="background:#ef4444"></span>下跌</span>
+
+                <span><span class="legend-dot" style="background:#a855f7"></span>涨停</span>
+
+                <span><span class="legend-dot" style="background:#06b6d4"></span>跌停</span>
+
+                <span><span class="legend-dot" style="background:#555"></span>ST涨跌停</span>
+
+            </div>
+
+            <div id="distChart" class="echart" style="height:200px"></div>
+
+        </div>
+
+        <div class="card">
+
+            <div class="card-title"><i class="fas fa-broadcast-tower"></i> 市场雷达</div>
+
+            <div id="radarChart" class="echart" style="height:260px"></div>
+
+        </div>
+
+        <div class="card">
+
+            <div class="card-title"><i class="fas fa-clipboard-list"></i> 综合评分</div>
+
+            <div class="score-panel">
+
+                <div class="score-main">
+
+                    <div class="score-num" id="radar-total-score">--</div>
+
+                    <div class="score-label">综合评分</div>
+
+                </div>
+
+                <div class="score-bars" id="radar-score-bars"></div>
+
+                <div class="market-assessment" id="market-assessment">
+
+                    <div class="assessment-title">形态判断</div>
+
+                    <div class="assessment-text" id="assessment-text">加载中...</div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ===== 分时情绪走势 ===== -->
+    <div class="chart-row">
+        <div class="card">
+            <div class="card-title"><i class="fas fa-chart-area"></i> 分时情绪走势</div>
+            <div id="trendChart" class="echart echart-lg"></div>
+            <div class="status-bar">
+                <span><span class="dot dot-red"></span>上涨家数</span>
+                <span><span class="dot dot-green"></span>下跌家数</span>
+                <span><span class="dot dot-purple"></span>涨停家数</span>
+                <span id="trendInfo">--</span>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="chart-row chart-row-2">
+
+        <div class="card">
+
+            <div class="card-title"><i class="fas fa-fire-alt"></i> 涨停板块 TOP5</div>
+
+            <div class="sector-list" id="sectorList">
+
+                <div class="loading"><i class="fas fa-spinner"></i>加载中...</div>
+
+            </div>
+
+        </div>
+
+        <div class="card">
+
+            <div class="card-title"><i class="fas fa-exclamation-circle"></i> 涨停细分</div>
+
+            <div id="limitupDistChart" class="echart" style="height:200px"></div>
+
+        </div>
+
+        <div class="card">
+
+            <div class="card-title"><i class="fas fa-exclamation-triangle"></i> 跌停细分</div>
+
+            <div id="limitdownDistChart" class="echart" style="height:200px"></div>
+
+        </div>
+
+    </div>
+
+
+
+<script>
+
+// ============================================================
+
+// 全局状态
+
+// ============================================================
+
+let sentimentData = [];  // market_indicator/line 时序数据
+
+let distData = null;     // market_indicator/pcp_distribution 截面数据
+
+let sectorData = [];      // 同花顺 block_top 涨停板块数据
+
+let gaugeChart = null;
+
+let trendChart = null;
+
+let distChart = null;
+
+let limitupDistChart = null;
+
+let limitdownDistChart = null;
+
+let radarChart = null;
+let indexPctChange = 0;  // 上证指数涨跌幅(%)，用于真实强度维度计算
+
+let lastFetchTime = null;
+
+let isUpdating = false;
+
+
+
+// ============================================================
+
+// API 基础配置
+
+// ============================================================
+
+const XGB_BASE = 'https://flash-api.xuangubao.com.cn/api';
+
+const THS_BASE = 'https://data.10jqka.com.cn/dataapi';
+
+const XGB_HEADERS = { 'Accept': 'application/json' };
+
+const THS_HEADERS = {
+
+    'Accept': 'application/json',
+
+    'Referer': 'https://data.10jqka.com.cn/'
+
+};
+
+
+
+// ============================================================
+
+// 工具函数
+
+// ============================================================
+
+function timestamp2time(ts) {
+
+    const d = new Date(ts * 1000);
+
+    const h = String(d.getHours()).padStart(2,'0');
+
+    const m = String(d.getMinutes()).padStart(2,'0');
+
+    return `${h}:${m}`;
+
+}
+
+
+
+function timestamp2datetime(ts) {
+
+    const d = new Date(ts * 1000);
+
+    const mo = d.getMonth()+1;
+
+    const day = d.getDate();
+
+    const h = String(d.getHours()).padStart(2,'0');
+
+    const m = String(d.getMinutes()).padStart(2,'0');
+
+    return `${mo}/${day} ${h}:${m}`;
+
+}
+
+
+
+function getTempLabel(temp) {
+
+    if (temp <= 20) return { text: '极寒', color: '#06b6d4' };
+
+    if (temp <= 35) return { text: '偏冷', color: '#22c55e' };
+
+    if (temp <= 50) return { text: '温和', color: '#84cc16' };
+
+    if (temp <= 65) return { text: '偏热', color: '#f59e0b' };
+
+    if (temp <= 80) return { text: '较热', color: '#ef4444' };
+
+    return { text: '极热', color: '#a855f7' };
+
+}
+
+
+
+function formatNum(n) {
+
+    if (n == null || isNaN(n)) return '--';
+
+    return Number(n).toLocaleString();
+
+}
+
+
+
+function fmtPct(v) {
+
+    if (v == null || isNaN(v)) return '--';
+
+    const sign = v >= 0 ? '+' : '';
+
+    return sign + (v * 100).toFixed(2) + '%';
+
+}
+
+
+
+function setUpdating(on) {
+
+    isUpdating = on;
+
+    const btn = document.querySelector('.refresh-btn');
+
+    if (btn) {
+
+        if (on) {
+
+            btn.innerHTML = '<i class="fas fa-sync-alt updating"></i> 刷新中';
+
+            btn.style.pointerEvents = 'none';
+
+        } else {
+
+            btn.innerHTML = '<i class="fas fa-sync-alt"></i> 刷新';
+
+            btn.style.pointerEvents = '';
+
+        }
+
+    }
+
+}
+
+
+
+// ============================================================
+
+// API 请求
+
+// ============================================================
+
+
+
+// 1) 市场情绪分时数据
+
+async function fetchSentimentLine() {
+
+    const fields = [
+
+        'rise_count', 'fall_count', 'limit_up_count', 'limit_down_count',
+
+        'limit_up_broken_count', 'limit_up_broken_ratio', 'market_temperature',
+
+        'yesterday_limit_up_avg_pcp'
+
+    ].join(',');
+
+    const url = `${XGB_BASE}/market_indicator/line?fields=${fields}`;
+
+    const resp = await fetch(url, { headers: XGB_HEADERS });
+
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+    const json = await resp.json();
+
+    if (json.code !== 20000) throw new Error(`API error: ${json.code}`);
+
+    return json.data || [];
+
+}
+
+
+
+// 2) 涨跌分布截面数据
+
+async function fetchDistData() {
+
+    const url = `${XGB_BASE}/market_indicator/pcp_distribution`;
+
+    const resp = await fetch(url, { headers: XGB_HEADERS });
+
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+    const json = await resp.json();
+
+    if (json.code !== 20000) throw new Error(`API error: ${json.code}`);
+
+    const data = json.data || {};
+
+    console.log('fetchDistData raw:', JSON.stringify(data));
+
+    return data;
+
+}
+
+
+
+// 3) 同花顺涨停板块TOP5
+
+async function fetchSectorTop() {
+
+    const url = `${THS_BASE}/limit_up/block_top`;
+
+    const resp = await fetch(url, { headers: THS_HEADERS });
+
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+    const json = await resp.json();
+
+    if (json.status_code !== 0) throw new Error(`THS error: ${json.status_code}`);
+
+    return (json.data || []).slice(0, 5);  // 取TOP5
+
+}
+
+
+
+// 4) 选股宝涨停池（用于涨停细分）
+
+async function fetchLimitUpPool() {
+
+    const url = `${XGB_BASE}/pool/detail?pool_name=limit_up`;
+
+    const resp = await fetch(url, { headers: XGB_HEADERS });
+
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+    const json = await resp.json();
+
+    if (json.code !== 20000) throw new Error(`API error: ${json.code}`);
+
+    return json.data || [];
+
+}
+
+
+
+// ============================================================
+
+// 外部参考指标（使用$.ajax绕过CORS）
+
+// ============================================================
+
+function fetchExternalRef() {
+
+    // 使用选股宝API获取A股指数（支持CORS）
+
+    const indexMap = {
+
+        '000001.SS': { v: 'v-sh000001', c: 'v-sh000001-change', name: '上证' },
+
+        '000300.SS': { v: 'v-sh000300', c: 'v-sh000300-change', name: '沪深300' },
+
+        '399006.SZ': { v: 'v-sz399006',  c: 'v-sz399006-change',  name: '创业板' },
+
+        '000016.SS': { v: 'v-sh000016', c: 'v-sh000016-change', name: '上证50' }
+
+    };
+
+    
+
+    // 并发获取各指数
+
+    Object.keys(indexMap).forEach(code => {
+
+        const url = `https://api-ddc-wscn.xuangubao.com.cn/market/trend?fields=tick_at,close_px&prod_code=${code}&period=1m`;
+
+        
+
+        $.ajax({
+
+            url: url,
+
+            type: 'GET',
+
+            dataType: 'json',
+
+            success: function(json) {
+
+                if (json.code === 20000 && json.data && json.data.candle) {
+
+                    const candle = json.data.candle[code];
+
+                    if (candle && candle.lines && candle.lines.length > 0) {
+
+                        const lastLine = candle.lines[candle.lines.length - 1];
+
+                        const price = lastLine[1];
+
+                        const preClose = candle.pre_close_px;
+
+                        
+
+                        if (price && preClose) {
+
+                            const change = price - preClose;
+
+                            const pct = (change / preClose) * 100;
+
+                            
+
+                            const info = indexMap[code];
+
+                            const el = document.getElementById(info.v);
+
+                            const cel = document.getElementById(info.c);
+
+                            
+
+                            if (el) el.textContent = price.toFixed(2);
+
+                            if (cel) {
+
+                                cel.className = 'ext-unit ' + (change >= 0 ? 'ext-up' : 'ext-down');
+
+                                cel.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)}  ${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`;
+
+                            }
+                            if (code === '000001.SS') window.indexPctChange = pct;
+
+                        }
+
+                    }
+
+                }
+
+            },
+
+            error: function() {
+
+                // 静默失败
+
+            }
+
+        });
+
+    });
+
+    
+
+    // 外盘品种（使用腾讯财经API）
+
+    fetchExternalRefTencent();
+
+}
+
+
+
+// 腾讯财经外盘数据
+
+function fetchExternalRefTencent() {
+
+    // 腾讯财经代码映射
+
+    const tencentCodes = 'hf_GC,hf_CL,hkHSI,usINX,usDJI';
+
+    const url = `https://web.sqt.gtimg.cn/q=${tencentCodes}`;
+
+    
+
+    $.ajax({
+
+        url: url,
+
+        type: 'GET',
+
+        dataType: 'text',
+
+        success: function(text) {
+
+            // 解析腾讯返回的变量赋值格式
+
+            // v_hf_GC="4727.37,0.35,4723.30,4723.70,4760.40,4671.00,04:59:59,4710.90,4682.50,0,4,2,2026-05-09,纽约黄金";
+
+            // v_hkHSI="100~恒生指数~HSI~26393.710~..."
+
+            // v_usINX="200~标普500~.INX~7398.93~..."
+
+            
+
+            // 黄金
+
+            const gcMatch = text.match(/v_hf_GC="([^"]+)"/);
+
+            if (gcMatch) {
+
+                const parts = gcMatch[1].split(',');
+
+                // 格式: 现价,涨跌幅,开盘,昨收,最高,最低,时间,?,?,0,4,2,日期,名称
+
+                const price = parseFloat(parts[0]);
+
+                const pct = parseFloat(parts[1]);
+
+                const preClose = parseFloat(parts[3]);
+
+                const change = price - preClose;
+
+                
+
+                const el = document.getElementById('v-gold');
+
+                const cel = document.getElementById('v-gold-change');
+
+                if (el && !isNaN(price)) el.textContent = price.toFixed(2);
+
+                if (cel && !isNaN(change)) {
+
+                    cel.className = 'ext-unit ' + (change >= 0 ? 'ext-up' : 'ext-down');
+
+                    cel.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)}  ${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`;
+
+                }
+
+            }
+
+            
+
+            // 原油
+
+            const clMatch = text.match(/v_hf_CL="([^"]+)"/);
+
+            if (clMatch) {
+
+                const parts = clMatch[1].split(',');
+
+                const price = parseFloat(parts[0]);
+
+                const pct = parseFloat(parts[1]);
+
+                const preClose = parseFloat(parts[3]);
+
+                const change = price - preClose;
+
+                
+
+                const el = document.getElementById('v-oil');
+
+                const cel = document.getElementById('v-oil-change');
+
+                if (el && !isNaN(price)) el.textContent = price.toFixed(2);
+
+                if (cel && !isNaN(change)) {
+
+                    cel.className = 'ext-unit ' + (change >= 0 ? 'ext-up' : 'ext-down');
+
+                    cel.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)}  ${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`;
+
+                }
+
+            }
+
+            
+
+            // 恒生指数
+
+            const hsiMatch = text.match(/v_hkHSI="([^"]+)"/);
+
+            if (hsiMatch) {
+
+                const parts = hsiMatch[1].split('~');
+
+                // 格式: 100~名称~代码~现价~昨收~开盘~...
+
+                const price = parseFloat(parts[3]);
+
+                const preClose = parseFloat(parts[4]);
+
+                const change = price - preClose;
+
+                const pct = (change / preClose) * 100;
+
+                
+
+                const el = document.getElementById('v-hsi');
+
+                const cel = document.getElementById('v-hsi-change');
+
+                if (el && !isNaN(price)) el.textContent = price.toFixed(2);
+
+                if (cel && !isNaN(change)) {
+
+                    cel.className = 'ext-unit ' + (change >= 0 ? 'ext-up' : 'ext-down');
+
+                    cel.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)}  ${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`;
+
+                }
+
+            }
+
+            
+
+            // 标普500
+
+            const spxMatch = text.match(/v_usINX="([^"]+)"/);
+
+            if (spxMatch) {
+
+                const parts = spxMatch[1].split('~');
+
+                const price = parseFloat(parts[3]);
+
+                const preClose = parseFloat(parts[4]);
+
+                const change = price - preClose;
+
+                const pct = (change / preClose) * 100;
+
+                
+
+                const el = document.getElementById('v-spx');
+
+                const cel = document.getElementById('v-spx-change');
+
+                if (el && !isNaN(price)) el.textContent = price.toFixed(2);
+
+                if (cel && !isNaN(change)) {
+
+                    cel.className = 'ext-unit ' + (change >= 0 ? 'ext-up' : 'ext-down');
+
+                    cel.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)}  ${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`;
+
+                }
+
+            }
+
+            
+
+            // 道琼斯
+
+            const djiMatch = text.match(/v_usDJI="([^"]+)"/);
+
+            if (djiMatch) {
+
+                const parts = djiMatch[1].split('~');
+
+                const price = parseFloat(parts[3]);
+
+                const preClose = parseFloat(parts[4]);
+
+                const change = price - preClose;
+
+                const pct = (change / preClose) * 100;
+
+                
+
+                const el = document.getElementById('v-djia');
+
+                const cel = document.getElementById('v-djia-change');
+
+                if (el && !isNaN(price)) el.textContent = price.toFixed(2);
+
+                if (cel && !isNaN(change)) {
+
+                    cel.className = 'ext-unit ' + (change >= 0 ? 'ext-up' : 'ext-down');
+
+                    cel.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)}  ${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`;
+
+                }
+
+            }
+
+        },
+
+        error: function() {
+
+            // 静默失败
+
+        }
+
+    });
+
+}
+
+
+
+// 新浪财经 JSONP 方式获取外盘数据
+
+function fetchExternalRefSina() {
+
+    // 新浪接口: hq.sinajs.cn/list=hkHSI,hkHSCEI,gb_$dji,gb_$spx
+
+    // 但新浪接口可能被CORS限制，改用东方财富其他接口
+
+    
+
+    // 暂时显示"数据暂不可用"
+
+    const extCards = ['v-gold', 'v-oil', 'v-usdcny', 'v-hk', 'v-spx', 'v-djia'];
+
+    extCards.forEach(id => {
+
+        const el = document.getElementById(id);
+
+        if (el && el.textContent === '--') {
+
+            el.textContent = '暂不可用';
+
+        }
+
+    });
+
+}
+
+
+
+// 品种除数配置 — 东方财富 f2 是内部整数编码，需除以特定因子还原真实价格
+
+const EXT_DIVISORS = {
+
+    'GC00Y': 10,     // COMEX黄金: 47237/10=4723.70
+
+    'CL00Y': 100,    // NYMEX原油: 9468/100=94.68
+
+    'USDCNH': 10000, // 美元离岸人民币: 67963/10000=6.7963
+
+    'HSI': 100,      // 恒生指数: 2639371/100=26393.71
+
+    'SPX': 100,      // 标普500
+
+    'DJIA': 100,     // 道琼斯
+
+};
+
+const EXT_DECIMALS = {
+
+    'GC00Y': 2, 'CL00Y': 2, 'USDCNH': 4,
+
+    'HSI': 2, 'SPX': 2, 'DJIA': 2,
+
+};
+
+
+
+// f12 → DOM ID 映射
+
+const EXT_ID_MAP = {
+
+    'GC00Y':  { v: 'v-gold',      c: 'v-gold-change'      },
+
+    'CL00Y':  { v: 'v-oil',       c: 'v-oil-change'       },
+
+    'USDCNH': { v: 'v-usdcny',    c: 'v-usdcny-change'    },
+
+    'HSI':    { v: 'v-hk',        c: 'v-hk-change'        },
+
+    '000001': { v: 'v-sh000001',  c: 'v-sh000001-change'  },
+
+    '000300': { v: 'v-sh000300',  c: 'v-sh000300-change'  },
+
+    '399006': { v: 'v-sz399006',  c: 'v-sz399006-change'  },
+
+    '000016': { v: 'v-sh000016',  c: 'v-sh000016-change'  },
+
+    'SPX':    { v: 'v-spx',       c: 'v-spx-change'       },
+
+    'DJIA':   { v: 'v-djia',      c: 'v-djia-change'      },
+
+};
+
+
+
+// 渲染A股指数（clist接口返回）
+
+function renderAShareIndex(diffList) {
+
+    function setExt(vId, cId, price, change, pct, dec) {
+
+        const el = document.getElementById(vId);
+
+        const cel = document.getElementById(cId);
+
+        if (el && !isNaN(price) && price > 0) {
+
+            el.textContent = price.toFixed(dec || 2);
+
+        }
+
+        if (cel && !isNaN(change)) {
+
+            cel.className = 'ext-unit ' + (change >= 0 ? 'ext-up' : 'ext-down');
+
+            cel.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(dec || 2)}  ${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`;
+
+        }
+
+    }
+
+
+
+    diffList.forEach(item => {
+
+        const code = item.f12;
+
+        const ids = EXT_ID_MAP[code];
+
+        if (!ids || item.f2 === '-' || item.f2 === undefined) return;
+
+
+
+        // A股指数 f2 直接是价格（不需要除数）
+
+        const price = item.f2 / 100;  // 指数需要/100
+
+        const pct = (item.f3 || 0) / 100;
+
+        const chg = (item.f4 || 0) / 100;
+
+
+
+        setExt(ids.v, ids.c, price, chg, pct, 2);
+
+    });
+
+}
+
+
+
+// 兼容旧函数名（已废弃）
+
+function renderExternalRef(diffList) {
+
+    renderAShareIndex(diffList);
+
+}
+
+
+
+// ============================================================
+
+// 主数据拉取 & 渲染
+
+// ============================================================
+
+async function refreshAll() {
+
+    setUpdating(true);
+
+    try {
+
+        // 并发请求所有数据
+
+        const [line, dist, sectors, limitupPool] = await Promise.all([
+
+            fetchSentimentLine(),
+
+            fetchDistData(),
+
+            fetchSectorTop(),
+
+            fetchLimitUpPool()
+
+        ]);
+
+
+
+        // 外部参考指标（独立渲染，不阻塞主流程）
+
+        fetchExternalRef();
+
+
+
+        sentimentData = line;
+
+        distData = dist;
+
+        sectorData = sectors;
+
+
+
+        // 更新统计卡片（用最新一条）
+
+        renderStats(line[line.length - 1], dist);
+
+
+
+        // 渲染图表
+
+        renderGauge(line[line.length - 1]);
+
+        renderTrend(line);
+
+        renderDistChart(dist);
+
+        renderLimitDist(limitupPool, dist);
+
+        renderSectorList(sectors);
+
+        renderRadarChart(dist, limitupPool, line[line.length - 1]);
+
+
+
+        lastFetchTime = new Date();
+
+        document.getElementById('updateTime').textContent =
+
+            `更新: ${lastFetchTime.getHours().toString().padStart(2,'0')}:${lastFetchTime.getMinutes().toString().padStart(2,'0')}:${lastFetchTime.getSeconds().toString().padStart(2,'0')}`;
+
+
+
+    } catch (e) {
+
+        console.error('refreshAll error:', e);
+
+        // 静默失败，保持旧数据
+
+    } finally {
+
+        setUpdating(false);
+
+    }
+
+}
+
+
+
+// ============================================================
+
+// 渲染：统计卡片
+
+// ============================================================
+
+function renderStats(latest, dist) {
+
+    if (!latest) return;
+
+
+
+    const temp = latest.market_temperature || 0;
+
+    const rise = latest.rise_count || 0;
+
+    const fall = latest.fall_count || 0;
+
+    const limitUp = latest.limit_up_count || 0;
+
+    const limitDown = latest.limit_down_count || 0;
+
+    const sealRate = (latest.limit_up_broken_ratio != null) ? (1 - latest.limit_up_broken_ratio) : null;
+
+    const broken = latest.limit_up_broken_count || 0;
+
+    const yesterdayAvg = latest.yesterday_limit_up_avg_pcp || 0;
+
+
+
+    const label = getTempLabel(temp);
+
+
+
+    // 温度
+
+    const tempEl = document.getElementById('v-temp');
+
+    const tempDescEl = document.getElementById('v-temp-desc');
+
+    const tempCard = document.getElementById('sc-temp');
+
+    if (tempEl) {
+
+        tempEl.textContent = temp.toFixed(1);
+
+        tempEl.className = 'stat-value';
+
+        tempEl.style.color = label.color;
+
+    }
+
+    if (tempDescEl) tempDescEl.textContent = label.text;
+
+    if (tempCard) tempCard.style.borderLeftColor = label.color;
+
+
+
+    // 涨跌家数
+
+    document.getElementById('v-rise').textContent = formatNum(rise);
+
+    document.getElementById('v-fall').textContent = formatNum(fall);
+
+
+
+    const diff = rise - fall;
+
+    const diffEl = document.getElementById('v-diff');
+
+    if (diffEl) {
+
+        const sign = diff >= 0 ? '+' : '';
+
+        diffEl.innerHTML = `<span class="rise-fall-diff ${diff > 0 ? 'diff-pos' : diff < 0 ? 'diff-neg' : 'diff-zero'}">${sign}${formatNum(diff)}</span>`;
+
+    }
+
+
+
+    // 涨跌停
+
+    document.getElementById('v-limitup').textContent = formatNum(limitUp);
+
+    document.getElementById('v-limitdown').textContent = formatNum(limitDown);
+
+
+
+    // 封板率
+
+    if (sealRate != null) {
+
+        document.getElementById('v-sealrate').textContent = (sealRate * 100).toFixed(1) + '%';
+
+    }
+
+    document.getElementById('v-broken').textContent = `炸板 ${formatNum(broken)} 家`;
+
+
+
+    // 昨均涨幅
+
+    const noteEl = document.getElementById('v-limitup-note');
+
+    if (noteEl) {
+
+        noteEl.textContent = fmtPct(yesterdayAvg);
+
+    }
+
+}
+
+
+
+// ============================================================
+
+// 渲染：大盘温度计
+
+// ============================================================
+
+function renderGauge(latest) {
+
+    const el = document.getElementById('gaugeChart');
+
+    if (!el) return;
+
+
+
+    if (!gaugeChart) {
+
+        gaugeChart = echarts.init(el);
+
+    }
+
+
+
+    const temp = latest?.market_temperature || 0;
+
+    const label = getTempLabel(temp);
+
+    const tempDesc = document.getElementById('tempDesc');
+
+    if (tempDesc) {
+
+        tempDesc.textContent = label.text;
+
+        tempDesc.style.color = label.color;
+
+    }
+
+
+
+    const option = {
+
+        backgroundColor: 'transparent',
+
+        series: [{
+
+            type: 'gauge',
+
+            center: ['50%', '60%'],
+
+            radius: '85%',
+
+            startAngle: 200,
+
+            endAngle: -20,
+
+            min: 0,
+
+            max: 100,
+
+            splitNumber: 5,
+
+            itemStyle: {
+
+                color: {
+
+                    type: 'linear',
+
+                    x: 0, y: 1, x2: 1, y2: 0,
+
+                    colorStops: [
+
+                        { offset: 0,   color: '#06b6d4' },  // 极寒
+
+                        { offset: 0.2, color: '#22c55e' },  // 偏冷
+
+                        { offset: 0.4, color: '#84cc16' },  // 温和
+
+                        { offset: 0.6, color: '#f59e0b' },  // 偏热
+
+                        { offset: 0.8, color: '#ef4444' },  // 较热
+
+                        { offset: 1,   color: '#a855f7' }   // 极热
+
+                    ]
+
+                }
+
+            },
+
+            progress: {
+
+                show: true,
+
+                width: 18,
+
+                roundCap: true
+
+            },
+
+            axisLine: {
+
+                lineStyle: {
+
+                    width: 18,
+
+                    color: [[1, '#2a2a3a']]
+
+                }
+
+            },
+
+            axisTick: {
+
+                distance: -20,
+
+                splitNumber: 5,
+
+                lineStyle: { width: 1, color: '#555' }
+
+            },
+
+            splitLine: {
+
+                distance: -25,
+
+                length: 10,
+
+                lineStyle: { width: 2, color: '#666' }
+
+            },
+
+            axisLabel: {
+
+                distance: -10,
+
+                color: '#8b949e',
+
+                fontSize: 10,
+
+                formatter: function(v) {
+
+                    if (v === 0) return '冰';
+
+                    if (v === 50) return '中';
+
+                    if (v === 100) return '沸';
+
+                    return '';
+
+                }
+
+            },
+
+            anchor: {
+
+                show: true,
+
+                size: 10,
+
+                itemStyle: {
+
+                    color: label.color,
+
+                    borderWidth: 2,
+
+                    borderColor: '#fff',
+
+                    shadowBlur: 8,
+
+                    shadowColor: label.color
+
+                }
+
+            },
+
+            title: {
+
+                show: false
+
+            },
+
+            detail: {
+
+                valueAnimation: true,
+
+                fontSize: 36,
+
+                fontWeight: 'bold',
+
+                fontFamily: 'Microsoft YaHei',
+
+                formatter: function(v) {
+
+                    return v.toFixed(1);
+
+                },
+
+                color: label.color,
+
+                offsetCenter: [0, '30%']
+
+            },
+
+            data: [{ value: temp }],
+
+            pointer: {
+
+                length: '60%',
+
+                width: 6,
+
+                offsetCenter: [0, '-10%'],
+
+                itemStyle: {
+
+                    color: '#e6edf3',
+
+                    shadowBlur: 6,
+
+                    shadowColor: '#aaa'
+
+                }
+
+            }
+
+        }]
+
+    };
+
+
+
+    gaugeChart.setOption(option, { notMerge: true });
+
+}
+
+
+
+// ============================================================
+
+// 渲染：分时情绪走势
+
+// ============================================================
+
+function renderTrend(data) {
+
+    const el = document.getElementById('trendChart');
+
+    if (!el) return;
+
+
+
+    if (!trendChart) {
+
+        trendChart = echarts.init(el);
+
+    }
+
+
+
+    if (!data || data.length === 0) {
+
+        el.innerHTML = '<div class="no-data">暂无数据</div>';
+
+        return;
+
+    }
+
+
+
+    // 生成交易时间轴（只保留9:30-11:30和13:00-15:00的数据点）
+
+    const tradingData = data.filter(d => {
+
+        const h = new Date(d.timestamp * 1000).getHours();
+
+        return (h >= 9 && h < 12) || (h >= 13 && h < 16);
+
+    });
+
+
+
+    const times = tradingData.map(d => timestamp2time(d.timestamp));
+
+    const riseCounts = tradingData.map(d => d.rise_count || 0);
+
+    const fallCounts = tradingData.map(d => d.fall_count || 0);
+
+    const limitUpCounts = tradingData.map(d => d.limit_up_count || 0);
+
+    const temps = tradingData.map(d => d.market_temperature || 0);
+
+
+
+    // 午休时段背景
+
+    const markArea = [];
+
+    const hasBeforeNoon = times.some(t => {
+
+        const h = parseInt(t.split(':')[0]);
+
+        return h === 9 || h === 10 || h === 11;
+
+    });
+
+    if (hasBeforeNoon) {
+
+        const noonIdx = times.findIndex(t => {
+
+            const h = parseInt(t.split(':')[0]);
+
+            return h === 11 && parseInt(t.split(':')[1]) >= 30;
+
+        });
+
+        const afterLunchIdx = times.findIndex(t => {
+
+            const h = parseInt(t.split(':')[0]);
+
+            return h === 13;
+
+        });
+
+        if (noonIdx >= 0 && afterLunchIdx >= 0) {
+
+            markArea.push([
+
+                { xAxis: times[noonIdx] },
+
+                { xAxis: times[afterLunchIdx] }
+
+            ]);
+
+        }
+
+    }
+
+
+
+    const latest = tradingData[tradingData.length - 1];
+
+    const infoEl = document.getElementById('trendInfo');
+
+    if (infoEl && latest) {
+
+        infoEl.textContent = `${timestamp2datetime(latest.timestamp)} · 温度 ${latest.market_temperature?.toFixed(1) || '--'}`;
+
+    }
+
+
+
+    const option = {
+
+        backgroundColor: 'transparent',
+
+        grid: { top: 40, right: 60, bottom: 40, left: 50 },
+
+        legend: {
+
+            show: false  // 图例在 status-bar 用 HTML 实现
+
+        },
+
+        tooltip: {
+
+            trigger: 'axis',
+
+            backgroundColor: 'rgba(22,27,34,0.95)',
+
+            borderColor: '#30363d',
+
+            textStyle: { color: '#e6edf3', fontSize: 12 },
+
+            formatter: function(params) {
+
+                const time = params[0]?.axisValue || '';
+
+                let html = `<div style="font-weight:bold;margin-bottom:6px">${time}</div>`;
+
+                params.forEach(p => {
+
+                    if (p.seriesName === '午休') return;
+
+                    let val = '';
+
+                    if (p.seriesName === '市场温度') val = p.value?.toFixed(1);
+
+                    else val = formatNum(p.value);
+
+                    html += `<div style="display:flex;justify-content:space-between;gap:16px">
+
+                        <span style="color:${p.color}">${p.seriesName}</span>
+
+                        <span style="font-weight:bold">${val}</span>
+
+                    </div>`;
+
+                });
+
+                return html;
+
+            }
+
+        },
+
+        xAxis: {
+
+            type: 'category',
+
+            data: times,
+
+            boundaryGap: false,
+
+            axisLine: { lineStyle: { color: '#30363d' } },
+
+            axisLabel: {
+
+                color: '#8b949e',
+
+                fontSize: 10,
+
+                interval: Math.floor(times.length / 6)
+
+            },
+
+            splitLine: { show: false },
+
+            axisTick: { show: false }
+
+        },
+
+        yAxis: [
+
+            {
+
+                type: 'value',
+
+                name: '家数',
+
+                position: 'left',
+
+                min: 0,
+
+                axisLine: { lineStyle: { color: '#ef4444' } },
+
+                axisLabel: { color: '#8b949e', fontSize: 10 },
+
+                splitLine: { lineStyle: { color: '#2a2a3a', type: 'dashed' } }
+
+            },
+
+            {
+
+                type: 'value',
+
+                name: '温度',
+
+                position: 'right',
+
+                min: 0,
+
+                max: 100,
+
+                axisLine: { lineStyle: { color: '#a855f7' } },
+
+                axisLabel: {
+
+                    color: '#8b949e',
+
+                    fontSize: 10,
+
+                    formatter: v => v.toFixed(0)
+
+                },
+
+                splitLine: { show: false }
+
+            }
+
+        ],
+
+        series: [
+
+            {
+
+                name: '上涨家数',
+
+                type: 'line',
+
+                data: riseCounts,
+
+                smooth: true,
+
+                symbol: 'none',
+
+                lineStyle: { color: '#ef4444', width: 2 },
+
+                areaStyle: {
+
+                    color: {
+
+                        type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+
+                        colorStops: [{ offset: 0, color: 'rgba(239,68,68,0.2)' }, { offset: 1, color: 'rgba(239,68,68,0)' }]
+
+                    }
+
+                }
+
+            },
+
+            {
+
+                name: '下跌家数',
+
+                type: 'line',
+
+                data: fallCounts,
+
+                smooth: true,
+
+                symbol: 'none',
+
+                lineStyle: { color: '#22c55e', width: 2 },
+
+                areaStyle: {
+
+                    color: {
+
+                        type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+
+                        colorStops: [{ offset: 0, color: 'rgba(34,197,94,0.2)' }, { offset: 1, color: 'rgba(34,197,94,0)' }]
+
+                    }
+
+                }
+
+            },
+
+            {
+
+                name: '涨停家数',
+
+                type: 'line',
+
+                yAxisIndex: 0,
+
+                data: limitUpCounts,
+
+                smooth: true,
+
+                symbol: 'none',
+
+                lineStyle: { color: '#a855f7', width: 1.5, type: 'dashed' }
+
+            },
+
+            {
+
+                name: '市场温度',
+
+                type: 'line',
+
+                yAxisIndex: 1,
+
+                data: temps,
+
+                smooth: true,
+
+                symbol: 'none',
+
+                lineStyle: { color: '#f59e0b', width: 1.5 }
+
+            },
+
+            // 午休背景
+
+            {
+
+                name: '午休',
+
+                type: 'line',
+
+                data: [],
+
+                markArea: {
+
+                    silent: true,
+
+                    itemStyle: { color: 'rgba(100,100,100,0.08)' },
+
+                    data: markArea.length ? [[
+
+                        { xAxis: markArea[0][0].xAxis },
+
+                        { xAxis: markArea[0][1].xAxis }
+
+                    ]] : []
+
+                }
+
+            }
+
+        ]
+
+    };
+
+
+
+    trendChart.setOption(option, { notMerge: true });
+
+}
+
+
+
+// ============================================================
+
+// 渲染：涨跌分布直方图
+
+// ============================================================
+
+function renderDistChart(dist) {
+
+    console.log('dist:', dist); // debug: check what data arrives
+
+    const el = document.getElementById('distChart');
+
+    if (!el) return;
+
+
+
+    if (!distChart) {
+
+        distChart = echarts.init(el);
+
+    }
+
+
+
+    if (!dist) {
+
+        el.innerHTML = '<div class="no-data">暂无数据</div>';
+
+        return;
+
+    }
+
+
+
+    // API 返回 ±1% 整数档位: -20, -10, -9, -8...-1, 0, 1, 2...9, 10, 20
+
+    // 左侧: 跌停, -10~-9, -9~-8 ... -2~-1
+
+    const ranges = [];
+
+    const catLabels = [];
+
+
+
+    ranges.push({ key: '-20', label: '跌停', color: '#06b6d4', isSpecial: true });
+
+    // Hardcode negative values for debugging
+
+    const negKeys = ['-10', '-9', '-8', '-7', '-6', '-5', '-4', '-3', '-2', '-1'];
+
+    negKeys.forEach(k => ranges.push({ key: k, label: k + '%', color: '#22c55e' }));
+
+    // 0
+
+    ranges.push({ key: '0', label: '0%', color: '#555' });
+
+    // 右侧: 1~2, 2~3 ... 9~10
+
+    for (let i = 1; i <= 10; i++) {
+
+        ranges.push({ key: String(i), label: `${i}%`, color: '#ef4444' });
+
+    }
+
+    ranges.push({ key: '20', label: '涨停', color: '#a855f7', isSpecial: true });
+
+    console.log('ranges keys:', ranges.map(r => r.key), 'count:', ranges.length); // debug
+
+
+
+    const vals = ranges.map(r => {
+
+        const key = r.key;
+
+        // Try both string and number key formats
+
+        return dist[key] ?? dist[Number(key)] ?? 0;
+
+    });
+
+    console.log('vals:', vals); // debug: check computed values
+
+    const colors = ranges.map(r => r.color);
+
+
+
+    // 最高值用于归一化柱宽
+
+    const maxVal = Math.max(...vals, 1);
+
+
+
+    const option = {
+
+        backgroundColor: 'transparent',
+
+        grid: { top: 10, right: 20, bottom: 30, left: 45 },
+
+        tooltip: {
+
+            trigger: 'axis',
+
+            backgroundColor: 'rgba(22,27,34,0.95)',
+
+            borderColor: '#30363d',
+
+            textStyle: { color: '#e6edf3', fontSize: 12 },
+
+            formatter: function(params) {
+
+                const p = params[0];
+
+                const total = dist.total_count || 0;
+
+                const pct = total > 0 ? ((p.value / total) * 100).toFixed(1) : '0.0';
+
+                return `<b>${p.name}</b><br/>
+
+                    ${formatNum(p.value)} 只 (${pct}%)`;
+
+            }
+
+        },
+
+        xAxis: {
+
+            type: 'category',
+
+            data: ranges.map(r => r.label),
+
+            axisLabel: {
+
+                color: '#8b949e',
+
+                fontSize: 9,
+
+                interval: 0,
+
+                rotate: 45
+
+            },
+
+            axisLine: { lineStyle: { color: '#30363d' } },
+
+            axisTick: { show: false },
+
+            splitLine: { show: false }
+
+        },
+
+        yAxis: {
+
+            type: 'value',
+
+            axisLabel: {
+
+                color: '#8b949e',
+
+                fontSize: 10,
+
+                formatter: v => v >= 1000 ? (v/1000).toFixed(0)+'k' : v
+
+            },
+
+            splitLine: { lineStyle: { color: '#2a2a3a', type: 'dashed' } },
+
+            axisLine: { show: false },
+
+            axisTick: { show: false }
+
+        },
+
+        series: [{
+
+            type: 'bar',
+
+            data: vals.map((v, i) => ({
+
+                value: v,
+
+                itemStyle: {
+
+                    color: colors[i],
+
+                    borderRadius: i === ranges.length - 1 ? [4, 4, 0, 0] :
+
+                                i === 0 ? [0, 0, 4, 4] : [2, 2, 0, 0]
+
+                }
+
+            })),
+
+            barMaxWidth: 20,
+
+            label: {
+
+                show: vals.some(v => v > maxVal * 0.3),
+
+                position: 'top',
+
+                color: '#e6edf3',
+
+                fontSize: 9,
+
+                formatter: function(p) {
+
+                    return p.value > 0 ? formatNum(p.value) : '';
+
+                }
+
+            }
+
+        }]
+
+    };
+
+
+
+    distChart.setOption(option, { notMerge: true });
+
+}
+
+
+
+// ============================================================
+
+// 渲染：涨停细分 & 跌停细分
+
+// ============================================================
+
+function renderLimitDist(pool, dist) {
+
+    renderLimitupDist(dist);
+
+    renderLimitdownDist(dist);
+
+}
+
+
+
+function renderLimitupDist(dist) {
+
+    const el = document.getElementById('limitupDistChart');
+
+    if (!el) return;
+
+    if (!limitupDistChart) limitupDistChart = echarts.init(el);
+
+    if (!dist) { el.innerHTML = '<div class="no-data">暂无数据</div>'; return; }
+
+
+
+    const data = [
+
+        { name: '涨停（正常）', value: (dist.limit_up_count || 0) - (dist.st_limit_up_count || 0) },
+
+        { name: 'ST涨停', value: dist.st_limit_up_count || 0 },
+
+    ];
+
+
+
+    const option = {
+
+        backgroundColor: 'transparent',
+
+        tooltip: {
+
+            trigger: 'item',
+
+            backgroundColor: 'rgba(22,27,34,0.95)',
+
+            borderColor: '#30363d',
+
+            textStyle: { color: '#e6edf3' },
+
+            formatter: '{b}: {c} 只'
+
+        },
+
+        series: [{
+
+            type: 'pie',
+
+            radius: ['40%', '70%'],
+
+            center: ['50%', '50%'],
+
+            data,
+
+            label: {
+
+                color: '#e6edf3',
+
+                fontSize: 12,
+
+                formatter: '{b}\n{c}只'
+
+            },
+
+            labelLine: { lineStyle: { color: '#555' } },
+
+            itemStyle: { borderRadius: 6, borderColor: '#161b22', borderWidth: 2 },
+
+            color: ['#a855f7', '#f59e0b']
+
+        }]
+
+    };
+
+    limitupDistChart.setOption(option, { notMerge: true });
+
+}
+
+
+
+function renderLimitdownDist(dist) {
+
+    const el = document.getElementById('limitdownDistChart');
+
+    if (!el) return;
+
+    if (!limitdownDistChart) limitdownDistChart = echarts.init(el);
+
+    if (!dist) { el.innerHTML = '<div class="no-data">暂无数据</div>'; return; }
+
+
+
+    const data = [
+
+        { name: '跌停（正常）', value: Math.max(0, (dist.limit_down_count || 0) - (dist.st_limit_down_count || 0)) },
+
+        { name: 'ST跌停', value: dist.st_limit_down_count || 0 },
+
+    ];
+
+
+
+    const option = {
+
+        backgroundColor: 'transparent',
+
+        tooltip: {
+
+            trigger: 'item',
+
+            backgroundColor: 'rgba(22,27,34,0.95)',
+
+            borderColor: '#30363d',
+
+            textStyle: { color: '#e6edf3' },
+
+            formatter: '{b}: {c} 只'
+
+        },
+
+        series: [{
+
+            type: 'pie',
+
+            radius: ['40%', '70%'],
+
+            center: ['50%', '50%'],
+
+            data,
+
+            label: {
+
+                color: '#e6edf3',
+
+                fontSize: 12,
+
+                formatter: '{b}\n{c}只'
+
+            },
+
+            labelLine: { lineStyle: { color: '#555' } },
+
+            itemStyle: { borderRadius: 6, borderColor: '#161b22', borderWidth: 2 },
+
+            color: ['#06b6d4', '#8b949e']
+
+        }]
+
+    };
+
+    limitdownDistChart.setOption(option, { notMerge: true });
+
+}
+
+
+
+// ============================================================
+
+// 渲染：涨停板块TOP5
+
+// ============================================================
+
+function renderSectorList(sectors) {
+
+    const el = document.getElementById('sectorList');
+
+    if (!el) return;
+
+    if (!sectors || sectors.length === 0) {
+
+        el.innerHTML = '<div class="no-data">暂无涨停板块数据</div>';
+
+        return;
+
+    }
+
+
+
+    el.innerHTML = sectors.map((s, i) => `
+
+        <div class="sector-item" onclick="openBankuai('${s.code}')" title="查看板块详情">
+
+            <span class="sector-rank ${i < 3 ? 'top3' : ''}">${i + 1}</span>
+
+            <span class="sector-name">${s.name || '未知板块'}</span>
+
+            <span class="sector-count">${s.limit_up_num || 0}</span>
+
+            <span class="sector-tag">${s.high || s.continuous_plate_num ? s.high || (s.continuous_plate_num + '连板') : ''}</span>
+
+        </div>
+
+    `).join('');
+
+}
+
+
+
+// 点击板块跳转 bankuai.html
+
+function openBankuai(blockCode) {
+
+    window.open(`bankuai.html?code=${blockCode}`, '_blank');
+
+}
+
+
+
+// ============================================================
+
+// 手动刷新
+
+// ============================================================
+
+function manualRefresh() {
+
+    refreshAll();
+
+}
+
+
+
+function renderRadarChart(dist, limitupPool, line) {
+
+    const el = document.getElementById('radarChart');
+
+    if (!el) return;
+
+
+
+    if (!radarChart) {
+
+        radarChart = echarts.init(el);
+
+    }
+
+
+
+
+
+        // ============================================================
+
+        // ============================================================
+    // 市场雷达六维（10分制，全部越高越好，标准公式）
+    // 基于：多空占比、涨跌停结构、炸板率、红绿盘占比、强弱偏离度、情绪分歧度
+    // ============================================================
+    const total = dist.total_count || 1;
+    const limitUpCount = dist.limit_up_count || 0;
+    const limitDownCount = dist.limit_down_count || 0;
+    
+    // 上涨家数 A = sum(dist[1]~dist[10])
+    const rise = [1,2,3,4,5,6,7,8,9,10].reduce((s, k) => s + (dist[k] || 0), 0);
+    // 下跌家数 B = sum(dist[-1]~dist[-10])
+    const fall = [-1,-2,-3,-4,-5,-6,-7,-8,-9,-10].reduce((s, k) => s + (dist[k] || 0), 0);
+    // 平盘家数 C (从line数据获取，或估算)
+    const flat = total - rise - fall;
+
+    // ========== 六维计算 ==========
+    
+    // 1. 多头力量 = A/T × 10（上涨家数占比映射到0-10）
+    const bullPower10 = Math.min(rise / total * 10, 10);
+    
+    // 2. 涨停密度 = Z/T × 100（涨停率%映射到0-10，上限10%）
+    const limitDensity10 = Math.min(limitUpCount / total * 100, 10);
+    
+    // 3. 封板质量 = (1 - 炸板率) × 10（从line数据获取炸板率）
+    // limit_up_broken_ratio 是炸板率，封板质量越高越好
+    const brokenRatio = (line && typeof line.limit_up_broken_ratio === 'number') 
+        ? line.limit_up_broken_ratio 
+        : 0;
+    const sealQuality10 = Math.max(0, Math.min((1 - brokenRatio) * 10, 10));
+    
+    // 4. 赚钱效应 = A/(A+B) × 10（红盘占比，不含平盘）
+    const riseFall = rise + fall || 1;
+    const profitEffect10 = Math.min(rise / riseFall * 10, 10);
+    
+    // 5. 真实强度 = clamp((S - I) × 50 + 5, 0, 10)
+    // S = 个股平均涨跌幅（加权平均）
+    // I = 指数涨跌幅（从全局变量获取，默认0）
+    const S = [-10,-9,-8,-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7,8,9,10]
+        .reduce((sum, p) => sum + p * (dist[p] || 0), 0) / total;
+    const I = (typeof window.indexPctChange === 'number') ? window.indexPctChange : 0;
+    const realStrength10 = Math.max(0, Math.min((S - I) * 50 + 5, 10));
+    
+    // 6. 多头共识 = (A-B)/(A+B) × 5 + 5（将-1~1映射到0~10）
+    // 正值=多头共识，负值=空头共识
+    const bullConsensus10 = Math.max(0, Math.min((rise - fall) / riseFall * 5 + 5, 10));
+    
+    // 综合分：加权均值（权重：赚钱效应0.2，真实强度0.2，多头共识0.2，多头力量0.15，涨停密度0.15，封板质量0.1）
+    const totalScore10 = Math.round(
+        bullPower10 * 0.15 + 
+        limitDensity10 * 0.15 + 
+        sealQuality10 * 0.10 + 
+        profitEffect10 * 0.20 + 
+        realStrength10 * 0.20 + 
+        bullConsensus10 * 0.20
+    );
+
+    const scoreData = [
+        { label: '多头力量', val: bullPower10, color: '#ef4444' },
+        { label: '涨停密度', val: limitDensity10, color: '#f97316' },
+        { label: '封板质量', val: sealQuality10, color: '#eab308' },
+        { label: '赚钱效应', val: profitEffect10, color: '#22c55e' },
+        { label: '真实强度', val: realStrength10, color: '#3b82f6' },
+        { label: '多头共识', val: bullConsensus10, color: '#a855f7' }
+    ];
+
+
+
+
+    // ---- 雷达图 ----
+
+    const radarOpt = {
+
+        backgroundColor: 'transparent',
+
+        tooltip: {
+
+            trigger: 'item',
+
+            backgroundColor: 'rgba(22,27,34,0.95)',
+
+            borderColor: '#30363d',
+
+            textStyle: { color: '#e6edf3', fontSize: 12 },
+
+            formatter: p => `${p.name}: ${p.value[0].toFixed(1)}分`
+
+        },
+
+        radar: {
+
+            indicator: [
+                { name: '多头力量', max: 10 },
+                { name: '涨停密度', max: 10 },
+                { name: '封板质量', max: 10 },
+                { name: '赚钱效应', max: 10 },
+                { name: '真实强度', max: 10 },
+                { name: '多头共识', max: 10 }
+            ],
+
+            splitNumber: 4,
+
+            axisName: { color: '#8b949e', fontSize: 11 },
+
+            splitLine: { lineStyle: { color: '#21262d' } },
+
+            splitArea:  { areaStyle: { color: ['rgba(48,54,61,0.3)', 'rgba(48,54,61,0.1)'] } },
+
+            axisLine:   { lineStyle: { color: '#30363d' } },
+
+            center: ['50%', '50%'],
+
+            radius: '68%'
+
+        },
+
+        series: [{
+
+            type: 'radar',
+
+            data: [{ value: [bullPower10, limitDensity10, sealQuality10, profitEffect10, realStrength10, bullConsensus10], name: '市场情绪' }],
+
+            areaStyle: { color: 'rgba(34,197,94,0.25)' },
+
+            lineStyle:  { color: '#22c55e', width: 2 },
+
+            itemStyle:  { color: '#22c55e' },
+
+            symbol: 'circle', symbolSize: 5
+
+        }]
+
+    };
+
+    radarChart.setOption(radarOpt, true);
+
+
+
+    // ---- 综合评分 ----
+
+    const scoreEl = document.getElementById('radar-total-score');
+
+    if (scoreEl) document.getElementById('radar-total-score').textContent = totalScore10;
+
+
+
+    // ---- 五维评分条 ----
+
+    const barsEl = document.getElementById('radar-score-bars');
+
+    if (barsEl) {
+
+        barsEl.innerHTML = scoreData.map(d => `
+
+            <div class="score-bar-row">
+
+                <span class="score-bar-label">${d.label}</span>
+
+                <div class="score-bar-track">
+
+                    <div class="score-bar-fill" style="width:${d.val.toFixed(0)}%;background:${d.color}"></div>
+
+                </div>
+
+                <span class="score-bar-val">${d.val.toFixed(1)}</span>
+
+            </div>
+
+        `).join('');
+
+    }
+
+
+
+    // ---- 形态判断 ----
+
+    const assessEl = document.getElementById('assessment-text');
+
+    if (assessEl) {
+
+        let text = '';
+
+        if      (totalScore10 >= 8) text = '🔥 极强格局，赚钱效应爆棚，积极参与';
+
+        else if (totalScore10 >= 6) text = '✅ 偏多格局，结构健康，可持股';
+
+        else if (totalScore10 >= 5) text = '⚖️ 中性震荡，个股分化，精选方向';
+
+        else if (totalScore10 >= 3) text = '⚠️ 偏弱格局，赚钱效应萎缩，控仓观望';
+
+        else                       text = '🚨 极弱格局，风险释放中，轻仓或空仓';
+
+        assessEl.textContent = text;
+
+    }}
+
+
+
+    // ============================================================
+
+// ECharts 响应式
+
+// ============================================================
+
+function bindChartResize() {
+
+    const charts = [gaugeChart, trendChart, distChart, limitupDistChart, limitdownDistChart, radarChart];
+
+    window.addEventListener('resize', () => {
+
+        charts.forEach(c => c && c.resize());
+
+    });
+
+}
+
+
+
+// ============================================================
+
+// 轮询：line 10秒，distribution 30秒
+
+// ============================================================
+
+let pollTimer = null;
+
+
+
+function startPoll() {
+
+    // 首次加载
+
+    refreshAll();
+
+
+
+    // 10秒轮询 line 数据（只刷新分时）
+
+    pollTimer = setInterval(async () => {
+
+        try {
+
+            const line = await fetchSentimentLine();
+
+            sentimentData = line;
+
+            renderStats(line[line.length - 1], distData);
+
+            renderGauge(line[line.length - 1]);
+
+            renderTrend(line);
+
+            // 回填温度到外部指标行
+
+            const temp2 = document.getElementById('v-temp2');
+
+            const temp2Desc = document.getElementById('v-temp2-desc');
+
+            const tempVal = document.getElementById('v-temp');
+
+            const tempDesc = document.getElementById('v-temp-desc');
+
+            if (tempVal && temp2) temp2.textContent = tempVal.textContent;
+
+            if (tempDesc && temp2Desc) temp2Desc.textContent = tempDesc.textContent;
+
+        } catch(e) {
+
+            console.warn('poll line error:', e);
+
+        }
+
+    }, 10000);
+
+
+
+    // 30秒轮询 distribution + sector + 外部参考
+
+    setInterval(async () => {
+
+        try {
+
+            const [dist, sectors, limitupPool] = await Promise.all([
+
+                fetchDistData(),
+
+                fetchSectorTop(),
+
+                fetchLimitUpPool()
+
+            ]);
+
+            distData = dist;
+
+            sectorData = sectors;
+
+            renderStats(sentimentData[sentimentData.length - 1], dist);
+
+            renderDistChart(dist);
+
+            renderLimitDist(limitupPool, dist);
+
+            renderSectorList(sectors);
+
+            renderRadarChart(dist, limitupPool, sentimentData[sentimentData.length - 1]);
+
+        } catch(e) {
+
+            console.warn('poll dist error:', e);
+
+        }
+
+        // 外部参考指标30秒刷新一次
+
+        fetchExternalRef();
+
+    }, 30000);
+
+}
+
+
+
+// ============================================================
+
+// 启动
+
+// ============================================================
+
+document.addEventListener('DOMContentLoaded', () => {
+
+    startPoll();
+
+    bindChartResize();
+
+});
+
+</script>
+
+</body>
+
+</html>
+

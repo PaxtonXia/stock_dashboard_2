@@ -135,6 +135,7 @@
   .stock-table tr:hover td{background:rgba(255,255,255,.02)}
   .stock-table tr.fav-row td{background:rgba(210,153,34,.04)}
   .stock-table tr.fav-row:hover td{background:rgba(210,153,34,.07)}
+  .stock-table tr.highlight-row td{background:rgba(88,166,255,.08)}
   .resonate-ind{display:inline-block;font-size:12px;background:rgba(210,153,34,.12);color:var(--orange);padding:2px 5px;border-radius:3px;margin-left:5px}
   .reason-row td{border:none;padding:0 8px 6px 8px}
   .reason-row:hover td{background:transparent}
@@ -462,6 +463,8 @@ async function selectTheme(code, el) {
       } else if (currentRightView === "heatmap") {
         renderHeatmapChart(theme, stockCache[code]);
       }
+      // bind table interactions (hover/click)
+      bindTableInteractions();
     } else {
       throw new Error(`错误码 ${json.code} ${json.message||''}`);
     }
@@ -505,7 +508,7 @@ function buildPanelHtml(theme, list, stat) {
 
     const rowIdx = ordered.indexOf(s);
     const ckChecked = selectedStocks.has(code) ? 'checked' : '';
-    rows += `<tr class="${isFavRow?'fav-row':''}" data-idx="${rowIdx}">
+    rows += `<tr class="stock-row ${isFavRow?'fav-row':''}" data-idx="${rowIdx}" data-code="${esc(code)}">
       <td class="ck"><input type="checkbox" class="stock-ck" data-code="${esc(code)}" data-name="${esc(name)}" ${ckChecked} onchange="onStockCk(this)"></td>
       <td class="n">${origIdx}</td>
       <td class="name" onmouseenter="showTooltip(event,this)" onmouseleave="hideTooltip()" onclick="openStockModal('smart_money.html##${code}##')">
@@ -605,6 +608,91 @@ function rerender() {
   if (panel) panel.innerHTML = buildPanelHtml(theme, stockCache[currentCode], {});
   // 更新脑图
   renderMindmap(theme, stockCache[currentCode]);
+  // Re-bind table interactions after re-render
+  bindTableInteractions();
+}
+
+// ─── Chart / Table interaction helpers ─────────────────────────────────
+function findDataIndexInChart(chart, code) {
+  try {
+    if (!chart || !chart.getOption) return -1;
+    const opt = chart.getOption();
+    if (!opt || !opt.series || !opt.series.length) return -1;
+    const data = opt.series[0].data || [];
+    for (let i = 0; i < data.length; i++) {
+      const d = data[i];
+      if (!d) continue;
+      if (d.code === code || d._code === code) return i;
+      if (d.data && (d.data.code === code || d.data._code === code)) return i;
+      if (d.name === code) return i;
+    }
+  } catch (e) { /* ignore */ }
+  return -1;
+}
+
+function clearHighlights() {
+  try {
+    if (hotspotScatterChart && !hotspotScatterChart.isDisposed()) {
+      const opt = hotspotScatterChart.getOption();
+      const len = (opt && opt.series && opt.series[0] && opt.series[0].data) ? opt.series[0].data.length : 0;
+      for (let i = 0; i < len; i++) hotspotScatterChart.dispatchAction({ type: 'downplay', seriesIndex: 0, dataIndex: i });
+      hotspotScatterChart.dispatchAction({ type: 'hideTip' });
+    }
+    if (hotspotHeatmapChart && !hotspotHeatmapChart.isDisposed()) {
+      const opt2 = hotspotHeatmapChart.getOption();
+      const len2 = (opt2 && opt2.series && opt2.series[0] && opt2.series[0].data) ? opt2.series[0].data.length : 0;
+      for (let i = 0; i < len2; i++) hotspotHeatmapChart.dispatchAction({ type: 'downplay', seriesIndex: 0, dataIndex: i });
+      hotspotHeatmapChart.dispatchAction({ type: 'hideTip' });
+    }
+  } catch (e) { /* ignore */ }
+  document.querySelectorAll('.stock-table tr.highlight-row').forEach(r => r.classList.remove('highlight-row'));
+}
+
+function highlightTableRow(code) {
+  if (!code) return;
+  document.querySelectorAll('.stock-table tr.highlight-row').forEach(r => r.classList.remove('highlight-row'));
+  const row = document.querySelector(`.stock-row[data-code="${code}"]`);
+  if (row) {
+    row.classList.add('highlight-row');
+    try { row.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+  }
+}
+
+function syncStockInteraction(code, showTip) {
+  if (!code) return;
+  clearHighlights();
+  // Scatter
+  try {
+    if (hotspotScatterChart && !hotspotScatterChart.isDisposed()) {
+      const idx = findDataIndexInChart(hotspotScatterChart, code);
+      if (idx >= 0) {
+        hotspotScatterChart.dispatchAction({ type: 'highlight', seriesIndex: 0, dataIndex: idx });
+        if (showTip) hotspotScatterChart.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex: idx });
+      }
+    }
+  } catch (e) { }
+  // Heatmap
+  try {
+    if (hotspotHeatmapChart && !hotspotHeatmapChart.isDisposed()) {
+      const idx2 = findDataIndexInChart(hotspotHeatmapChart, code);
+      if (idx2 >= 0) {
+        hotspotHeatmapChart.dispatchAction({ type: 'highlight', seriesIndex: 0, dataIndex: idx2 });
+        if (showTip) hotspotHeatmapChart.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex: idx2 });
+      }
+    }
+  } catch (e) { }
+
+  // Table
+  highlightTableRow(code);
+}
+
+function bindTableInteractions() {
+  document.querySelectorAll('.stock-row').forEach(row => {
+    const code = row.dataset.code;
+    row.onmouseenter = () => syncStockInteraction(code, true);
+    row.onmouseleave = () => clearHighlights();
+    row.onclick = () => { if (code) openStockModal('smart_money.html##' + code + '##'); };
+  });
 }
 
 // ─── Favorites ──────────────────────────────────────────
@@ -1311,9 +1399,15 @@ function renderScatterChart(theme, stocks) {
   // Click bubble → open stock modal (smart_money page)
   hotspotScatterChart.on('click', function(params) {
     if (params.data && params.data._code) {
+      syncStockInteraction(params.data._code, true);
       openStockModal('smart_money.html##' + params.data._code + '##');
     }
   });
+  // Hover → highlight both charts and table
+  hotspotScatterChart.on('mouseover', function(params) {
+    if (params && params.data && (params.data._code || params.data.code)) syncStockInteraction(params.data._code || params.data.code, true);
+  });
+  hotspotScatterChart.on('globalout', function() { clearHighlights(); });
 }
 
 function renderHeatmapChart(theme, stocks) {
@@ -1415,6 +1509,11 @@ ${value}`;
       openStockModal('smart_money.html##' + params.data.code + '##');
     }
   });
+  // Hover → highlight both charts and table
+  hotspotHeatmapChart.on('mouseover', function(params) {
+    if (params && params.data && (params.data.code || params.data._code)) syncStockInteraction(params.data.code || params.data._code, true);
+  });
+  hotspotHeatmapChart.on('globalout', function() { clearHighlights(); });
 
   function getHeatmapColor(f3) {
     const intensity = Math.min(1, Math.abs(f3) / 8);

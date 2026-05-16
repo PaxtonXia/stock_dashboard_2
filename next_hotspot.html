@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -188,6 +188,9 @@
 .view-tab.active{border-color:var(--accent);color:var(--accent);background:rgba(88,166,255,.1)}
 .scatter-container{width:100%;height:100%;display:none}
 .scatter-container.active{display:block}
+.heatmap-container{width:100%;height:100%;display:none;position:relative;overflow:hidden}
+.heatmap-container.active{display:block}
+.heatmap-chart{position:absolute;top:0;left:0;width:100%;height:100%;display:block;}
 .mindmap-canvas.hidden{display:none}
 
 </style>
@@ -228,11 +231,13 @@
     <div class="view-tabs">
       <button class="view-tab active" id="tabMindmap" onclick="switchRightView('mindmap')">🧠 脑图</button>
       <button class="view-tab" id="tabScatter" onclick="switchRightView('scatter')">📊 散点图</button>
+      <button class="view-tab" id="tabHeatmap" onclick="switchRightView('heatmap')">🔥 热力图</button>
     </div>
     <div class="mindmap-title" id="mindmapTitle">概念脑图</div>
     <canvas class="mindmap-canvas" id="mindmapCanvas"></canvas>
     <div class="mindmap-tip" id="mindmapTip">拖拽可移动</div>
     <div class="scatter-container" id="scatterContainer"></div>
+    <div class="heatmap-container" id="heatmapContainer"><div id="heatmapChart" class="heatmap-chart"></div></div>
   </div>
 </div>
 
@@ -452,7 +457,11 @@ async function selectTheme(code, el) {
       panel.innerHTML = buildPanelHtml(theme, stockCache[code], json.data.statistic || {});
       // 渲染脑图
       renderMindmap(theme, stockCache[code]);
-      if (currentRightView === "scatter") renderScatterChart(theme, stockCache[code]);
+      if (currentRightView === "scatter") {
+        renderScatterChart(theme, stockCache[code]);
+      } else if (currentRightView === "heatmap") {
+        renderHeatmapChart(theme, stockCache[code]);
+      }
     } else {
       throw new Error(`错误码 ${json.code} ${json.message||''}`);
     }
@@ -1142,29 +1151,43 @@ function switchRightView(view) {
   currentRightView = view;
   const tabMM = document.getElementById('tabMindmap');
   const tabSC = document.getElementById('tabScatter');
+  const tabHM = document.getElementById('tabHeatmap');
   const canvas = document.getElementById('mindmapCanvas');
   const tip = document.getElementById('mindmapTip');
   const scatterEl = document.getElementById('scatterContainer');
+  const heatmapEl = document.getElementById('heatmapContainer');
 
   const title = document.getElementById('mindmapTitle');
+  
+  // Reset all
+  tabMM.classList.remove('active'); tabSC.classList.remove('active'); tabHM.classList.remove('active');
+  canvas.classList.add('hidden'); if(tip) tip.style.display='none'; if(title) title.style.display='none';
+  scatterEl.classList.remove('active');
+  heatmapEl.classList.remove('active');
+  
   if (view === 'mindmap') {
-    tabMM.classList.add('active'); tabSC.classList.remove('active');
+    tabMM.classList.add('active');
     canvas.classList.remove('hidden'); if(tip) tip.style.display=''; if(title) title.style.display='';
-    scatterEl.classList.remove('active');
-  } else {
-    tabSC.classList.add('active'); tabMM.classList.remove('active');
-    canvas.classList.add('hidden'); if(tip) tip.style.display='none'; if(title) title.style.display='none';
+  } else if (view === 'scatter') {
+    tabSC.classList.add('active');
     scatterEl.classList.add('active');
-    // render scatter if we have data
     if (currentCode && stockCache[currentCode]) {
       const theme = allThemes.find(t => t.themeCode === currentCode);
       renderScatterChart(theme, stockCache[currentCode]);
+    }
+  } else if (view === 'heatmap') {
+    tabHM.classList.add('active');
+    heatmapEl.classList.add('active');
+    if (currentCode && stockCache[currentCode]) {
+      const theme = allThemes.find(t => t.themeCode === currentCode);
+      renderHeatmapChart(theme, stockCache[currentCode]);
     }
   }
 }
 
 // ─── Scatter Chart ──────────────────────────────────────
 let hotspotScatterChart = null;
+let hotspotHeatmapChart = null;
 
 function renderScatterChart(theme, stocks) {
   const container = document.getElementById('scatterContainer');
@@ -1293,10 +1316,187 @@ function renderScatterChart(theme, stocks) {
   });
 }
 
-// Resize scatter chart with window
+function renderHeatmapChart(theme, stocks) {
+  const container = document.getElementById('heatmapChart');
+  if (!container || !stocks || stocks.length === 0) return;
+  const panel = document.getElementById('panelRight');
+  container.style.width = panel.clientWidth + 'px';
+  container.style.height = panel.clientHeight + 'px';
+
+  if (hotspotHeatmapChart && !hotspotHeatmapChart.isDisposed()) {
+    hotspotHeatmapChart.dispose();
+  }
+  hotspotHeatmapChart = echarts.init(container);
+
+  const themeName = theme ? theme.themeName : '板块';
+  const items = stocks.map(s => {
+    const f3 = s.f3 != null ? parseFloat(s.f3) : 0;
+    const value = Math.max(parseFloat(s.f21) || 0, 1);
+    const name = s.securityName || s.name || '未知';
+    const code = s.securityCode || s.code || '未知';
+    const price = s.f2 != null ? parseFloat(s.f2) : null;
+    const turnover = s.f8 != null ? parseFloat(s.f8) : null;
+    const flow = s.f62 != null ? parseFloat(s.f62) : 0;
+    return {
+      name,
+      value,
+      code,
+      change: f3,
+      price,
+      turnover,
+      flow,
+      marketCap: value,
+      itemStyle: {
+        color: getHeatmapColor(f3)
+      }
+    };
+  });
+
+  hotspotHeatmapChart.setOption({
+    backgroundColor: '#0d1117',
+    title: {
+      text: `${themeName} 成分股热力图`,
+      left: 'center',
+      top: 12,
+      textStyle: { color: '#8b949e', fontSize: 14, fontWeight: 500 }
+    },
+    tooltip: {
+      trigger: 'item',
+      formatter: function(info) {
+        const data = info.data;
+        const flow = Math.abs(data.flow) >= 1e8 ? (data.flow/1e8).toFixed(2) + '亿'
+                    : Math.abs(data.flow) >= 1e4 ? (data.flow/1e4).toFixed(0) + '万'
+                    : data.flow.toFixed(0);
+        const turnoverText = data.turnover != null ? data.turnover.toFixed(2) + '%' : '--';
+        const priceText = data.price != null ? data.price.toFixed(2) : '--';
+        const capText = data.marketCap ? (data.marketCap >= 1e8 ? (data.marketCap/1e8).toFixed(2) + '亿'
+                    : data.marketCap >= 1e4 ? (data.marketCap/1e4).toFixed(0) + '万'
+                    : data.marketCap.toFixed(0)) : '--';
+        return `${data.name} (${data.code})<br/>涨跌幅: ${data.change > 0 ? '+' : ''}${data.change.toFixed(2)}%<br/>现价: ${priceText}<br/>换手率: ${turnoverText}<br/>主力净流入: ${flow}<br/>流通市值: ${capText}`;
+      },
+      backgroundColor: 'rgba(22,27,34,0.95)',
+      borderColor: '#30363d',
+      textStyle: { color: '#e6edf3', fontSize: 12 }
+    },
+    series: [{
+      type: 'treemap',
+      roam: false,
+      nodeClick: false,
+      breadcrumb: { show: false },
+      top: 60,
+      left: 10,
+      right: 10,
+      bottom: 10,
+      label: {
+        show: true,
+        formatter: function(info) {
+          const name = info.name || '';
+          const value = info.data.change != null ? (info.data.change > 0 ? '+' : '') + info.data.change.toFixed(2) + '%' : '';
+          return `${name}
+${value}`;
+        },
+        color: '#eef2f5',
+        fontSize: 12,
+        align: 'center',
+        verticalAlign: 'middle',
+        lineHeight: 18
+      },
+      upperLabel: { show: false },
+      itemStyle: {
+        borderColor: '#0d1117',
+        borderWidth: 2
+      },
+      data: items
+    }]
+  });
+
+  hotspotHeatmapChart.on('click', function(params) {
+    if (params && params.data && params.data.code) {
+      openStockModal('smart_money.html##' + params.data.code + '##');
+    }
+  });
+
+  function getHeatmapColor(f3) {
+    const intensity = Math.min(1, Math.abs(f3) / 8);
+    if (f3 >= 0) {
+      const r = Math.round(220 + intensity * 20);
+      const g = Math.round(86 - intensity * 40);
+      const b = Math.round(92 - intensity * 40);
+      return `rgb(${r},${g},${b})`;
+    }
+    const r = Math.round(70 - intensity * 20);
+    const g = Math.round(190 - intensity * 40);
+    const b = Math.round(80 + intensity * 60);
+    return `rgb(${r},${g},${b})`;
+  }
+}
+
+function squarify(items, x, y, W, H) {
+
+  const rects = new Array(items.length);
+  if (!items || items.length === 0 || W <= 0 || H <= 0) return rects;
+  
+  // 计算总市值
+  const total = items.reduce((s, v) => s + (v.f21 || 1), 0);
+  if (total <= 0) return rects;
+  
+  // 递归切片 treemap
+  function layout(list, startX, startY, width, height) {
+    if (list.length === 0 || width < 20 || height < 20) return;
+    
+    if (list.length === 1) {
+      rects[list[0].idx] = { x: startX + 1, y: startY + 1, w: width - 2, h: height - 2 };
+      return;
+    }
+    
+    const listTotal = list.reduce((s, v) => s + (v.f21 || 1), 0);
+    
+    let bestCut = 1;
+    let bestRatio = Infinity;
+    let runningSum = 0;
+    
+    for (let i = 0; i < list.length - 1; i++) {
+      runningSum += list[i].f21 || 1;
+      const ratio = runningSum / listTotal;
+      const aspectRatio = width >= height
+        ? Math.max(ratio * width / height, height / (ratio * width))
+        : Math.max(ratio * height / width, width / (ratio * height));
+      
+      if (aspectRatio < bestRatio) {
+        bestRatio = aspectRatio;
+        bestCut = i + 1;
+      }
+    }
+    
+    const firstHalf = list.slice(0, bestCut);
+    const secondHalf = list.slice(bestCut);
+    const firstTotal = firstHalf.reduce((s, v) => s + (v.f21 || 1), 0);
+    const splitRatio = firstTotal / listTotal;
+    
+    if (width >= height) {
+      const splitW = width * splitRatio;
+      layout(firstHalf, startX, startY, splitW, height);
+      layout(secondHalf, startX + splitW, startY, width - splitW, height);
+    } else {
+      const splitH = height * splitRatio;
+      layout(firstHalf, startX, startY, width, splitH);
+      layout(secondHalf, startX, startY + splitH, width, height - splitH);
+    }
+  }
+  
+  const indexedItems = items.map((v, i) => ({ ...v, idx: i }));
+  layout(indexedItems, x, y, W, H);
+  
+  return rects;
+}
+
 window.addEventListener('resize', function() {
-  if (hotspotScatterChart && !hotspotScatterChart.isDisposed() && currentRightView === 'scatter') {
+  if (currentRightView === 'scatter' && hotspotScatterChart && !hotspotScatterChart.isDisposed()) {
     hotspotScatterChart.resize();
+  }
+  if (currentRightView === 'heatmap') {
+    const theme = allThemes.find(t => t.themeCode === currentCode);
+    if (theme) renderHeatmapChart(theme, stockCache[currentCode]);
   }
 });
 

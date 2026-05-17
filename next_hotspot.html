@@ -56,9 +56,29 @@
   .f3.up{color:var(--up)} .f3.down{color:var(--down)} .f3.flat{color:var(--muted)}
   .theme-sort-bar { padding:6px 10px; display:flex; align-items:center; gap:5px; border-bottom:1px solid var(--border); background:var(--card); position:sticky; top:0; z-index:10; }
   .theme-sort-bar .sort-label { font-size:11px; color:var(--muted); }
-  .theme-title { font-size:12px; color:var(--text); line-height:1.35; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; margin-bottom:3px; font-weight:500; }
-  .theme-summary { font-size:12px; color:var(--muted); line-height:1.35; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+  .theme-title { font-size:12px; color:var(--text); line-height:1.35; overflow:hidden; display:-webkit-box; line-clamp:2; -webkit-line-clamp:2; -webkit-box-orient:vertical; margin-bottom:3px; font-weight:500; }
+  .theme-summary { font-size:12px; color:var(--muted); line-height:1.35; overflow:hidden; display:-webkit-box; line-clamp:2; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
   .theme-tags { display:flex; gap:5px; flex-wrap:wrap; }
+  .theme-compare-bar { display:flex; align-items:center; justify-content:space-between; padding:8px 10px; border-bottom:1px solid var(--border); background:var(--card); position:sticky; top:0; z-index:11; margin-bottom:10px; }
+  .theme-compare-bar .compare-title { color:var(--muted); font-size:13px; }
+  .theme-compare-checkbox { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--muted); margin:6px 0; }
+  .theme-compare-checkbox input { accent-color:var(--accent); cursor:pointer; }
+  .theme-compare-checkbox:hover { color:var(--text); }
+  .theme-compare-btn { white-space:nowrap; }
+  .compare-grid { display:grid; grid-template-columns:1.1fr 1fr; gap:14px; margin-bottom:16px; }
+  .compare-section { background:var(--card); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+  .compare-section .section-title { padding:12px 16px; font-weight:700; font-size:14px; border-bottom:1px solid rgba(255,255,255,.05); }
+  .compare-heatmap { padding:12px 16px; }
+  .compare-heatmap-chart { width:100%; height:320px; }
+  .compare-matrix { overflow-x:auto; }
+  .compare-matrix table { width:100%; border-collapse:collapse; font-size:13px; }
+  .compare-matrix th, .compare-matrix td { padding:8px 10px; border:1px solid rgba(255,255,255,.08); text-align:center; }
+  .compare-matrix th { background:rgba(255,255,255,.02); color:var(--muted); }
+  .compare-common { padding:10px 16px 16px; color:var(--muted); font-size:13px; }
+  .compare-common strong { color:var(--text); }
+  .theme-compare-checkbox { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--muted); margin:6px 0; }
+  .theme-compare-checkbox input { accent-color:var(--accent); cursor:pointer; }
+  .theme-compare-checkbox:hover { color:var(--text); }
   .tag{font-size:11px;padding:2px 6px;border-radius:3px}
   .tag-reason{background:rgba(188,140,255,.12);color:var(--purple)}
   .tag-stocks{background:rgba(63,185,80,.12);color:var(--green)}
@@ -207,6 +227,13 @@
   </div>
 </div>
 
+<div id="themeCompareModal" class="modal-overlay">
+  <div class="modal-content">
+    <span class="modal-close">&times;</span>
+    <div id="themeCompareContent"></div>
+  </div>
+</div>
+
 <header class="header">
   <div class="header-left">
     <h1>🔮 <span class="h1-tag">AI事件驱动投研系统</span></h1>
@@ -245,6 +272,7 @@
 <div class="tooltip" id="tooltip">
   <div class="tooltip-name" id="ttName"></div>
   <div class="tooltip-row"><span class="tooltip-key">现价</span><span class="tooltip-val" id="ttPrice">—</span></div>
+  <div class="tooltip-row"><span class="tooltip-key">涨跌幅</span><span class="tooltip-val" id="ttChange">—</span></div>
   <div class="tooltip-row"><span class="tooltip-key">换手率</span><span class="tooltip-val" id="ttHs">—</span></div>
   <div class="tooltip-row"><span class="tooltip-key">主力净流入</span><span class="tooltip-val" id="ttFlow">—</span></div>
   <div class="tooltip-row"><span class="tooltip-key">流通市值</span><span class="tooltip-val" id="ttCap">—</span></div>
@@ -263,6 +291,7 @@ let allThemes = [];
 let stockCache = {};
 let favorites = JSON.parse(localStorage.getItem('dc_fav') || '{}');
 let currentCode = null;
+let selectedThemeCodes = new Set();
 let currentSort = { field:'f3', asc:false };
 let themeSort = { field:'default', asc:false }; // default | fex3 | cumulateF3
 let overlapMap = {};
@@ -326,6 +355,7 @@ async function loadThemes(silent = false) {
       allThemes = json.data;
       buildOverlapMap();
       renderThemeList();
+      updateThemeCompareBtn();
       document.getElementById('updateTime').textContent = `更新 ${new Date().toLocaleTimeString('zh-CN')}`;
     } else {
       throw new Error(`错误码 ${json.code} ${json.message||''}`);
@@ -366,6 +396,13 @@ function renderThemeList() {
     </div>
   `;
 
+  const compareBar = `
+    <div class="theme-compare-bar">
+      <div class="compare-title">已选主题 <strong id="themeSelCount">0</strong></div>
+      <button class="action-btn primary theme-compare-btn" id="themeCompareBtn" onclick="openThemeCompare()" disabled>🧷 主题对比</button>
+    </div>
+  `;
+
   const groups = {};
   let sortedThemes = [...allThemes];
   
@@ -382,7 +419,7 @@ function renderThemeList() {
     groups[d].push(t);
   });
 
-  let html = sortBar;
+  let html = sortBar + compareBar;
   Object.keys(groups).sort().reverse().forEach(date => {
     html += `<div class="date-group"><div class="date-label">📅 ${date}</div>`;
     groups[date].forEach(t => {
@@ -412,6 +449,10 @@ function renderThemeList() {
             <div class="theme-name"><span class="theme-name-text">${esc(shortName)}</span>${hot}${cont}${newTag}</div>
             <span class="f3-badge ${f3cls}" style="color:var(--${f3cls==='up'?'up':f3cls==='down'?'down':'muted'})">${f3sign}${f3.toFixed(2)}%${trendArrow}</span>
           </div>
+          <label class="theme-compare-checkbox" onclick="event.stopPropagation()">
+            <input type="checkbox" onchange="toggleThemeSelect(this, '${esc(t.themeCode)}')" ${selectedThemeCodes.has(t.themeCode)?'checked':''}>
+            加入对比
+          </label>
           ${t.title?`<div class="theme-title">${esc(t.title)}</div>`:''}
           <div class="theme-summary">${esc(t.summary||'')}</div>
           <div class="theme-tags">
@@ -422,6 +463,7 @@ function renderThemeList() {
     html += '</div>';
   });
   panel.innerHTML = html;
+  updateThemeCompareBtn();
 }
 
 // ─── Select theme ───────────────────────────────────────
@@ -454,6 +496,7 @@ async function selectTheme(code, el) {
     const json = await res.json();
     if (json.code === 0 && json.data) {
       stockCache[code] = json.data.stockList || [];
+      theme.stockList = stockCache[code];
       // Render full panel
       panel.innerHTML = buildPanelHtml(theme, stockCache[code], json.data.statistic || {});
       // 渲染脑图
@@ -474,6 +517,145 @@ async function selectTheme(code, el) {
   }
 }
 
+function toggleThemeSelect(el, code) {
+  if (el.checked) selectedThemeCodes.add(code);
+  else selectedThemeCodes.delete(code);
+  updateThemeCompareBtn();
+}
+
+function updateThemeCompareBtn() {
+  const btn = document.getElementById('themeCompareBtn');
+  const cnt = document.getElementById('themeSelCount');
+  if (btn) btn.disabled = selectedThemeCodes.size < 2;
+  if (cnt) cnt.textContent = selectedThemeCodes.size;
+}
+
+async function openThemeCompare() {
+  if (selectedThemeCodes.size < 2) { showToast('请至少选择2个主题进行对比'); return; }
+  const themes = allThemes.filter(t => selectedThemeCodes.has(t.themeCode));
+  await Promise.all(themes.map(async (t) => {
+    const hasStocks = (t.stockList && t.stockList.length) || (stockCache[t.themeCode] && stockCache[t.themeCode].length);
+    if (!hasStocks) {
+      await fetchThemeStockList(t.themeCode);
+    }
+  }));
+  renderThemeCompareContent(themes);
+  const modal = document.getElementById('themeCompareModal');
+  if (modal) modal.style.display = 'block';
+}
+
+async function fetchThemeStockList(code) {
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 10000);
+    const res = await fetch(`${API}/getStockList`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        args:{ themeCode:code, pageSize:1000, pageNum:1, sort:-1, sortField:'f3' },
+        ...AUTH_WEB, timestamp: Date.now()
+      }),
+      signal: ctrl.signal
+    });
+    clearTimeout(timer);
+    const json = await res.json();
+    if (json.code === 0 && json.data) {
+      const list = json.data.stockList || [];
+      stockCache[code] = list;
+      const theme = allThemes.find(t => t.themeCode === code);
+      if (theme) theme.stockList = list;
+      return list;
+    }
+    throw new Error(`错误码 ${json.code} ${json.message||''}`);
+  } catch (e) {
+    console.error('[fetchThemeStockList]', code, e);
+    return [];
+  }
+}
+
+function closeThemeCompare() {
+  const modal = document.getElementById('themeCompareModal');
+  if (modal) modal.style.display = 'none';
+}
+
+function renderThemeCompareContent(themes) {
+  const getStockList = (t) => (t.stockList && t.stockList.length) ? t.stockList : (stockCache[t.themeCode] || []);
+  const rows = themes.map(t => {
+    const stocks = getStockList(t);
+    const count = stocks.length;
+    const f3 = t.f3!=null?parseFloat(t.f3).toFixed(2):'0.00';
+    const cum = t.cumulateF3!=null?parseFloat(t.cumulateF3).toFixed(2):'0.00';
+    return `
+      <tr>
+        <td>${esc(t.themeName||t.themeCode)}</td>
+        <td>${t.tradeDate||'—'}</td>
+        <td class="${t.f3>0?'up':t.f3<0?'down':'flat'}">${t.f3>0?'+':''}${f3}%</td>
+        <td>${cum}%</td>
+        <td>${t.fex3!=null?t.fex3:'0'} 连</td>
+        <td>${count}</td>
+      </tr>`;
+  }).join('');
+
+  const themeSets = themes.map(t => new Set(getStockList(t).map(s => (s.code||s.securityCode||'')).filter(Boolean)));
+  const commonStocks = themes.length > 0
+    ? [...themeSets.reduce((acc, set, idx) => idx === 0 ? set : new Set([...acc].filter(code => set.has(code))), themeSets[0] || new Set())]
+    : [];
+
+  const commonRows = commonStocks.length
+    ? commonStocks.map(code => {
+        const stockName = themes.reduce((name, t) => {
+          if (name) return name;
+          const item = getStockList(t).find(s => (s.code||s.securityCode||'') === code);
+          return item ? (item.securityName||item.name||'') : '';
+        }, '');
+        return `<tr><td>${esc(code)}</td><td>${esc(stockName || '—')}</td></tr>`;
+      }).join('')
+    : `<tr><td colspan="2" style="color:var(--muted);padding:12px;text-align:center;">无共同股票</td></tr>`;
+
+  const compareHtml = `
+    <div style="margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+      <div><strong>共同股票</strong>（已选 ${themes.length} 个主题）</div>
+      <button class="action-btn" onclick="closeThemeCompare()">关闭</button>
+    </div>
+    <div class="compare-section">
+      <div class="section-title">主题汇总</div>
+      <div style="overflow-x:auto;">
+        <table class="stock-table" style="min-width:760px; border:none;">
+          <thead>
+            <tr>
+              <th>主题名称</th>
+              <th>日期</th>
+              <th>板块涨跌</th>
+              <th>累计涨幅</th>
+              <th>延续性</th>
+              <th>成分股数</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>
+    <div class="compare-section" style="margin-top:14px;">
+      <div class="section-title">共同股票（出现在所有已选主题中的成分股）</div>
+      <div style="overflow-x:auto;">
+        <table class="stock-table" style="min-width:360px;">
+          <thead>
+            <tr><th>代码</th><th>名称</th></tr>
+          </thead>
+          <tbody>
+            ${commonRows}
+          </tbody>
+        </table>
+      </div>
+      <div class="compare-common" style="margin-top:10px;">
+        <strong>共同股票数量：</strong>${commonStocks.length}
+      </div>
+    </div>
+  `;
+
+  const container = document.getElementById('themeCompareContent');
+  if (container) container.innerHTML = compareHtml;
+}
+
 // ─── Build panel HTML ───────────────────────────────────
 function buildPanelHtml(theme, list, stat) {
   const themeName = theme?.themeName || currentCode || '';
@@ -489,12 +671,14 @@ function buildPanelHtml(theme, list, stat) {
   let rows = '';
   ordered.forEach((s) => {
     const name = s.securityName||s.name||'—';
-    const code = s.securityCode||s.code||'—';
+    const rawCode = s.securityCode||s.code||'';
+    const code = normalizeCode(rawCode);
+    const displayCode = code || '—';
     const price = s.f2!=null?parseFloat(s.f2).toFixed(2):'—';
     const f3 = s.f3!=null?parseFloat(s.f3):0;
     const f3cls = f3>0?'up':f3<0?'down':'flat';
     const f3sign = f3>0?'+':'';
-    const hs = s.f8!=null?(parseFloat(s.f8)/100).toFixed(2)+'%':'—';
+    const hs = formatTurnover(s.f8);
     const flow = s.f62??0;
     const flowStr = Math.abs(flow)>=1e8?(flow/1e8).toFixed(2)+'亿':Math.abs(flow)>=1e4?(flow/1e4).toFixed(0)+'万':flow.toFixed(0);
     const flowCls = flow>0?'in':flow<0?'out':'';
@@ -515,7 +699,7 @@ function buildPanelHtml(theme, list, stat) {
         ${esc(name)}${resonate}
         <span class="fav-star ${isFavRow?'saved':''}" onclick="event.stopPropagation();toggleFav('${esc(code)}')">${isFavRow?'★':'☆'}</span>
       </td>
-      <td class="code">${esc(code)}</td>
+      <td class="code">${esc(displayCode)}</td>
       <td class="price">${price}</td>
       <td class="chg ${f3cls}">${f3sign}${f3.toFixed(2)}%</td>
       <td class="hs">${hs}</td>
@@ -622,9 +806,9 @@ function findDataIndexInChart(chart, code) {
     for (let i = 0; i < data.length; i++) {
       const d = data[i];
       if (!d) continue;
-      if (d.code === code || d._code === code) return i;
-      if (d.data && (d.data.code === code || d.data._code === code)) return i;
-      if (d.name === code) return i;
+      const target = normalizeCode(code);
+      if (normalizeCode(d.code || '') === target || normalizeCode(d._code || '') === target) return i;
+      if (d.data && (normalizeCode(d.data.code || '') === target || normalizeCode(d.data._code || '') === target)) return i;
     }
   } catch (e) { /* ignore */ }
   return -1;
@@ -648,42 +832,41 @@ function clearHighlights() {
   document.querySelectorAll('.stock-table tr.highlight-row').forEach(r => r.classList.remove('highlight-row'));
 }
 
-function highlightTableRow(code) {
+function highlightTableRow(code, scroll = false) {
   if (!code) return;
   document.querySelectorAll('.stock-table tr.highlight-row').forEach(r => r.classList.remove('highlight-row'));
   const row = document.querySelector(`.stock-row[data-code="${code}"]`);
   if (row) {
     row.classList.add('highlight-row');
-    try { row.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+    if (scroll) {
+      try { row.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+    }
   }
 }
 
-function syncStockInteraction(code, showTip) {
+function syncStockInteraction(code, showTip, scroll = false) {
   if (!code) return;
   clearHighlights();
+  const targetCode = normalizeCode(code);
   // Scatter
   try {
     if (hotspotScatterChart && !hotspotScatterChart.isDisposed()) {
-      const idx = findDataIndexInChart(hotspotScatterChart, code);
+      const idx = hotspotScatterIndexMap.has(targetCode)
+        ? hotspotScatterIndexMap.get(targetCode)
+        : findDataIndexInChart(hotspotScatterChart, targetCode);
       if (idx >= 0) {
-        hotspotScatterChart.dispatchAction({ type: 'highlight', seriesIndex: 0, dataIndex: idx });
-        if (showTip) hotspotScatterChart.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex: idx });
+        hotspotScatterChart.dispatchAction({ type: 'hideTip' });
+        hotspotScatterChart.dispatchAction({ type: 'highlight', seriesIndex: 0, dataIndex: idx, dataIndexInside: idx });
+        if (showTip) hotspotScatterChart.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex: idx, dataIndexInside: idx });
+      } else {
+        hotspotScatterChart.dispatchAction({ type: 'hideTip' });
       }
     }
   } catch (e) { }
-  // Heatmap
-  try {
-    if (hotspotHeatmapChart && !hotspotHeatmapChart.isDisposed()) {
-      const idx2 = findDataIndexInChart(hotspotHeatmapChart, code);
-      if (idx2 >= 0) {
-        hotspotHeatmapChart.dispatchAction({ type: 'highlight', seriesIndex: 0, dataIndex: idx2 });
-        if (showTip) hotspotHeatmapChart.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex: idx2 });
-      }
-    }
-  } catch (e) { }
+  // Heatmap linkage disabled
 
   // Table
-  highlightTableRow(code);
+  highlightTableRow(code, scroll);
 }
 
 function bindTableInteractions() {
@@ -729,9 +912,12 @@ function showTooltip(e, el) {
   const flowCls = flow>0?'red':flow<0?'green':'';
   const flowSign = flow>0?'+':flow<0?'-':'';
 
-  document.getElementById('ttName').textContent = s.securityName||s.name||'—';
+  const code = s.securityCode||s.code||'';
+  const change = s.f3 != null ? parseFloat(s.f3) : null;
+  document.getElementById('ttName').textContent = `${s.securityName||s.name||'—'} (${code||'—'})`;
   document.getElementById('ttPrice').textContent = s.f2!=null?parseFloat(s.f2).toFixed(2):'—';
-  document.getElementById('ttHs').textContent = s.f8!=null?(parseFloat(s.f8)/100).toFixed(2)+'%':'—';
+  document.getElementById('ttChange').textContent = change != null ? (change > 0 ? '+' : '') + change.toFixed(2) + '%' : '—';
+  document.getElementById('ttHs').textContent = formatTurnover(s.f8);
   const flowEl = document.getElementById('ttFlow');
   flowEl.textContent = flow===0?'—':flowSign+flowStr;
   flowEl.className = 'tooltip-val ' + flowCls;
@@ -820,6 +1006,16 @@ function resetToList() {
 function esc(str) {
   if (str == null) return '';
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function normalizeCode(code) {
+  if (code == null) return '';
+  return String(code).trim();
+}
+
+function formatTurnover(f8) {
+  if (f8 == null || isNaN(f8)) return '--';
+  return (parseFloat(f8) / 100).toFixed(2) + '%';
 }
 
 // ─── Mindmap ────────────────────────────────────────────
@@ -1187,7 +1383,17 @@ window.addEventListener('resize', () => {
 // ─── Modal ───────────────────────────────────────────────
 function openStockModal(url){document.getElementById('stockModalFrame').src=url;document.getElementById('stockModal').style.display='block'}
 function closeStockModal(){document.getElementById('stockModal').style.display='none';document.getElementById('stockModalFrame').src=''}
-(function(){const c=document.querySelector('.modal-close');if(c)c.addEventListener('click',closeStockModal);const m=document.getElementById('stockModal');if(m)m.addEventListener('click',function(e){if(e.target===this)closeStockModal()})})();
+(function(){
+  const closeButtons = document.querySelectorAll('#stockModal .modal-close, #themeCompareModal .modal-close');
+  closeButtons.forEach(btn => btn.addEventListener('click', () => {
+    closeStockModal();
+    closeThemeCompare();
+  }));
+  const stockModal = document.getElementById('stockModal');
+  if (stockModal) stockModal.addEventListener('click', function(e){ if(e.target===this) closeStockModal(); });
+  const themeModal = document.getElementById('themeCompareModal');
+  if (themeModal) themeModal.addEventListener('click', function(e){ if(e.target===this) closeThemeCompare(); });
+})();
 
 // ─── Multi-stock Compare ────────────────────────────────
 let selectedStocks = new Set(); // store codes
@@ -1276,6 +1482,8 @@ function switchRightView(view) {
 // ─── Scatter Chart ──────────────────────────────────────
 let hotspotScatterChart = null;
 let hotspotHeatmapChart = null;
+let hotspotScatterIndexMap = new Map();
+let hotspotHeatmapIndexMap = new Map();
 
 function renderScatterChart(theme, stocks) {
   const container = document.getElementById('scatterContainer');
@@ -1301,7 +1509,13 @@ function renderScatterChart(theme, stocks) {
     const f3 = s.f3 != null ? parseFloat(s.f3) : 0;
     const f62 = s.f62 != null ? parseFloat(s.f62) : 0;
     const name = s.securityName || s.name || '';
-    const code = s.securityCode || s.code || '';
+    const rawCode = s.securityCode || s.code || '';
+    const code = normalizeCode(rawCode);
+    const price = s.f2 != null ? parseFloat(s.f2) : null;
+    const turnover = s.f8 != null ? parseFloat(s.f8) : null;
+    const change = s.f3 != null ? parseFloat(s.f3) : 0;
+    const sector = s.f100 || '';
+    const marketCap = s.f21 != null ? parseFloat(s.f21) : null;
 
     // Percentile rank for size
     const rank = i;
@@ -1317,8 +1531,21 @@ function renderScatterChart(theme, stocks) {
       symbolSize: r,
       itemStyle: { color: color, opacity: 0.85 },
       _name: name,
-      _code: code
+      _code: code,
+      code: code,
+      price: price,
+      turnover: turnover,
+      flow: f62,
+      marketCap: marketCap,
+      sector: sector,
+      change: change
     });
+  });
+
+  hotspotScatterIndexMap = new Map();
+  pts.forEach((item, idx) => {
+    const itemCode = normalizeCode(item.code || item._code);
+    if (itemCode) hotspotScatterIndexMap.set(itemCode, idx);
   });
 
   const themeName = theme ? theme.themeName : '板块';
@@ -1344,9 +1571,14 @@ function renderScatterChart(theme, stocks) {
         else if (flowAbs >= 1e4) flowStr = (f62/1e4).toFixed(0) + '万';
         else flowStr = f62.toFixed(0);
         const f3Str = (f3 > 0 ? '+' : '') + f3.toFixed(2) + '%';
+        const capText = d.marketCap != null ? (d.marketCap >= 1e8 ? (d.marketCap/1e8).toFixed(2) + '亿' : d.marketCap >= 1e4 ? (d.marketCap/1e4).toFixed(0) + '万' : d.marketCap.toFixed(0)) : '--';
         return '<b>' + d._name + '</b> (' + d._code + ')<br/>' +
+               '现价: <b>' + (d.price != null ? d.price.toFixed(2) : '--') + '</b><br/>' +
+               '涨跌幅: <b>' + f3Str + '</b><br/>' +
+               '换手率: <b>' + formatTurnover(d.turnover) + '</b><br/>' +
                '主力净流入: <b>' + flowStr + '</b><br/>' +
-               '涨跌幅: <b>' + f3Str + '</b>';
+               '流通市值: <b>' + capText + '</b><br/>' +
+               '所属板块: <b>' + (d.sector || '--') + '</b>';
       },
       backgroundColor: 'rgba(22,27,34,0.95)',
       borderColor: '#30363d',
@@ -1399,13 +1631,13 @@ function renderScatterChart(theme, stocks) {
   // Click bubble → open stock modal (smart_money page)
   hotspotScatterChart.on('click', function(params) {
     if (params.data && params.data._code) {
-      syncStockInteraction(params.data._code, true);
+      syncStockInteraction(params.data._code, true, true);
       openStockModal('smart_money.html##' + params.data._code + '##');
     }
   });
-  // Hover → highlight both charts and table
+  // Hover → highlight both charts and table without scrolling
   hotspotScatterChart.on('mouseover', function(params) {
-    if (params && params.data && (params.data._code || params.data.code)) syncStockInteraction(params.data._code || params.data.code, true);
+    if (params && params.data && (params.data._code || params.data.code)) syncStockInteraction(params.data._code || params.data.code, true, false);
   });
   hotspotScatterChart.on('globalout', function() { clearHighlights(); });
 }
@@ -1427,23 +1659,33 @@ function renderHeatmapChart(theme, stocks) {
     const f3 = s.f3 != null ? parseFloat(s.f3) : 0;
     const value = Math.max(parseFloat(s.f21) || 0, 1);
     const name = s.securityName || s.name || '未知';
-    const code = s.securityCode || s.code || '未知';
+    const rawCode = s.securityCode || s.code || '';
+    const code = normalizeCode(rawCode);
     const price = s.f2 != null ? parseFloat(s.f2) : null;
     const turnover = s.f8 != null ? parseFloat(s.f8) : null;
     const flow = s.f62 != null ? parseFloat(s.f62) : 0;
+    const sector = s.f100 || '';
     return {
       name,
       value,
       code,
+      _code: code,
       change: f3,
       price,
       turnover,
       flow,
       marketCap: value,
+      sector,
       itemStyle: {
         color: getHeatmapColor(f3)
       }
     };
+  });
+
+  hotspotHeatmapIndexMap = new Map();
+  items.forEach((item, idx) => {
+    const itemCode = normalizeCode(item.code || item._code);
+    if (itemCode) hotspotHeatmapIndexMap.set(itemCode, idx);
   });
 
   hotspotHeatmapChart.setOption({
@@ -1461,12 +1703,12 @@ function renderHeatmapChart(theme, stocks) {
         const flow = Math.abs(data.flow) >= 1e8 ? (data.flow/1e8).toFixed(2) + '亿'
                     : Math.abs(data.flow) >= 1e4 ? (data.flow/1e4).toFixed(0) + '万'
                     : data.flow.toFixed(0);
-        const turnoverText = data.turnover != null ? data.turnover.toFixed(2) + '%' : '--';
+        const turnoverText = formatTurnover(data.turnover);
         const priceText = data.price != null ? data.price.toFixed(2) : '--';
         const capText = data.marketCap ? (data.marketCap >= 1e8 ? (data.marketCap/1e8).toFixed(2) + '亿'
                     : data.marketCap >= 1e4 ? (data.marketCap/1e4).toFixed(0) + '万'
                     : data.marketCap.toFixed(0)) : '--';
-        return `${data.name} (${data.code})<br/>涨跌幅: ${data.change > 0 ? '+' : ''}${data.change.toFixed(2)}%<br/>现价: ${priceText}<br/>换手率: ${turnoverText}<br/>主力净流入: ${flow}<br/>流通市值: ${capText}`;
+        return `${data.name} (${data.code})<br/>现价: ${priceText}<br/>涨跌幅: ${data.change > 0 ? '+' : ''}${data.change.toFixed(2)}%<br/>换手率: ${turnoverText}<br/>主力净流入: ${flow}<br/>流通市值: ${capText}<br/>所属板块: ${data.sector || '--'}`;
       },
       backgroundColor: 'rgba(22,27,34,0.95)',
       borderColor: '#30363d',
@@ -1506,14 +1748,10 @@ ${value}`;
 
   hotspotHeatmapChart.on('click', function(params) {
     if (params && params.data && params.data.code) {
+      hotspotHeatmapChart.dispatchAction({ type: 'hideTip' });
       openStockModal('smart_money.html##' + params.data.code + '##');
     }
   });
-  // Hover → highlight both charts and table
-  hotspotHeatmapChart.on('mouseover', function(params) {
-    if (params && params.data && (params.data.code || params.data._code)) syncStockInteraction(params.data.code || params.data._code, true);
-  });
-  hotspotHeatmapChart.on('globalout', function() { clearHighlights(); });
 
   function getHeatmapColor(f3) {
     const intensity = Math.min(1, Math.abs(f3) / 8);

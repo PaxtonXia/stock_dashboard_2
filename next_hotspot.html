@@ -1756,14 +1756,14 @@ ${value}`;
   function getHeatmapColor(f3) {
     const intensity = Math.min(1, Math.abs(f3) / 8);
     if (f3 >= 0) {
-      const r = Math.round(220 + intensity * 20);
-      const g = Math.round(86 - intensity * 40);
-      const b = Math.round(92 - intensity * 40);
+      const r = 255;
+      const g = Math.round(Math.max(50, 180 - intensity * 120));
+      const b = Math.round(Math.max(50, 110 - intensity * 70));
       return `rgb(${r},${g},${b})`;
     }
-    const r = Math.round(70 - intensity * 20);
-    const g = Math.round(190 - intensity * 40);
-    const b = Math.round(80 + intensity * 60);
+    const r = Math.round(Math.max(40, 120 - intensity * 70));
+    const g = Math.round(Math.max(130, 230 - intensity * 120));
+    const b = Math.round(Math.min(160, 90 + intensity * 90));
     return `rgb(${r},${g},${b})`;
   }
 }
